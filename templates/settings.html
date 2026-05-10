@@ -72,19 +72,15 @@
         }
         .day-selector input:checked + label { background: #0066ff; border-color: #ffd700; }
 
-        /* FAT FINGER KEYBOARD */
-        .simple-keyboard { 
-            width: 100%; background-color: #222 !important; 
-            border-top: 5px solid #ffd700;
+        /* FAT FINGER PICKERS */
+        .p-btn { 
+            background: #222; color: white; border: 3px solid white; 
+            font-size: 1.5rem; font-weight: 900; padding: 15px; 
+            border-radius: 12px; cursor: pointer; 
+            display: flex; justify-content: center; align-items: center;
         }
-        .hg-button { 
-            height: 85px !important; 
-            font-size: 1.8rem !important; 
-            font-weight: 900 !important;
-            background: #eee !important;
-            color: #000 !important;
-            border-bottom: 4px solid #999 !important;
-        }
+        .p-btn:active, .p-btn.active { background: #ffd700; color: black; border-color: #ffd700; }
+
     </style>
 </head>
 <body>
@@ -101,6 +97,62 @@
             <form id="settings-form" method="POST">
                 <label>MORNING BRIEFING TIME (HH:MM):</label>
                 <input type="text" name="briefing_time" class="input mask-time" placeholder="08:00" value="{{ settings.briefing_time }}" maxlength="5">
+
+                <button type="button" class="btn-header" style="width: 100%; margin: 25px 0 15px 0; background: #ffd700; color: black; display: block; text-align: center;" onclick="openKioskModal()">📋 SETUP KIOSK SCRIPT</button>
+
+
+                <!-- Kiosk Modal -->
+                <div id="kiosk-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center;">
+                    <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:90%; max-width:600px; max-height: 80vh; overflow-y: auto; box-sizing: border-box;">
+                        <h2 style="color:#ffd700; margin-top:0;">KIOSK SETUP SCRIPTS</h2>
+                        <p style="color:#aaa;">Paste these into your terminal to auto-launch the browser in fullscreen on boot.</p>
+                        
+                        <h3 style="color:white; font-size: 1.2rem;">Windows (PowerShell)</h3>
+                        <div style="position: relative;">
+                            <pre id="code-win" style="background:#222; padding:15px; border-radius:8px; overflow-x:auto; font-family: monospace; font-size: 0.9rem; color: #00ff00;">$WshShell = New-Object -ComObject WScript.Shell
+$Shortcut = $WshShell.CreateShortcut("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\TaskBoard.lnk")
+$Shortcut.TargetPath = "chrome.exe"
+$Shortcut.Arguments = "--kiosk http://localhost:5000"
+$Shortcut.Save()</pre>
+                            <button type="button" onclick="copyCode('code-win', this)" style="position: absolute; top: 10px; right: 10px; background: #333; color: white; border: 2px solid white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">📋 COPY</button>
+                        </div>
+
+                        <h3 style="color:white; font-size: 1.2rem; margin-top: 20px;">Linux / Pi OS</h3>
+                        <div style="position: relative;">
+                            <pre id="code-linux" style="background:#222; padding:15px; border-radius:8px; overflow-x:auto; font-family: monospace; font-size: 0.9rem; color: #00ff00;">echo "@chromium-browser --kiosk http://localhost:5000" >> ~/.config/lxsession/LXDE-pi/autostart</pre>
+                            <button type="button" onclick="copyCode('code-linux', this)" style="position: absolute; top: 10px; right: 10px; background: #333; color: white; border: 2px solid white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">📋 COPY</button>
+                        </div>
+
+                        <p style="color:#ff5555; font-weight:bold; font-size: 1rem; margin-top: 20px;">Warning: Kiosk mode takes over the screen. Alt+F4 to exit on Windows, Ctrl+Alt+T to open terminal on Linux.</p>
+                        
+                        <button type="button" onclick="closeKioskModal()" style="width:100%; padding:20px; background:#ffd700; color:black; font-weight:900; font-size: 1.2rem; border:none; border-radius:12px; cursor:pointer; text-transform: uppercase;">CLOSE</button>
+                    </div>
+                </div>
+
+                <script>
+                    function openKioskModal() { document.getElementById('kiosk-modal').style.display = 'flex'; }
+                    function closeKioskModal() { document.getElementById('kiosk-modal').style.display = 'none'; }
+                    
+                    function copyCode(id, btn) {
+                        const text = document.getElementById(id).innerText;
+                        navigator.clipboard.writeText(text).then(() => {
+                            const oldText = btn.innerText;
+                            btn.innerText = "✅ COPIED!";
+                            btn.style.background = "#00ff00";
+                            btn.style.color = "black";
+                            setTimeout(() => {
+                                btn.innerText = oldText;
+                                btn.style.background = "#333";
+                                btn.style.color = "white";
+                            }, 2000);
+                        }).catch(err => {
+                            alert("Failed to copy. Please copy manually.");
+                        });
+                    }
+                </script>
+
+
+
 
                 <label>BRIEFING DAYS:</label>
                 <div class="day-selector">
@@ -135,9 +187,46 @@
         </div>
     </div>
 
-    <div class="simple-keyboard"></div>
+    <!-- --- TOUCH NUMPAD PICKER --- -->
+    <div id="touch-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box;">
+            <h2 id="picker-title" style="text-align:center; color:#ffd700; margin-top:0; font-size:2rem; text-transform:uppercase;">ENTER NUMBER</h2>
+            <div id="picker-display" style="background:#222; border:3px solid white; padding:15px; font-size:2.5rem; text-align:center; font-weight:900; margin-bottom:20px; border-radius:10px;">--</div>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;">
+                <button class="p-btn" onclick="pType('1')">1</button>
+                <button class="p-btn" onclick="pType('2')">2</button>
+                <button class="p-btn" onclick="pType('3')">3</button>
+                <button class="p-btn" onclick="pType('4')">4</button>
+                <button class="p-btn" onclick="pType('5')">5</button>
+                <button class="p-btn" onclick="pType('6')">6</button>
+                <button class="p-btn" onclick="pType('7')">7</button>
+                <button class="p-btn" onclick="pType('8')">8</button>
+                <button class="p-btn" onclick="pType('9')">9</button>
+                <button class="p-btn" onclick="pClear()" style="background:#ff0055; color:white;">CLR</button>
+                <button class="p-btn" onclick="pType('0')">0</button>
+                <button class="p-btn" onclick="pType('.')">.</button>
+                <button class="p-btn" onclick="pClose()" style="background:#00ff00; color:black; grid-column: span 3; margin-top:10px; height: 70px; font-size: 2rem;">OK</button>
+            </div>
+        </div>
+    </div>
 
-    <script src="/static/js/simple-keyboard.js"></script>
+    <!-- --- TOUCH CLOCK PICKER --- -->
+    <div id="clock-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box; text-align:center;">
+            <h2 style="color:#ffd700; margin-top:0; font-size:2rem;">SELECT TIME</h2>
+            <div id="clock-digital" style="background:#222; border:3px solid white; padding:10px; font-size:1.8rem; font-weight:900; margin-bottom:15px; border-radius:10px; color:white; display:inline-block; width:120px;">12:00</div>
+            <div id="clock-face" style="width:340px; height:340px; border:6px solid white; border-radius:50%; margin:0 auto; position:relative; background:#1a1a1a; touch-action:none;">
+                <div style="width:16px; height:16px; background:white; border-radius:50%; position:absolute; top:162px; left:162px; z-index:10;"></div>
+                <div id="hour-hand" style="width:14px; height:90px; background:#ffd700; position:absolute; top:82px; left:163px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 8px; z-index: 5;"></div>
+                <div id="minute-hand" style="width:8px; height:130px; background:#00ff00; position:absolute; top:42px; left:166px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:20px; gap:10px;">
+                <button onclick="closeClock()" style="flex:1; padding:15px; font-size:1.2rem; font-weight:900; background:#444; color:white; border-radius:10px; border:2px solid #555; cursor:pointer;">CANCEL</button>
+                <button onclick="confirmTime()" style="flex:1; padding:15px; font-size:1.2rem; font-weight:900; background:#00ff00; color:black; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Chunky Scrollbar Logic
         const scrollArea = document.getElementById('scroll-area');
@@ -168,38 +257,142 @@
             window.addEventListener('touchend', stopHandler);
         }
 
-        // Keyboard Logic
-        let selectedInputName = "";
-        let myKeyboard = new window.SimpleKeyboard.default({
-            onChange: input => {
-                let el = document.querySelector(`[name="${selectedInputName}"]`);
-                if(el) {
-                    el.value = input;
-                    el.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-            },
-            onKeyPress: button => {
-                if (button === "{enter}") document.getElementById("settings-form").submit();
-            },
-            preventMouseDownDefault: true,
-            layout: {
-                'default': [
-                    '1 2 3 4 5 6 7 8 9 0',
-                    'Q W E R T Y U I O P',
-                    'A S D F G H J K L',
-                    ': . {backspace} {space} {enter}'
-                ]
-            },
-            display: { '{backspace}': '⌫', '{enter}': 'DONE', '{space}': ' ' }
-        });
+        // --- NUMPAD PICKER LOGIC ---
+        let activeNumpadInput = null;
 
-        document.querySelectorAll(".input").forEach(input => {
-            input.addEventListener("focus", e => {
-                selectedInputName = e.target.name;
-                myKeyboard.setOptions({ inputName: e.target.name });
-                myKeyboard.setInput(e.target.value);
+        function openNumpad(inputEl) {
+            activeNumpadInput = inputEl;
+            document.getElementById('picker-display').innerText = inputEl.value || "--";
+            document.getElementById('touch-picker').style.display = 'flex';
+        }
+
+        function pType(val) {
+            if (!activeNumpadInput) return;
+            activeNumpadInput.value += val;
+            activeNumpadInput.dispatchEvent(new Event('input', { bubbles: true }));
+            document.getElementById('picker-display').innerText = activeNumpadInput.value;
+        }
+
+        function pClear() {
+            if (!activeNumpadInput) return;
+            activeNumpadInput.value = "";
+            document.getElementById('picker-display').innerText = "--";
+        }
+
+        function pClose() {
+            document.getElementById('touch-picker').style.display = 'none';
+            activeNumpadInput = null;
+        }
+
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('click', e => {
+                openNumpad(e.target);
             });
         });
+
+        // --- CLOCK PICKER LOGIC ---
+        let activeClockInput = null;
+        let currentHour = 12;
+        let currentMinute = 0;
+        let activeHand = null;
+
+        const face = document.getElementById('clock-face');
+        for (let i = 1; i <= 12; i++) {
+            const num = document.createElement('div');
+            num.innerText = i;
+            num.style.position = 'absolute';
+            num.style.color = 'white';
+            num.style.fontWeight = '900';
+            num.style.fontSize = '1.4rem';
+            const angle = i * 30 * (Math.PI / 180);
+            const radius = 130;
+            const x = 170 + radius * Math.sin(angle) - 10;
+            const y = 170 - radius * Math.cos(angle) - 15;
+            num.style.left = `${x}px`;
+            num.style.top = `${y}px`;
+            face.appendChild(num);
+        }
+
+        function openClockPicker(inputEl) {
+            activeClockInput = inputEl;
+            document.getElementById('clock-picker').style.display = 'flex';
+            updateClockDisplay();
+        }
+
+        function closeClock() {
+            document.getElementById('clock-picker').style.display = 'none';
+            activeHand = null;
+        }
+
+        function confirmTime() {
+            if (!activeClockInput) return;
+            const hStr = String(currentHour).padStart(2, '0');
+            const mStr = String(currentMinute).padStart(2, '0');
+            activeClockInput.value = `${hStr}:${mStr}`;
+            activeClockInput.dispatchEvent(new Event('input', { bubbles: true }));
+            closeClock();
+        }
+
+        function updateClockDisplay() {
+            document.getElementById('clock-digital').innerText = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
+            const hDeg = (currentHour % 12) * 30;
+            const mDeg = currentMinute * 6;
+            document.getElementById('hour-hand').style.transform = `rotate(${hDeg}deg)`;
+            document.getElementById('minute-hand').style.transform = `rotate(${mDeg}deg)`;
+        }
+
+        function handleClockMove(e) {
+            if (!activeHand) return;
+            const rect = face.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const x = clientX - centerX;
+            const y = clientY - centerY;
+            let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
+            if (angle < 0) angle += 360;
+            
+            if (activeHand === 'hour') {
+                let hour = Math.round(angle / 30);
+                if (hour === 0) hour = 12;
+                if (hour > 12) hour = 12;
+                currentHour = hour;
+            } else if (activeHand === 'minute') {
+                let min = Math.round(angle / 6);
+                min = Math.round(min / 5) * 5;
+                if (min === 60) min = 0;
+                currentMinute = min;
+            }
+            updateClockDisplay();
+        }
+
+        function startClockDrag(e) {
+            const rect = face.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            const x = clientX - centerX;
+            const y = clientY - centerY;
+            const dist = Math.sqrt(x*x + y*y);
+            if (dist < 110) { activeHand = 'hour'; } else { activeHand = 'minute'; }
+            handleClockMove(e);
+        }
+
+        face.addEventListener('mousedown', (e) => { startClockDrag(e); });
+        face.addEventListener('touchstart', (e) => { e.preventDefault(); startClockDrag(e); }, { passive: false });
+        window.addEventListener('mousemove', handleClockMove);
+        window.addEventListener('touchmove', handleClockMove, { passive: false });
+        window.addEventListener('mouseup', () => activeHand = null);
+        window.addEventListener('touchend', () => activeHand = null);
+
+        document.querySelectorAll('.mask-time').forEach(input => {
+            input.addEventListener('click', e => {
+                openClockPicker(e.target);
+            });
+        });
+
 
         // Time Mask Logic
         document.addEventListener('input', function (e) {

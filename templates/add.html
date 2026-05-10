@@ -37,11 +37,14 @@
 
         /* --- LAYOUT CONTAINERS --- */
         #main-container { display: flex; flex: 1; overflow: hidden; }
-        #scroll-area { flex: 1; overflow-y: scroll; padding: 20px; scrollbar-width: none; -ms-overflow-style: none; }
+        #scroll-area { width: calc(100% - 100px); overflow-y: scroll; padding: 20px; padding-bottom: 400px; scrollbar-width: none; -ms-overflow-style: none; }
+
         #scroll-area::-webkit-scrollbar { display: none; }
 
-        #custom-scrollbar { width: 100px; background: #1a1a1a; border-left: 5px solid white; position: relative; cursor: pointer; }
+        #custom-scrollbar { width: 100px; background: #1a1a1a; border-left: 5px solid white; position: relative; cursor: pointer; flex-shrink: 0; }
+
         #scroll-thumb { width: 100%; height: 120px; background: #ffd700; border-bottom: 5px solid white; border-top: 5px solid white; position: absolute; top: 0; }
+
 
         form { width: 100%; max-width: 950px; margin: 0 auto; }
         label { font-size: 1.4rem; font-weight: bold; color: #ffd700; display: block; margin-top: 25px; text-transform: uppercase; }
@@ -55,18 +58,41 @@
         .side-by-side { display: flex; gap: 20px; width: 100%; align-items: flex-end; }
         .side-by-side > div { flex: 1; }
 
-        .interval-container { display: flex; gap: 10px; margin: 10px 0; height: 85px; }
+        .interval-container { display: flex; gap: 15px; margin: 10px 0; height: 100px; }
         .interval-container input { display: none; }
         .interval-container label { 
             flex: 1; padding: 0; background: #333; color: white; border: 4px solid white; 
-            font-size: 1.2rem; font-weight: 900; border-radius: 12px; cursor: pointer; 
+            font-size: 1.8rem; font-weight: 900; border-radius: 12px; cursor: pointer; 
             display: flex; align-items: center; justify-content: center; margin-top: 0;
         }
+
         .interval-container input:checked + label { background: #0066ff; border-color: #ffd700; }
 
         /* --- FAT FINGER KEYBOARD --- */
-        .simple-keyboard { width: 100%; background-color: #222 !important; border-top: 5px solid #ffd700; }
-        .hg-button { height: 85px !important; font-size: 1.8rem !important; font-weight: 900 !important; background: #eee !important; color: #000 !important; border-bottom: 4px solid #999 !important; }
+        .simple-keyboard { 
+            width: 100%; 
+            background-color: #000 !important; 
+            border-top: 3px solid #333; 
+            position: fixed; 
+            bottom: 0; 
+            left: 0; 
+            z-index: 100;
+        }
+
+        .hg-button { 
+            height: 80px !important; 
+            font-size: 1.8rem !important; 
+            font-weight: 900 !important; 
+            background: #1a1a1a !important; 
+            color: #fff !important; 
+            border: 2px solid #333 !important;
+            border-radius: 12px !important;
+            box-shadow: none !important;
+        }
+        .hg-button:active { background: #ffd700 !important; color: #000 !important; }
+        .hg-button-enter { background: #00ff00 !important; color: #000 !important; }
+        .hg-button-backspace { background: #ff0055 !important; color: #fff !important; }
+
 
         /* --- MOBILE SPECIFIC OVERRIDES --- */
         @media (max-width: 600px) {
@@ -104,18 +130,35 @@
                         <label>TASK NAME:</label>
                         <input type="text" name="title" class="input" placeholder="TASK..." required>
                     </div>
-                    <div id="interval-wrapper" style="display: none; flex: 1.5;">
-                        <label>INTERVAL:</label>
-                        <div class="interval-container">
-                            <input type="radio" id="daily" name="interval" value="daily" checked>
-                            <label for="daily">D</label>
-                            <input type="radio" id="weekly" name="interval" value="weekly">
-                            <label for="weekly">W</label>
-                            <input type="radio" id="monthly" name="interval" value="monthly">
-                            <label for="monthly">M</label>
-                        </div>
-                    </div>
                 </div>
+
+                <div id="interval-wrapper" style="display: none; width: 100%; margin-top: 20px;">
+                    <label>INTERVAL:</label>
+                    <div class="interval-container" style="display: grid; grid-template-columns: repeat(9, 1fr); gap: 15px;">
+                        <input type="radio" id="unit-d" name="interval_unit" value="D" checked onclick="updateInterval()">
+                        <label for="unit-d">D</label>
+                        <input type="radio" id="unit-w" name="interval_unit" value="W" onclick="updateInterval()">
+                        <label for="unit-w">W</label>
+                        <input type="radio" id="unit-m" name="interval_unit" value="M" onclick="updateInterval()">
+                        <label for="unit-m">M</label>
+                        
+                        <input type="radio" id="num-1" name="interval_count" value="1" checked onclick="updateInterval()">
+                        <label for="num-1">1</label>
+                        <input type="radio" id="num-2" name="interval_count" value="2" onclick="updateInterval()">
+                        <label for="num-2">2</label>
+                        <input type="radio" id="num-3" name="interval_count" value="3" onclick="updateInterval()">
+                        <label for="num-3">3</label>
+                        <input type="radio" id="num-4" name="interval_count" value="4" onclick="updateInterval()">
+                        <label for="num-4">4</label>
+                        <input type="radio" id="num-5" name="interval_count" value="5" onclick="updateInterval()">
+                        <label for="num-5">5</label>
+                        <input type="radio" id="num-6" name="interval_count" value="6" onclick="updateInterval()">
+                        <label for="num-6">6</label>
+                    </div>
+                    <input type="hidden" name="interval" id="combined-interval" value="1D">
+                </div>
+
+
 
                 <div id="one-off-fields">
                     <div class="side-by-side">
@@ -148,15 +191,319 @@
         <div id="custom-scrollbar" onmousedown="startScroll(event)" ontouchstart="startScroll(event)">
             <div id="scroll-thumb"></div>
         </div>
+       <!-- --- TOUCH CALENDAR WIZARD --- -->
+    <div id="touch-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:95%; max-width:850px; box-sizing:border-box;">
+
+            <h2 id="picker-title" style="text-align:center; color:#ffd700; margin-top:0; font-size:2rem; text-transform:uppercase;">SELECT YEAR</h2>
+            
+            <div id="year-step" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;">
+                <button class="p-btn" onclick="selectYear(2026)">2026</button>
+                <button class="p-btn" onclick="selectYear(2027)">2027</button>
+                <button class="p-btn" onclick="selectYear(2028)">2028</button>
+            </div>
+            
+            <div id="month-step" style="display:none; grid-template-columns: repeat(6, 1fr); gap:10px;">
+                <button class="p-btn" onclick="selectMonth(0)">JAN</button>
+                <button class="p-btn" onclick="selectMonth(1)">FEB</button>
+                <button class="p-btn" onclick="selectMonth(2)">MAR</button>
+                <button class="p-btn" onclick="selectMonth(3)">APR</button>
+                <button class="p-btn" onclick="selectMonth(4)">MAY</button>
+                <button class="p-btn" onclick="selectMonth(5)">JUN</button>
+                <button class="p-btn" onclick="selectMonth(6)">JUL</button>
+                <button class="p-btn" onclick="selectMonth(7)">AUG</button>
+                <button class="p-btn" onclick="selectMonth(8)">SEP</button>
+                <button class="p-btn" onclick="selectMonth(9)">OCT</button>
+                <button class="p-btn" onclick="selectMonth(10)">NOV</button>
+                <button class="p-btn" onclick="selectMonth(11)">DEC</button>
+            </div>
+            
+            <div id="day-step" style="display:none;">
+                <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:5px; text-align:center; color:#888; font-weight:bold; margin-bottom:10px; font-size:1.2rem;">
+                    <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+                </div>
+                <div id="days-grid" style="display:grid; grid-template-columns: repeat(7, 1fr); gap:10px;">
+                    <!-- Days grid -->
+                </div>
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; margin-top:20px; gap:10px;">
+                <button onclick="resetPicker()" style="flex:1; padding:20px; font-size:1.5rem; font-weight:900; background:#444; color:white; border-radius:12px; border:3px solid #555; cursor:pointer;">RESET</button>
+                <button id="picker-ok" onclick="confirmDate()" style="flex:1; display:none; padding:20px; font-size:1.5rem; font-weight:900; background:#00ff00; color:black; border-radius:12px; border:3px solid white; cursor:pointer;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .p-btn { 
+            background: #222; color: white; border: 3px solid white; 
+            font-size: 1.5rem; font-weight: 900; padding: 15px; 
+            border-radius: 12px; cursor: pointer; 
+            display: flex; justify-content: center; align-items: center;
+        }
+        .p-btn:active, .p-btn.active { background: #ffd700; color: black; border-color: #ffd700; }
+        
+        /* Specific override for months to fit 6 columns */
+        #month-step .p-btn { padding: 10px; font-size: 1.2rem; }
+
+    </style>
+
+    <!-- --- TOUCH CLOCK PICKER --- -->
+    <div id="clock-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box; text-align:center;">
+            <h2 style="color:#ffd700; margin-top:0; font-size:2rem;">SELECT TIME</h2>
+            
+            <div id="clock-digital" style="background:#222; border:3px solid white; padding:10px; font-size:1.8rem; font-weight:900; margin-bottom:15px; border-radius:10px; color:white; display:inline-block; width:120px;">12:00</div>
+            
+            <div id="clock-face" style="width:340px; height:340px; border:6px solid white; border-radius:50%; margin:0 auto; position:relative; background:#1a1a1a; touch-action:none;">
+                <div style="width:16px; height:16px; background:white; border-radius:50%; position:absolute; top:162px; left:162px; z-index:10;"></div>
+                
+                <!-- Fat clunky hands -->
+                <div id="hour-hand" style="width:14px; height:90px; background:#ffd700; position:absolute; top:82px; left:163px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 8px; z-index: 5;"></div>
+                
+                <div id="minute-hand" style="width:8px; height:130px; background:#00ff00; position:absolute; top:42px; left:166px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
+                
+                <!-- Numbers generated by JS -->
+            </div>
+            
+            <div style="display:flex; justify-content:space-between; margin-top:20px; gap:10px;">
+                <button onclick="closeClock()" style="flex:1; padding:15px; font-size:1.2rem; font-weight:900; background:#444; color:white; border-radius:10px; border:2px solid #555; cursor:pointer;">CANCEL</button>
+                <button onclick="confirmTime()" style="flex:1; padding:15px; font-size:1.2rem; font-weight:900; background:#00ff00; color:black; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
+            </div>
+
+        </div>
     </div>
 
     <div class="simple-keyboard"></div>
 
     <script src="/static/js/simple-keyboard.js"></script>
+
+
     <script>
         const isMobile = window.innerWidth <= 600;
 
+        if (isMobile) {
+            document.querySelectorAll('.mask-date').forEach(input => input.type = 'date');
+            document.querySelectorAll('.mask-time').forEach(input => input.type = 'time');
+        }
+
+        // --- PICKER LOGIC ---
+        let activePickerInput = null;
+        let selectedYear = null;
+        let selectedMonth = null;
+        let selectedDay = null;
+        
+        function openPicker(inputEl) {
+            if (isMobile) return; // Use native picker
+            activePickerInput = inputEl;
+            resetPicker();
+            document.getElementById('touch-picker').style.display = 'flex';
+        }
+
+
+        function resetPicker() {
+            selectedYear = null;
+            selectedMonth = null;
+            selectedDay = null;
+            document.getElementById('picker-title').innerText = "SELECT YEAR";
+            document.getElementById('year-step').style.display = 'grid';
+            document.getElementById('month-step').style.display = 'none';
+            document.getElementById('day-step').style.display = 'none';
+            document.getElementById('picker-ok').style.display = 'none';
+        }
+
+        function selectYear(year) {
+            selectedYear = year;
+            document.getElementById('picker-title').innerText = "SELECT MONTH";
+            document.getElementById('year-step').style.display = 'none';
+            document.getElementById('month-step').style.display = 'grid';
+        }
+
+        function selectMonth(month) {
+            selectedMonth = month;
+            document.getElementById('picker-title').innerText = "SELECT DAY";
+            document.getElementById('month-step').style.display = 'none';
+            document.getElementById('day-step').style.display = 'block';
+            generateDaysGrid(selectedYear, selectedMonth);
+        }
+
+        function generateDaysGrid(year, month) {
+            const grid = document.getElementById('days-grid');
+            grid.innerHTML = '';
+            
+            const firstDay = new Date(year, month, 1).getDay(); // 0 = Sun
+            const startOffset = (firstDay === 0) ? 6 : firstDay - 1; // Mon = 0
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            
+            for (let i = 0; i < startOffset; i++) {
+                const empty = document.createElement('div');
+                grid.appendChild(empty);
+            }
+            
+            for (let day = 1; day <= daysInMonth; day++) {
+                const btn = document.createElement('button');
+                btn.innerText = day;
+                btn.className = 'p-btn';
+                btn.onclick = () => selectDay(day, btn);
+                grid.appendChild(btn);
+            }
+        }
+
+        function selectDay(day, btn) {
+            selectedDay = day;
+            document.querySelectorAll('#days-grid .p-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('picker-ok').style.display = 'block';
+        }
+
+        function confirmDate() {
+            if (!activePickerInput) return;
+            const dayStr = String(selectedDay).padStart(2, '0');
+            const monthStr = String(selectedMonth + 1).padStart(2, '0');
+            activePickerInput.value = `${dayStr}/${monthStr}/${selectedYear}`;
+            activePickerInput.dispatchEvent(new Event('input', { bubbles: true }));
+            document.getElementById('touch-picker').style.display = 'none';
+        }
+        
+        document.querySelectorAll('.mask-date').forEach(input => {
+            input.addEventListener('click', e => {
+                openPicker(e.target);
+            });
+        });
+
+        // --- CLOCK PICKER LOGIC ---
+        let activeClockInput = null;
+        let currentHour = 12;
+        let currentMinute = 0;
+        let activeHand = null; // 'hour' or 'minute'
+
+        // Generate all 12 numbers
+        const face = document.getElementById('clock-face');
+        for (let i = 1; i <= 12; i++) {
+            const num = document.createElement('div');
+            num.innerText = i;
+            num.style.position = 'absolute';
+            num.style.color = 'white';
+            num.style.fontWeight = '900';
+            num.style.fontSize = '1.4rem';
+            
+            const angle = i * 30 * (Math.PI / 180);
+            const radius = 130; // Distance from center
+            const x = 170 + radius * Math.sin(angle) - 10; // 170 is center of 340
+            const y = 170 - radius * Math.cos(angle) - 15;
+            
+            num.style.left = `${x}px`;
+            num.style.top = `${y}px`;
+            face.appendChild(num);
+        }
+
+        function openClockPicker(inputEl) {
+            if (isMobile) return;
+            activeClockInput = inputEl;
+            document.getElementById('clock-picker').style.display = 'flex';
+            updateClockDisplay();
+        }
+
+
+        function closeClock() {
+            document.getElementById('clock-picker').style.display = 'none';
+            activeHand = null;
+        }
+
+        function confirmTime() {
+            if (!activeClockInput) return;
+            const hStr = String(currentHour).padStart(2, '0');
+            const mStr = String(currentMinute).padStart(2, '0');
+            activeClockInput.value = `${hStr}:${mStr}`;
+            activeClockInput.dispatchEvent(new Event('input', { bubbles: true }));
+            closeClock();
+        }
+
+        function updateClockDisplay() {
+            document.getElementById('clock-digital').innerText = 
+                `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
+            
+            const hDeg = (currentHour % 12) * 30; // Snap to exact hours visually
+            const mDeg = currentMinute * 6; // 360 / 60
+            
+            document.getElementById('hour-hand').style.transform = `rotate(${hDeg}deg)`;
+            document.getElementById('minute-hand').style.transform = `rotate(${mDeg}deg)`;
+        }
+
+        function handleClockMove(e) {
+            if (!activeHand) return;
+            const rect = face.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const x = clientX - centerX;
+            const y = clientY - centerY;
+            
+            let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
+            if (angle < 0) angle += 360;
+            
+            if (activeHand === 'hour') {
+                let hour = Math.round(angle / 30);
+                if (hour === 0) hour = 12;
+                if (hour > 12) hour = 12;
+                currentHour = hour;
+            } else if (activeHand === 'minute') {
+                let min = Math.round(angle / 6);
+                // Snap to 5 minutes
+                min = Math.round(min / 5) * 5;
+                if (min === 60) min = 0;
+                currentMinute = min;
+            }
+            updateClockDisplay();
+        }
+
+        function startClockDrag(e) {
+            const rect = face.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+            
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            
+            const x = clientX - centerX;
+            const y = clientY - centerY;
+            const dist = Math.sqrt(x*x + y*y);
+            
+            // Lock onto hand based on distance from center
+            if (dist < 110) {
+                activeHand = 'hour';
+            } else {
+                activeHand = 'minute';
+            }
+            handleClockMove(e);
+        }
+
+        face.addEventListener('mousedown', (e) => { startClockDrag(e); });
+        face.addEventListener('touchstart', (e) => { e.preventDefault(); startClockDrag(e); }, { passive: false });
+        
+        window.addEventListener('mousemove', handleClockMove);
+        window.addEventListener('touchmove', handleClockMove, { passive: false });
+        
+        window.addEventListener('mouseup', () => activeHand = null);
+        window.addEventListener('touchend', () => activeHand = null);
+
+        document.querySelectorAll('.mask-time').forEach(input => {
+            input.addEventListener('click', e => {
+                openClockPicker(e.target);
+            });
+        });
+
+        function updateInterval() {
+            const unit = document.querySelector('input[name="interval_unit"]:checked').value;
+            const count = document.querySelector('input[name="interval_count"]:checked').value;
+            document.getElementById('combined-interval').value = count + unit;
+        }
+
         function switchTab(type) {
+
             const isRecur = type === 'recurring';
             document.getElementById('task-type').value = type;
             document.getElementById('tab-one').classList.toggle('active-tab', !isRecur);

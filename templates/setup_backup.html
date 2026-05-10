@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Backup Setup</title>
+    <style>
+        body { 
+            background: #121212; color: white; font-family: sans-serif; 
+            margin: 0; padding: 0; display: flex; justify-content: center; align-items: center;
+            height: 100vh; overflow: hidden; 
+        }
+        .setup-box {
+            background: #1a1a1a; border: 5px solid #ffd700; border-radius: 20px;
+            padding: 40px; width: 90%; max-width: 600px; text-align: center;
+            box-sizing: border-box;
+        }
+        h1 { color: #ffd700; font-size: 2.5rem; margin-top: 0; text-transform: uppercase; }
+        p { font-size: 1.4rem; color: #ccc; margin-bottom: 40px; }
+        .btn-container { display: flex; gap: 20px; }
+        .btn {
+            flex: 1; padding: 30px; font-size: 1.8rem; font-weight: 900;
+            border-radius: 15px; border: 4px solid white; cursor: pointer;
+            text-transform: uppercase;
+        }
+        .btn-yes { background: #00ff00; color: black; }
+        .btn-no { background: #444; color: white; border-color: #555; }
+    </style>
+</head>
+<body>
+    <div class="setup-box">
+        <h1>Initial Setup</h1>
+        <p>Do you want to set up a daily backup of your tasks to Google Drive at 2:00 AM?</p>
+        
+        <form method="POST" class="btn-container">
+            <button type="submit" name="backup_choice" value="no" class="btn btn-no">No</button>
+            <button type="submit" name="backup_choice" value="yes" class="btn btn-yes">Yes</button>
+        </form>
+    </div>
+</body>
+</html>

@@ -16,6 +16,9 @@ with open(config_path) as f:
     config = json.load(f)
     VM_TOKEN = config.get('VM_TOKEN')
     VM_DEVICE = config.get('VM_DEVICE')
+    VM_MORNING_DEVICE = config.get('VM_MORNING_DEVICE')
+
+
 
 
 MORNING_GREETINGS = [
@@ -122,8 +125,53 @@ def get_db():
     conn = sqlite3.connect('tasks.db')
     return conn
 
+def init_db():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            deadline TEXT NOT NULL,
+            status TEXT DEFAULT 'active',
+            last_alert_type TEXT DEFAULT 'none',
+            last_nag_time TEXT,
+            percent INTEGER DEFAULT 0,
+            phase TEXT
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS recurring_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            start_time TEXT NOT NULL,
+            interval TEXT NOT NULL,
+            last_generated TEXT
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
+        )
+    """)
+    # Default settings
+    c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('briefing_time', '08:00')")
+    c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('dnd_start', '22:00')")
+    c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('dnd_end', '07:00')")
+    c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('nag_interval', '15')")
+    
+    conn.commit()
+    conn.close()
+
+
 def trigger_voice_monkey(text, chime=None, audio=None):
+    # 0. Skip if not fully configured
+    if not VM_TOKEN or not VM_DEVICE or not VM_MORNING_DEVICE:
+        return
+
     # 1. Check DND status before doing anything
+
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT key, value FROM settings WHERE key IN ('dnd_start', 'dnd_end', 'silence_mode')")
@@ -158,7 +206,8 @@ def trigger_voice_monkey(text, chime=None, audio=None):
         "language": "en-GB"
     }
     if chime: params["chime"] = chime
-    if audio: params["audio"] = audio
+    if audio and config.get('VM_USE_SOUND', False): params["audio"] = audio
+
     try:
         requests.get(url, params=params, timeout=5)
     except:
@@ -179,7 +228,8 @@ def settings():
     
     if request.method == 'POST':
         # List of keys to process normally
-        setting_keys = ['briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours', 'nag_interval']
+        setting_keys = ['briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours', 'nag_interval', 'kiosk_mode']
+
         for key in setting_keys:
             val = request.form.get(key)
             if val:
@@ -246,7 +296,7 @@ def run_morning_briefing():
         url = "https://api-v2.voicemonkey.io/announcement"
         params = {
             "token": VM_TOKEN,
-            "device": "bedroom-alexa",
+            "device": VM_MORNING_DEVICE,
             "text": message,
             "voice": random.choice(VOICES),
             "language": "en-GB"
@@ -344,9 +394,13 @@ def background_task_checker():
 
 
 @app.route('/')
-
 def index():
+    # Check for first-run setup
+    if not config.get('setup_complete'):
+        return redirect('/setup')
+
     # Detect if the visitor is on a mobile device
+
     ua = request.headers.get('User-Agent', '').lower()
     is_mobile = any(x in ua for x in ['iphone', 'android', 'mobile'])
 
@@ -464,10 +518,14 @@ def add_task():
             if task_type == 'recurring':
                 interval = request.form.get('interval')
                 recur_time = request.form.get('recur_time')
-                uk_start_date = request.form.get('recur_start_date')
-                day, month, year = uk_start_date.split('/')
-                iso_start_date = f"{year}-{month}-{day}"
+                if '-' in uk_start_date:
+                    iso_start_date = uk_start_date
+                else:
+                    day, month, year = uk_start_date.split('/')
+                    iso_start_date = f"{year}-{month}-{day}"
+                
                 now_today = datetime.now().strftime('%Y-%m-%d')
+
                 c.execute("INSERT INTO recurring_templates (title, start_time, interval, last_generated) VALUES (?, ?, ?, ?)",
                           (title, recur_time, interval, now_today))
                 first_deadline = f"{iso_start_date}T{recur_time}"
@@ -475,9 +533,14 @@ def add_task():
                           (title, first_deadline))
             else:
                 uk_date = request.form.get('deadline_date')
+                if '-' in uk_date:
+                    iso_date = uk_date
+                else:
+                    day, month, year = uk_date.split('/')
+                    iso_date = f"{year}-{month}-{day}"
+                
                 d_time = request.form.get('deadline_time')
-                day, month, year = uk_date.split('/')
-                iso_date = f"{year}-{month}-{day}"
+
                 deadline = f"{iso_date}T{d_time}"
                 c.execute("INSERT INTO tasks (title, deadline, last_alert_type) VALUES (?, ?, 'none')", 
                           (title, deadline))
@@ -515,19 +578,25 @@ def complete_task(task_id):
             old_dt = datetime.strptime(current_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
             
             # Calculate next date based on interval
-            if interval == 'daily':
-                new_dt = old_dt + timedelta(days=1)
-            elif interval == 'weekly':
-                new_dt = old_dt + timedelta(weeks=1)
-            elif interval == 'monthly':
-                # Add roughly 30 days and snap to the same day of the month
+            # Parse new interval format (e.g., "1D", "2W")
+            count = int(interval[:-1])
+            unit = interval[-1]
+            
+            if unit == 'D':
+                new_dt = old_dt + timedelta(days=count)
+            elif unit == 'W':
+                new_dt = old_dt + timedelta(weeks=count)
+            elif unit == 'M':
                 import calendar
-                month = old_dt.month % 12 + 1
-                year = old_dt.year + (old_dt.month // 12)
-                day = min(old_dt.day, calendar.monthrange(year, month)[1])
-                new_dt = old_dt.replace(year=year, month=month, day=day)
+                new_dt = old_dt
+                for _ in range(count):
+                    month = new_dt.month % 12 + 1
+                    year = new_dt.year + (new_dt.month // 12)
+                    day = min(new_dt.day, calendar.monthrange(year, month)[1])
+                    new_dt = new_dt.replace(year=year, month=month, day=day)
             
             new_deadline = new_dt.strftime('%Y-%m-%dT%H:%M')
+
 
             # 3. DUPLICATE CHECK: Only add if not already in tasks (active OR done)
             c.execute("SELECT id FROM tasks WHERE title=? AND deadline=?", (title, new_deadline))
@@ -604,22 +673,22 @@ def manage_recurring():
             # Parse the deadline (Format: YYYY-MM-DDTHH:MM)
             dt = datetime.strptime(task_res[0].replace('T', ' '), '%Y-%m-%d %H:%M')
             
-            if interval == 'daily':
-                display_str = f"DAILY @ {s_time}"
-            elif interval == 'weekly':
-                day_name = dt.strftime('%A').upper() # e.g., MONDAY
-                display_str = f"EVERY {day_name} @ {s_time}"
-            elif interval == 'monthly':
+            count = int(interval[:-1])
+            unit = interval[-1]
+            
+            if unit == 'D':
+                display_str = f"EVERY {count} DAYS @ {s_time}" if count > 1 else f"DAILY @ {s_time}"
+            elif unit == 'W':
+                day_name = dt.strftime('%A').upper()
+                display_str = f"EVERY {count} WEEKS ({day_name}) @ {s_time}" if count > 1 else f"EVERY {day_name} @ {s_time}"
+            elif unit == 'M':
                 day_num = dt.day
-                # Add suffix logic (1st, 2nd, 3rd, 26th)
                 if 11 <= day_num <= 13: suffix = 'TH'
                 else: suffix = {1: 'ST', 2: 'ND', 3: 'RD'}.get(day_num % 10, 'TH')
-                display_str = f"EVERY {day_num}{suffix} OF THE MONTH @ {s_time}"
-        else:
-            # Fallback if no task instance exists
-            display_str = f"{interval.upper()} @ {s_time}"
-        
-        processed_templates.append({
+                display_str = f"EVERY {count} MONTHS (ON THE {day_num}{suffix}) @ {s_time}" if count > 1 else f"EVERY {day_num}{suffix} OF THE MONTH @ {s_time}"
+            
+            processed_templates.append({
+
             'id': t_id,
             'title': title,
             'display': display_str
@@ -646,7 +715,97 @@ def serve_media(filename):
     return send_from_directory(media_path, filename)
 
 
+@app.route('/setup', methods=['GET', 'POST'])
+def setup():
+    if request.method == 'POST':
+        choice = request.form.get('backup_choice')
+        if choice == 'no':
+            config['setup_complete'] = True
+            with open(config_path, 'w') as f:
+                json.dump(config, f, indent=4)
+            return redirect('/')
+        else:
+            return redirect('/setup_oauth')
+    return render_template('setup_backup.html')
+
+@app.route('/setup_oauth', methods=['GET', 'POST'])
+def setup_oauth():
+    if request.method == 'POST':
+        # Save credentials here (mocking for now or saving to config)
+        config['setup_complete'] = True
+        config['gdrive_client_id'] = request.form.get('client_id')
+        config['gdrive_client_secret'] = request.form.get('client_secret')
+        with open(config_path, 'w') as f:
+            json.dump(config, f, indent=4)
+        return redirect('/')
+    return render_template('setup_oauth.html')
+
+
+@app.route('/edit_list')
+def edit_list():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT id, title, deadline FROM tasks WHERE status='active' ORDER BY deadline ASC")
+    tasks = c.fetchall()
+    conn.close()
+    
+    # Process deadlines for readable format
+    processed = []
+    for t in tasks:
+        processed.append({
+            'id': t[0],
+            'title': t[1],
+            'deadline': t[2]
+        })
+    return render_template('edit_list.html', tasks=processed)
+
+@app.route('/edit/<int:task_id>', methods=['GET', 'POST'])
+def edit_task(task_id):
+    conn = get_db()
+    c = conn.cursor()
+    
+    if request.method == 'POST':
+        uk_date = request.form.get('deadline_date')
+        d_time = request.form.get('deadline_time')
+        
+        if '-' in uk_date:
+            iso_date = uk_date
+        else:
+            day, month, year = uk_date.split('/')
+            iso_date = f"{year}-{month}-{day}"
+            
+        deadline = f"{iso_date}T{d_time}"
+        
+        c.execute("UPDATE tasks SET deadline=?, last_alert_type='none', last_nag_time=NULL WHERE id=?", (deadline, task_id))
+        conn.commit()
+        conn.close()
+        return redirect('/')
+        
+    c.execute("SELECT id, title, deadline FROM tasks WHERE id=?", (task_id,))
+    task = c.fetchone()
+    conn.close()
+    
+    if not task:
+        return "Task not found", 404
+        
+    # Split deadline for the view
+    dt_str = task[2].replace('T', ' ')
+    from datetime import datetime
+    dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M')
+    
+    return render_template('edit_task.html', task={
+        'id': task[0],
+        'title': task[1],
+        'date': dt.strftime('%d/%m/%Y'),
+        'time': dt.strftime('%H:%M')
+    })
+
+
 if __name__ == '__main__':
+    init_db()
+
+
+
     import threading
     t = threading.Thread(target=background_task_checker, daemon=True)
     t.start()

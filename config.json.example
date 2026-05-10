@@ -1,4 +1,8 @@
 {
     "VM_TOKEN": "your_voice_monkey_token_here",
-    "VM_DEVICE": "living-room-echo"
+    "VM_DEVICE": "living-room-echo",
+    "VM_MORNING_DEVICE": "bedroom-alexa",
+    "VM_USE_SOUND": false
+
+
 }

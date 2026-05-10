@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Edit Tasks</title>
+    <style>
+        body { 
+            background: #121212; color: white; font-family: sans-serif; 
+            margin: 0; padding: 0; display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden; 
+        }
+        header {
+            background: #000; padding: 15px 20px; border-bottom: 5px solid white;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        h2 { margin: 0; font-size: 2rem; text-transform: uppercase; color: #ffd700; }
+        
+        /* --- MAIN LAYOUT --- */
+        #main-container { display: flex; flex: 1; overflow: hidden; }
+        
+        #scroll-area {
+            flex: 1; overflow-y: scroll; padding: 20px;
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        #scroll-area::-webkit-scrollbar { display: none; }
+        
+        /* Chunky Scrollbar */
+        #custom-scrollbar {
+            width: 100px; background: #1a1a1a; border-left: 5px solid white; 
+            position: relative; cursor: pointer;
+        }
+        #scroll-thumb {
+            width: 100%; height: 120px; background: #ffd700;
+            border-bottom: 5px solid white; border-top: 5px solid white;
+            position: absolute; top: 0;
+        }
+
+        .task-item {
+            background: #1a1a1a; border: 4px solid white; border-radius: 15px;
+            padding: 20px; margin-bottom: 15px; display: flex; justify-content: space-between;
+            align-items: center; text-decoration: none; color: white;
+        }
+        .task-title { font-size: 1.8rem; font-weight: 900; text-transform: uppercase; }
+        .task-date { color: #ffd700; font-size: 1.2rem; margin-top: 5px; }
+        
+        .btn-header { 
+            padding: 15px 25px; border: 4px solid white; border-radius: 12px; 
+            font-weight: 900; font-size: 1.2rem; text-decoration: none; text-transform: uppercase;
+            cursor: pointer; background: #444; color: white;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h2>Select Task to Edit</h2>
+        <a href="/" class="btn-header">⬅ Back</a>
+    </header>
+    
+    <div id="main-container">
+        <div id="scroll-area">
+            <div style="max-width: 800px; margin: 0 auto;">
+                {% for task in tasks %}
+                <a href="/edit/{{ task.id }}" class="task-item">
+                    <div>
+                        <div class="task-title">{{ task.title }}</div>
+                        <div class="task-date">Due: {{ task.deadline }}</div>
+                    </div>
+                    <div style="font-size: 2rem; color: #ffd700;">➔</div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <!-- FAT FINGER SCROLLBAR -->
+        <div id="custom-scrollbar">
+            <div id="scroll-thumb"></div>
+        </div>
+    </div>
+
+    <script>
+        const scrollArea = document.getElementById('scroll-area');
+        const scrollThumb = document.getElementById('scroll-thumb');
+        const customScrollbar = document.getElementById('custom-scrollbar');
+
+        scrollArea.addEventListener('scroll', () => {
+            const scrollPct = scrollArea.scrollTop / (scrollArea.scrollHeight - scrollArea.clientHeight);
+            const maxTop = customScrollbar.clientHeight - scrollThumb.clientHeight;
+            scrollThumb.style.top = (scrollPct * maxTop) + 'px';
+        });
+
+        // Dragging the thumb
+        let isDragging = false;
+        let startY = 0;
+        let startTop = 0;
+
+        scrollThumb.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startY = e.clientY;
+            startTop = parseFloat(scrollThumb.style.top) || 0;
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const deltaY = e.clientY - startY;
+            const maxTop = customScrollbar.clientHeight - scrollThumb.clientHeight;
+            let newTop = startTop + deltaY;
+            newTop = Math.max(0, Math.min(maxTop, newTop));
+            scrollThumb.style.top = newTop + 'px';
+            
+            const pct = newTop / maxTop;
+            scrollArea.scrollTop = pct * (scrollArea.scrollHeight - scrollArea.clientHeight);
+        });
+
+        window.addEventListener('mouseup', () => isDragging = false);
+        
+        // Touch support
+        scrollThumb.addEventListener('touchstart', (e) => {
+            isDragging = true;
+            startY = e.touches[0].clientY;
+            startTop = parseFloat(scrollThumb.style.top) || 0;
+            e.preventDefault();
+        }, { passive: false });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isDragging) return;
+            const deltaY = e.touches[0].clientY - startY;
+            const maxTop = customScrollbar.clientHeight - scrollThumb.clientHeight;
+            let newTop = startTop + deltaY;
+            newTop = Math.max(0, Math.min(maxTop, newTop));
+            scrollThumb.style.top = newTop + 'px';
+            
+            const pct = newTop / maxTop;
+            scrollArea.scrollTop = pct * (scrollArea.scrollHeight - scrollArea.clientHeight);
+        }, { passive: false });
+
+        window.addEventListener('touchend', () => isDragging = false);
+    </script>
+</body>
+</html>
