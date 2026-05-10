@@ -112,16 +112,17 @@
                             <pre id="code-win" style="background:#222; padding:15px; border-radius:8px; overflow-x:auto; font-family: monospace; font-size: 0.9rem; color: #00ff00;">$WshShell = New-Object -ComObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\TaskBoard.lnk")
 $Shortcut.TargetPath = "chrome.exe"
-$Shortcut.Arguments = "--kiosk http://localhost:5000"
+$Shortcut.Arguments = "--kiosk http://localhost:5001"
 $Shortcut.Save()</pre>
                             <button type="button" onclick="copyCode('code-win', this)" style="position: absolute; top: 10px; right: 10px; background: #333; color: white; border: 2px solid white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">📋 COPY</button>
                         </div>
 
                         <h3 style="color:white; font-size: 1.2rem; margin-top: 20px;">Linux / Pi OS</h3>
                         <div style="position: relative;">
-                            <pre id="code-linux" style="background:#222; padding:15px; border-radius:8px; overflow-x:auto; font-family: monospace; font-size: 0.9rem; color: #00ff00;">echo "@chromium-browser --kiosk http://localhost:5000" >> ~/.config/lxsession/LXDE-pi/autostart</pre>
+                            <pre id="code-linux" style="background:#222; padding:15px; border-radius:8px; overflow-x:auto; font-family: monospace; font-size: 0.9rem; color: #00ff00;">echo "@chromium-browser --kiosk http://localhost:5001" >> ~/.config/lxsession/LXDE-pi/autostart</pre>
                             <button type="button" onclick="copyCode('code-linux', this)" style="position: absolute; top: 10px; right: 10px; background: #333; color: white; border: 2px solid white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">📋 COPY</button>
                         </div>
+
 
                         <p style="color:#ff5555; font-weight:bold; font-size: 1rem; margin-top: 20px;">Warning: Kiosk mode takes over the screen. Alt+F4 to exit on Windows, Ctrl+Alt+T to open terminal on Linux.</p>
                         

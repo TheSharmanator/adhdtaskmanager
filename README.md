@@ -27,17 +27,18 @@ If you do not want to use Voice Monkey, simply leave the `VM_TOKEN`, `VM_DEVICE`
 
 ## Mobile Access & Remote Access
 
-The app binds to `0.0.0.0:5000`, meaning it is accessible from any device on the same network.
+The app binds to `0.0.0.0:5001`, meaning it is accessible from any device on the same network.
 
 ### 1. Local Network (Wi-Fi)
 To access the app on your phone while on the same Wi-Fi:
 - Find your computer's local IP address (e.g., `192.168.1.50`).
-- Open your mobile browser and go to `http://192.168.1.50:5000`.
+- Open your mobile browser and go to `http://192.168.1.50:5001`.
 
 ### 2. Remote Access (Tailscale)
 To access the app from anywhere without port forwarding:
 - Install **Tailscale** on both your host machine and your phone.
-- Use your host machine's Tailscale IP followed by port `5000` (e.g., `http://100.x.y.z:5000`).
+- Use your host machine's Tailscale IP followed by port `5001` (e.g., `http://100.x.y.z:5001`).
+
 - **Troubleshooting**: If Tailscale fails to connect but local IP works, check the following:
   - Ensure Windows Defender Firewall allows incoming connections on TCP Port `5000`.
   - Ensure your browser is not defaulting to `https://`. Explicitly type `http://`.
