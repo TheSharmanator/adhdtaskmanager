@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Add Task</title>
+    <link rel="stylesheet" href="/static/js/simple-keyboard.css">
+    <style>
+        body { 
+            background: #121212; color: white; font-family: sans-serif; 
+            margin: 0; padding: 0; display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden; 
+        }
+
+        /* --- UNIFIED HEADER --- */
+        header {
+            background: #000; padding: 15px 20px; border-bottom: 5px solid white;
+            display: flex; justify-content: space-between; align-items: center; z-index: 100;
+        }
+
+        .header-left, .header-right { display: flex; gap: 10px; flex: 1; }
+        .header-right { justify-content: flex-end; }
+
+        .tab { 
+            padding: 15px 25px; background: #333; cursor: pointer; border: 4px solid #555; 
+            font-weight: 900; font-size: 1.2rem; border-radius: 12px; color: #888;
+        }
+        .active-tab { background: #0066ff; border-color: white; color: white; }
+
+        .btn-header { 
+            padding: 15px 20px; border: 4px solid white; border-radius: 12px; 
+            font-weight: 900; font-size: 1.1rem; text-decoration: none; text-transform: uppercase;
+            cursor: pointer; display: flex; align-items: center;
+        }
+        .btn-save { background: #00ff00; color: black; }
+        .btn-manage { background: #ffd700; color: black; }
+        .btn-cancel { background: #444; color: white; }
+
+        /* --- LAYOUT CONTAINERS --- */
+        #main-container { display: flex; flex: 1; overflow: hidden; }
+        #scroll-area { flex: 1; overflow-y: scroll; padding: 20px; scrollbar-width: none; -ms-overflow-style: none; }
+        #scroll-area::-webkit-scrollbar { display: none; }
+
+        #custom-scrollbar { width: 100px; background: #1a1a1a; border-left: 5px solid white; position: relative; cursor: pointer; }
+        #scroll-thumb { width: 100%; height: 120px; background: #ffd700; border-bottom: 5px solid white; border-top: 5px solid white; position: absolute; top: 0; }
+
+        form { width: 100%; max-width: 950px; margin: 0 auto; }
+        label { font-size: 1.4rem; font-weight: bold; color: #ffd700; display: block; margin-top: 25px; text-transform: uppercase; }
+        
+        input { 
+            width: 100%; padding: 25px; margin: 10px 0; background: #222; 
+            color: white; border: 5px solid white; font-size: 2rem; 
+            font-weight: 900; border-radius: 15px; box-sizing: border-box;
+        }
+
+        .side-by-side { display: flex; gap: 20px; width: 100%; align-items: flex-end; }
+        .side-by-side > div { flex: 1; }
+
+        .interval-container { display: flex; gap: 10px; margin: 10px 0; height: 85px; }
+        .interval-container input { display: none; }
+        .interval-container label { 
+            flex: 1; padding: 0; background: #333; color: white; border: 4px solid white; 
+            font-size: 1.2rem; font-weight: 900; border-radius: 12px; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center; margin-top: 0;
+        }
+        .interval-container input:checked + label { background: #0066ff; border-color: #ffd700; }
+
+        /* --- FAT FINGER KEYBOARD --- */
+        .simple-keyboard { width: 100%; background-color: #222 !important; border-top: 5px solid #ffd700; }
+        .hg-button { height: 85px !important; font-size: 1.8rem !important; font-weight: 900 !important; background: #eee !important; color: #000 !important; border-bottom: 4px solid #999 !important; }
+
+        /* --- MOBILE SPECIFIC OVERRIDES --- */
+        @media (max-width: 600px) {
+            header { padding: 10px 5px; gap: 5px; }
+            .header-left, .header-right { gap: 4px; }
+            .tab, .btn-header { padding: 10px 8px !important; font-size: 0.8rem !important; border-width: 2px !important; border-radius: 8px !important; }
+            
+            .side-by-side { flex-direction: column; align-items: stretch; gap: 0; }
+            #custom-scrollbar { display: none; }
+            #scroll-area { overflow-y: auto; height: 100%; padding-bottom: 100px; }
+            .simple-keyboard { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="header-left">
+            <div id="tab-one" class="tab active-tab" onclick="switchTab('one-off')">1-OFF</div>
+            <div id="tab-recur" class="tab" onclick="switchTab('recurring')">RECUR</div>
+        </div>
+        <div class="header-right">
+            <button type="button" class="btn-header btn-save" onclick="document.getElementById('task-form').submit()">💾 SAVE</button>
+            <a href="/manage_recurring" class="btn-header btn-manage">⚙️ MNG</a>
+            <a href="/" class="btn-header btn-cancel">❌ CL</a>
+        </div>
+    </header>
+
+    <div id="main-container">
+        <div id="scroll-area">
+            <form id="task-form" method="POST" action="/add">
+                <input type="hidden" name="type" id="task-type" value="one-off">
+                
+                <div class="side-by-side">
+                    <div style="flex: 2;">
+                        <label>TASK NAME:</label>
+                        <input type="text" name="title" class="input" placeholder="TASK..." required>
+                    </div>
+                    <div id="interval-wrapper" style="display: none; flex: 1.5;">
+                        <label>INTERVAL:</label>
+                        <div class="interval-container">
+                            <input type="radio" id="daily" name="interval" value="daily" checked>
+                            <label for="daily">D</label>
+                            <input type="radio" id="weekly" name="interval" value="weekly">
+                            <label for="weekly">W</label>
+                            <input type="radio" id="monthly" name="interval" value="monthly">
+                            <label for="monthly">M</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="one-off-fields">
+                    <div class="side-by-side">
+                        <div>
+                            <label>DATE (DD/MM/YYYY):</label>
+                            <input type="text" name="deadline_date" class="input mask-date" placeholder="DD/MM/YYYY" maxlength="10">
+                        </div>
+                        <div>
+                            <label>TIME (HH:MM):</label>
+                            <input type="text" name="deadline_time" class="input mask-time" placeholder="HH:MM" maxlength="5">
+                        </div>
+                    </div>
+                </div>
+
+                <div id="recurring-fields" style="display:none;">
+                    <div class="side-by-side">
+                        <div>
+                            <label>START DATE:</label>
+                            <input type="text" name="recur_start_date" class="input mask-date" placeholder="DD/MM/YYYY" maxlength="10">
+                        </div>
+                        <div>
+                            <label>APPEAR TIME:</label>
+                            <input type="text" name="recur_time" class="input mask-time" placeholder="HH:MM" maxlength="5">
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div id="custom-scrollbar" onmousedown="startScroll(event)" ontouchstart="startScroll(event)">
+            <div id="scroll-thumb"></div>
+        </div>
+    </div>
+
+    <div class="simple-keyboard"></div>
+
+    <script src="/static/js/simple-keyboard.js"></script>
+    <script>
+        const isMobile = window.innerWidth <= 600;
+
+        function switchTab(type) {
+            const isRecur = type === 'recurring';
+            document.getElementById('task-type').value = type;
+            document.getElementById('tab-one').classList.toggle('active-tab', !isRecur);
+            document.getElementById('tab-recur').classList.toggle('active-tab', isRecur);
+            document.getElementById('one-off-fields').style.display = isRecur ? 'none' : 'block';
+            document.getElementById('recurring-fields').style.display = isRecur ? 'block' : 'none';
+            document.getElementById('interval-wrapper').style.display = isRecur ? 'block' : 'none';
+        }
+
+        const scrollArea = document.getElementById('scroll-area');
+        const thumb = document.getElementById('scroll-thumb');
+        const track = document.getElementById('custom-scrollbar');
+
+        if (!isMobile) {
+            scrollArea.addEventListener('scroll', () => {
+                const scrollPercent = scrollArea.scrollTop / (scrollArea.scrollHeight - scrollArea.clientHeight);
+                const thumbPos = scrollPercent * (track.clientHeight - thumb.clientHeight);
+                thumb.style.top = thumbPos + 'px';
+            });
+        }
+
+        function startScroll(e) {
+            const moveHandler = (moveEvent) => {
+                const y = (moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY) - track.getBoundingClientRect().top;
+                const percent = Math.max(0, Math.min(1, y / track.clientHeight));
+                scrollArea.scrollTop = percent * (scrollArea.scrollHeight - scrollArea.clientHeight);
+            };
+            const stopHandler = () => {
+                window.removeEventListener('mousemove', moveHandler);
+                window.removeEventListener('mouseup', stopHandler);
+                window.removeEventListener('touchmove', moveHandler);
+                window.removeEventListener('touchend', stopHandler);
+            };
+            window.addEventListener('mousemove', moveHandler);
+            window.addEventListener('mouseup', stopHandler);
+            window.addEventListener('touchmove', moveHandler, { passive: false });
+            window.addEventListener('touchend', stopHandler);
+        }
+
+        if (!isMobile) {
+            let selectedInputName = "title";
+            let myKeyboard = new window.SimpleKeyboard.default({
+                onChange: input => {
+                    let el = document.querySelector(`[name="${selectedInputName}"]`);
+                    if(el) {
+                        el.value = input;
+                        el.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                },
+                onKeyPress: button => {
+                    if (button === "{enter}") document.getElementById("task-form").submit();
+                },
+                preventMouseDownDefault: true,
+                layout: {
+                    'default': [
+                        'Q W E R T Y U I O P',
+                        'A S D F G H J K L',
+                        'Z X C V B N M {backspace}',
+                        '1 2 3 4 5 6 7 8 9 0',
+                        '/ : {space} {enter}'
+                    ]
+                },
+                display: { '{backspace}': '⌫', '{enter}': 'DONE', '{space}': ' ' }
+            });
+
+            document.querySelectorAll(".input").forEach(input => {
+                input.addEventListener("focus", e => {
+                    selectedInputName = e.target.name;
+                    myKeyboard.setOptions({ inputName: e.target.name });
+                    myKeyboard.setInput(e.target.value);
+                });
+            });
+        }
+
+        document.addEventListener('input', function (e) {
+            if (e.target.classList.contains('mask-date')) {
+                let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,2})(\d{0,4})/);
+                e.target.value = !x[2] ? x[1] : x[1] + '/' + x[2] + (x[3] ? '/' + x[3] : '');
+            }
+            if (e.target.classList.contains('mask-time')) {
+                let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,2})/);
+                e.target.value = !x[2] ? x[1] : x[1] + ':' + x[2];
+            }
+        });
+    </script>
+</body>
+</html>

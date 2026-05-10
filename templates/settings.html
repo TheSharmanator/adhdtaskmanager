@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>System Settings</title>
+    <link rel="stylesheet" href="/static/js/simple-keyboard.css">
+    <style>
+        body { 
+            background: #121212; color: white; font-family: sans-serif; 
+            margin: 0; padding: 0; display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden; 
+        }
+
+        /* --- STREAMLINED COMMAND HEADER --- */
+        header {
+            background: #000; padding: 15px 20px; border-bottom: 5px solid white;
+            display: flex; justify-content: space-between; align-items: center; z-index: 100;
+        }
+
+        h2 { margin: 0; font-size: 2rem; text-transform: uppercase; color: #ffd700; }
+
+        .header-btns { display: flex; gap: 10px; }
+
+        .btn-header { 
+            padding: 15px 25px; border: 4px solid white; border-radius: 12px; 
+            font-weight: 900; font-size: 1.2rem; text-decoration: none; text-transform: uppercase;
+            cursor: pointer; display: flex; align-items: center;
+        }
+        .btn-save { background: #00ff00; color: black; }
+        .btn-cancel { background: #444; color: white; }
+
+        /* --- MAIN LAYOUT --- */
+        #main-container { display: flex; flex: 1; overflow: hidden; }
+
+        #scroll-area {
+            flex: 1; overflow-y: scroll; padding: 20px;
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        #scroll-area::-webkit-scrollbar { display: none; }
+
+        /* Chunky Scrollbar */
+        #custom-scrollbar {
+            width: 100px; background: #1a1a1a; border-left: 5px solid white; 
+            position: relative; cursor: pointer;
+        }
+        #scroll-thumb {
+            width: 100%; height: 120px; background: #ffd700;
+            border-bottom: 5px solid white; border-top: 5px solid white;
+            position: absolute; top: 0;
+        }
+
+        form { width: 100%; max-width: 800px; margin: 0 auto; padding-bottom: 50px; }
+        label { font-size: 1.4rem; font-weight: bold; color: #ffd700; display: block; margin-top: 25px; text-transform: uppercase; }
+        
+        input { 
+            width: 100%; padding: 25px; margin: 10px 0; background: #222; 
+            color: white; border: 5px solid white; font-size: 2rem; 
+            font-weight: 900; border-radius: 15px; box-sizing: border-box;
+        }
+
+        .side-by-side { display: flex; gap: 20px; width: 100%; }
+        .side-by-side div { flex: 1; }
+
+        /* Day Selector */
+        .day-selector { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .day-selector input { display: none; }
+        .day-selector label { 
+            flex: 1; min-width: 80px; padding: 20px; background: #333; 
+            border: 4px solid white; border-radius: 12px; text-align: center; 
+            cursor: pointer; font-size: 1.2rem; color: white; margin-top: 0;
+            font-weight: 900;
+        }
+        .day-selector input:checked + label { background: #0066ff; border-color: #ffd700; }
+
+        /* FAT FINGER KEYBOARD */
+        .simple-keyboard { 
+            width: 100%; background-color: #222 !important; 
+            border-top: 5px solid #ffd700;
+        }
+        .hg-button { 
+            height: 85px !important; 
+            font-size: 1.8rem !important; 
+            font-weight: 900 !important;
+            background: #eee !important;
+            color: #000 !important;
+            border-bottom: 4px solid #999 !important;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h2>BOARD SETTINGS</h2>
+        <div class="header-btns">
+            <button type="button" class="btn-header btn-save" onclick="document.getElementById('settings-form').submit()">💾 SAVE</button>
+            <a href="/" class="btn-header btn-cancel">❌ CANCEL</a>
+        </div>
+    </header>
+
+    <div id="main-container">
+        <div id="scroll-area">
+            <form id="settings-form" method="POST">
+                <label>MORNING BRIEFING TIME (HH:MM):</label>
+                <input type="text" name="briefing_time" class="input mask-time" placeholder="08:00" value="{{ settings.briefing_time }}" maxlength="5">
+
+                <label>BRIEFING DAYS:</label>
+                <div class="day-selector">
+                    {% for day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
+                    <input type="checkbox" name="briefing_days" id="day-{{ day }}" value="{{ day }}" 
+                           {% if day in settings.briefing_days %}checked{% endif %}>
+                    <label for="day-{{ day }}">{{ day|upper }}</label>
+                    {% endfor %}
+                </div>
+
+                <div class="side-by-side">
+                    <div>
+                        <label>DND START (HH:MM):</label>
+                        <input type="text" name="dnd_start" class="input mask-time" placeholder="22:00" value="{{ settings.dnd_start }}" maxlength="5">
+                    </div>
+                    <div>
+                        <label>DND END (HH:MM):</label>
+                        <input type="text" name="dnd_end" class="input mask-time" placeholder="07:00" value="{{ settings.dnd_end }}" maxlength="5">
+                    </div>
+                </div>
+
+                <label>PROGRESS BAR SCALE (HOURS):</label>
+                <input type="number" name="bar_start_hours" step="0.1" class="input" value="{{ settings.bar_start_hours }}">
+
+                <label>OVERDUE NAG INTERVAL (MINS):</label>
+                <input type="number" name="nag_interval" class="input" value="{{ settings.nag_interval }}">
+            </form>
+        </div>
+
+        <div id="custom-scrollbar" onmousedown="startScroll(event)" ontouchstart="startScroll(event)">
+            <div id="scroll-thumb"></div>
+        </div>
+    </div>
+
+    <div class="simple-keyboard"></div>
+
+    <script src="/static/js/simple-keyboard.js"></script>
+    <script>
+        // Chunky Scrollbar Logic
+        const scrollArea = document.getElementById('scroll-area');
+        const thumb = document.getElementById('scroll-thumb');
+        const track = document.getElementById('custom-scrollbar');
+
+        scrollArea.addEventListener('scroll', () => {
+            const scrollPercent = scrollArea.scrollTop / (scrollArea.scrollHeight - scrollArea.clientHeight);
+            const thumbPos = scrollPercent * (track.clientHeight - thumb.clientHeight);
+            thumb.style.top = thumbPos + 'px';
+        });
+
+        function startScroll(e) {
+            const moveHandler = (moveEvent) => {
+                const y = (moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY) - track.getBoundingClientRect().top;
+                const percent = Math.max(0, Math.min(1, y / track.clientHeight));
+                scrollArea.scrollTop = percent * (scrollArea.scrollHeight - scrollArea.clientHeight);
+            };
+            const stopHandler = () => {
+                window.removeEventListener('mousemove', moveHandler);
+                window.removeEventListener('mouseup', stopHandler);
+                window.removeEventListener('touchmove', moveHandler);
+                window.removeEventListener('touchend', stopHandler);
+            };
+            window.addEventListener('mousemove', moveHandler);
+            window.addEventListener('mouseup', stopHandler);
+            window.addEventListener('touchmove', moveHandler, { passive: false });
+            window.addEventListener('touchend', stopHandler);
+        }
+
+        // Keyboard Logic
+        let selectedInputName = "";
+        let myKeyboard = new window.SimpleKeyboard.default({
+            onChange: input => {
+                let el = document.querySelector(`[name="${selectedInputName}"]`);
+                if(el) {
+                    el.value = input;
+                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                }
+            },
+            onKeyPress: button => {
+                if (button === "{enter}") document.getElementById("settings-form").submit();
+            },
+            preventMouseDownDefault: true,
+            layout: {
+                'default': [
+                    '1 2 3 4 5 6 7 8 9 0',
+                    'Q W E R T Y U I O P',
+                    'A S D F G H J K L',
+                    ': . {backspace} {space} {enter}'
+                ]
+            },
+            display: { '{backspace}': '⌫', '{enter}': 'DONE', '{space}': ' ' }
+        });
+
+        document.querySelectorAll(".input").forEach(input => {
+            input.addEventListener("focus", e => {
+                selectedInputName = e.target.name;
+                myKeyboard.setOptions({ inputName: e.target.name });
+                myKeyboard.setInput(e.target.value);
+            });
+        });
+
+        // Time Mask Logic
+        document.addEventListener('input', function (e) {
+            if (e.target.classList.contains('mask-time')) {
+                let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,2})/);
+                e.target.value = !x[2] ? x[1] : x[1] + ':' + x[2];
+            }
+        });
+    </script>
+</body>
+</html>

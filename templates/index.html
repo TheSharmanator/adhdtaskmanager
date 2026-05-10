@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ADHD Task Board</title>
+
+<style>
+
+/* Prevent children from breaking the drag hover state */
+.task-content, .progress-bg, .task-text, .task-deadline {
+    pointer-events: none !important;
+}
+
+/* Drag Highlight - High Priority Override */
+/* Drag Highlight - Total Override */
+.main-task.drop-hover { 
+    background: #0000ff !important; 
+    color: #ffffff !important; 
+    border-color: #ffffff !important; 
+    animation: none !important; /* Forces the flashing to STOP immediately */
+}
+
+.main-task.drop-hover .task-deadline { 
+    color: #ffffff !important; 
+}
+
+    /* DND Overlay - Total Blanking */
+    #dnd-overlay {
+        display: {{ 'flex' if dnd_active else 'none' }};
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: black;
+        z-index: 10001;
+        justify-content: center;
+        align-items: center;
+    }
+
+    /* --- HIGH-ENERGY VISUAL FINALE THEMES --- */
+    #celebration-overlay {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        pointer-events: none;
+    }
+
+    .theme-matrix, .theme-glitch, .theme-gold-rush, .theme-fireworks, .theme-confetti {
+        overflow: hidden;
+    }
+
+    .theme-matrix::after, .theme-glitch::after, .theme-gold-rush::after, 
+    .theme-fireworks::after, .theme-confetti::after {
+        position: absolute;
+        font-size: 15rem;
+        animation: burst-animation 0.7s ease-out infinite;
+    }
+
+    @keyframes burst-animation { 
+        0% { transform: scale(0); opacity: 1; } 
+        100% { transform: scale(4); opacity: 0; } 
+    }
+
+    .theme-matrix { background: #002200 !important; color: #00ff00 !important; }
+    .theme-matrix::after { content: "💾"; }
+    .theme-glitch { background: #220022 !important; color: #ff00ff !important; }
+    .theme-glitch::after { content: "⚡"; }
+    .theme-gold-rush { background: #332200 !important; color: #ffd700 !important; }
+    .theme-gold-rush::after { content: "💰"; }
+    .theme-fireworks { background: #000033 !important; color: #ffffff !important; }
+    .theme-fireworks::after { content: "✨"; }
+    .theme-confetti { background: #330000 !important; color: #ff5555 !important; }
+    .theme-confetti::after { content: "🎉"; }
+
+    /* --- CORE DASHBOARD STYLES --- */
+    body { 
+        background: #121212; 
+        color: #e0e0e0; 
+        font-family: sans-serif; 
+        margin: 0; 
+        display: flex; 
+        flex-direction: column; 
+        height: 100vh; 
+        overflow: hidden; 
+    }
+
+    header {
+        height: auto;
+        min-height: 100px;
+        padding: 10px 25px;
+        background: #000;
+        display: flex;
+        justify-content: space-between; /* Keeps clock left, buttons right */
+        align-items: center;
+        border-bottom: 2px solid #333;
+    }
+
+    #clock-container {
+        display: flex;
+        align-items: center;
+    }
+
+    #clock-full { 
+        font-size: 3.5rem; 
+        font-weight: 900; 
+        color: #ffd700; 
+        white-space: nowrap;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+    }
+
+    .header-btns { 
+        display: flex; 
+        gap: 15px; 
+        align-items: center; 
+    }
+
+    .btn-touch {
+        padding: 15px 25px;
+        font-size: 1.4rem;
+        font-weight: 900;
+        text-decoration: none;
+        border-radius: 8px;
+        text-transform: uppercase;
+        display: inline-block;
+        border: 3px solid;
+        cursor: pointer;
+    }
+
+    .btn-add { background: #00ff00; color: #000; border-color: #ffd700; }
+    .btn-recovery { background: #000; color: #fff; border-color: #fff; }
+
+    .nuke-btn { 
+        padding: 15px 25px;
+        font-size: 1.4rem;
+        font-weight: 900;
+        border-radius: 8px;
+        border: 3px solid #800080; /* Purple Border */
+        cursor: pointer;
+        color: white;
+    }
+
+    .settings-icon { 
+        font-size: 4rem; 
+        margin-left: 15px;
+        cursor: pointer;
+        user-select: none;
+    }
+
+
+    .progress-bg { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(0, 255, 0, 0.2); z-index: 0; transition: width 1s linear; }
+    .task-content { z-index: 1; display: flex; flex-direction: column; pointer-events: none; }
+
+
+
+    @keyframes flash-yellow { 0% { background: #1e1e1e; } 50% { background: #ffff00; color: #000; } 100% { background: #1e1e1e; } }
+    @keyframes flash-orange { 0% { background: #1e1e1e; } 50% { background: #ffae42; color: #000; } 100% { background: #1e1e1e; } }
+    @keyframes flash-red { 0% { background: #1e1e1e; } 50% { background: #ff0000; color: #fff; } 100% { background: #1e1e1e; } }
+
+    .phase-yellow { animation: flash-yellow 2s infinite; }
+    .phase-orange { animation: flash-orange 1s infinite; }
+    .phase-red { animation: flash-red 0.5s infinite; border-color: #ff0000 !important; }
+
+#top-five { 
+    flex: 5; /* Increased flex weight to give top tasks more vertical space */
+    display: flex; 
+    flex-direction: column; 
+    padding: 10px; 
+}
+
+.main-task { 
+    flex: 1; 
+    margin: 5px; 
+    background: #1e1e1e; 
+    border: 3px solid #333; 
+    border-radius: 12px; 
+    display: flex; 
+    align-items: center; 
+    position: relative; 
+    overflow: hidden; 
+    padding-left: 25px; 
+}
+
+.task-text { 
+    font-size: 2.8rem; /* 50% bigger impact */
+    font-weight: 900; 
+    text-transform: uppercase;
+}
+
+.task-deadline { 
+    font-size: 1.2rem; 
+    color: #ffd700; 
+    font-weight: bold; 
+    text-transform: uppercase;
+}
+
+#bottom-ten { 
+    flex: 1; /* Shrunk down to make room for the big boys */
+    display: grid; 
+    grid-template-columns: repeat(5, 1fr); /* 5 columns to keep it a thin strip */
+    grid-template-rows: repeat(2, 1fr); 
+    gap: 5px; 
+    padding: 8px; 
+    background: #111; 
+    border-top: 2px solid #444; 
+}
+
+.sub-task { 
+    background: #1a1a1a; 
+    padding: 5px; 
+    border-radius: 4px; 
+    border: 1px solid #333; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: center;
+    overflow: hidden;
+}
+
+.sub-text { 
+    font-size: 0.85rem; 
+    font-weight: bold; 
+    white-space: nowrap; 
+    overflow: hidden; 
+    text-overflow: ellipsis; 
+}
+
+.sub-deadline { 
+    font-size: 0.7rem; 
+    color: #888; 
+}
+    
+    #control-bar { height: 130px; background: #000; display: flex; justify-content: center; align-items: center; border-top: 2px solid #333; }
+#smiley-source { 
+    width: auto; 
+    height: 110px; 
+    background: transparent;
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    cursor: grab; 
+}
+
+#smiley-img { 
+    height: 110px; 
+    width: auto; /* Maintains original proportions */
+    object-fit: contain; 
+}    
+
+</style>
+
+</head>
+
+<body>
+
+{% if is_mobile %}
+    <style>
+        body { overflow-y: auto !important; height: auto !important; }
+    </style>
+
+    <div style="padding: 15px; background: #121212; min-height: 100vh; font-family: sans-serif;">
+        <h2 style="color: #ffd700; text-align: center; font-size: 3.25rem; margin-bottom: 30px; text-transform: uppercase;">MOBILE BOARD</h2>
+        
+        <a href="/add" class="btn-touch btn-add" style="display: block; text-align: center; margin-bottom: 35px; text-decoration: none; padding: 30px; font-size: 1.8rem;">+ ADD TASK</a>
+
+        <div id="mobile-task-list">
+            {% for task in main_tasks + queue_tasks %}
+            <div style="background: #222; border: 5px solid white; margin-bottom: 20px; padding: 25px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center;">
+                <div style="flex: 1; padding-right: 15px;">
+                    <div style="font-size: 2.1rem; font-weight: 900; color: white; text-transform: uppercase; line-height: 1.1;">{{ task.title }}</div>
+                    <div style="font-size: 1.3rem; color: #ffd700; font-weight: bold; margin-top: 10px;">{{ task.deadline }}</div>
+                </div>
+                <button onclick="drop(event, {{ task.id }})" style="background: #00ff00; color: black; border: 4px solid white; padding: 25px; border-radius: 15px; font-weight: 900; font-size: 1.5rem;">DONE</button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div id="dnd-overlay"></div>
+    <div id="celebration-overlay">
+        <h1 id="praise-text" style="font-size: 5rem; text-align: center; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); z-index: 10000; margin: 0;"></h1>
+    </div>
+
+<header>
+    <div id="clock-container">
+        <div id="clock-full">LOADING CLOCK...</div>
+    </div>
+    <div class="header-btns">
+        <a href="/add" class="btn-touch btn-add">+ ADD TASK</a>
+        
+        <a href="/recovery" class="btn-touch btn-recovery">RECOVERY</a>
+        
+        <button id="nuke-btn" class="nuke-btn" onclick="toggleSilence()" 
+                style="background: {{ '#555' if silence_mode == 'on' else '#900' }};">
+            {{ 'UNSILENCE' if silence_mode == 'on' else 'SILENCE' }}
+        </button>
+        
+        <a href="/settings" style="text-decoration: none; color: inherit;">
+            <div class="settings-icon">⚙️</div>
+        </a>
+    </div>
+</header>
+
+    <div id="top-five">
+        {% for task in main_tasks %}
+<div class="main-task {{ task.phase }}" 
+     ondragover="dragOver(event)" 
+     ondragenter="dragEnter(event)" 
+     ondragleave="dragLeave(event)" 
+     ondrop="drop(event, {{ task.id }})">
+                <div class="progress-bg" style="width: {{ task.percent }}%;"></div>
+                <div class="task-content">
+                    <span class="task-text">{{ task.title }}</span>
+                    <span class="task-deadline">DUE: {{ task.deadline }}</span>
+                </div>
+            </div>
+        {% endfor %}
+        {% for i in range(5 - (main_tasks|length)) %}
+            <div class="main-task"><span class="task-text" style="color: #333;">(Waiting for task...)</span></div>
+        {% endfor %}
+    </div>
+
+    <div id="bottom-ten">
+        {% for task in queue_tasks %}
+            <div class="sub-task {{ task.phase }}">
+                <span class="sub-text">{{ task.title }}</span>
+                <span class="sub-deadline">Due: {{ task.deadline }}</span>
+            </div>
+        {% endfor %}
+        {% for i in range(10 - (queue_tasks|length)) %}
+            <div class="sub-task"><span class="sub-text" style="color: #444;">(Waiting...)</span></div>
+        {% endfor %}
+    </div>
+
+<div id="control-bar">
+    <div id="smiley-source" draggable="true" ondragstart="drag(event)">
+        <img src="/media/smiley.png" id="smiley-img" alt="Smiley">
+    </div>
+</div> {% endif %}
+
+    <script>
+
+function dragEnter(ev) {
+    ev.preventDefault();
+    ev.currentTarget.classList.add('drop-hover');
+}
+
+function dragLeave(ev) {
+    ev.currentTarget.classList.remove('drop-hover');
+}
+        // 1. Clock and Date Logic
+        function updateClock() {
+            const now = new Date();
+            const clockEl = document.getElementById('clock-full');
+            
+            if (clockEl) {
+                const day = now.toLocaleDateString('en-GB', { weekday: 'short' });
+                const date = now.getDate();
+                const month = now.toLocaleDateString('en-GB', { month: 'short' });
+                const year = now.getFullYear();
+                const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+                
+                // Format: SUN 26 APR 2026 13:05
+                clockEl.innerText = `${day} ${date} ${month} ${year} ${time}`.toUpperCase();
+            }
+        }
+        
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // 2. Poll for updates every 10 seconds without reload
+        setInterval(() => {
+            fetch('/api/tasks')
+            .then(res => res.json())
+            .then(data => {
+                // Here we would update the DOM. 
+                // For now, if lengths differ, reload to be safe.
+                const currentCount = document.querySelectorAll('.main-task .task-text').length;
+                if (data.length !== currentCount) {
+                    location.reload();
+                }
+            });
+        }, 10000);
+
+
+        // 3. Drag and Drop Logic
+        function drag(ev) { 
+            ev.dataTransfer.setData("text", ev.target.id); 
+        }
+
+        function drop(ev, taskId) {
+            ev.preventDefault();
+            ev.currentTarget.classList.remove('drop-hover'); // Remove blue immediately
+            
+            fetch('/complete/' + taskId, { method: 'POST' })
+            .then(res => {
+                if (!res.ok) throw new Error('Server Error');
+                return res.json();
+            })
+            .then(data => {
+                const overlay = document.getElementById('celebration-overlay');
+                const praise = document.getElementById('praise-text');
+                
+                if (overlay && praise) {
+                    praise.innerText = data.message || "Task Complete!";
+                    overlay.className = ''; 
+                    overlay.classList.add('theme-' + (data.theme || 'matrix'));
+                    overlay.style.display = 'flex';
+
+                    setTimeout(() => { 
+                        location.reload(); 
+                    }, 5000);
+                } else {
+                    location.reload();
+                }
+            })
+            .catch(err => {
+                console.error("Drop error:", err);
+                location.reload();
+            });
+        }
+
+        // 4. Silence Toggle Logic
+        function toggleSilence() {
+            fetch('/toggle_silence', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                const btn = document.getElementById('nuke-btn');
+                if (data.mode === 'on') {
+                    btn.innerText = 'UNSILENCE';
+                    btn.style.background = '#555';
+                } else {
+                    btn.innerText = 'SILENCE';
+                    btn.style.background = '#900';
+                }
+            });
+        }
+
+function dragEnter(ev) {
+    ev.preventDefault();
+    ev.currentTarget.classList.add('drop-hover');
+}
+
+/* Add this to ensure the blue stays locked on while moving */
+function dragOver(ev) {
+    ev.preventDefault();
+    ev.currentTarget.classList.add('drop-hover');
+}
+
+function dragLeave(ev) {
+    ev.currentTarget.classList.remove('drop-hover');
+}
+    </script>
+</body>
+</html>

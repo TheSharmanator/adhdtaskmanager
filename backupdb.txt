@@ -1,0 +1,1 @@
+/home/sharmanator/adhd-task-app/backup_db.sh works

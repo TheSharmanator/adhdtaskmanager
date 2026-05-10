@@ -1,0 +1,7 @@
+tasks.db
+*.pyc
+__pycache__/
+instance/
+.env
+config.json
+.DS_Store
