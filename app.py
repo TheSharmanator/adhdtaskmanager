@@ -347,48 +347,53 @@ def background_task_checker():
             check_recurring()
             
             conn = sqlite3.connect('tasks.db')
-            c = conn.cursor()
-            
-            c.execute("SELECT value FROM settings WHERE key='silence_mode'")
-            res_silence = c.fetchone()
-            silence_mode = res_silence[0] if res_silence else 'off'
+            try:
+                c = conn.cursor()
+                
+                c.execute("SELECT value FROM settings WHERE key='silence_mode'")
+                res_silence = c.fetchone()
+                silence_mode = res_silence[0] if res_silence else 'off'
 
-            c.execute("SELECT value FROM settings WHERE key='nag_interval'")
-            res_nag = c.fetchone()
-            nag_interval = int(res_nag[0]) if res_nag else 15
-            
-            if silence_mode == 'off':
-                c.execute("SELECT id, title, deadline, status, last_alert_type, last_nag_time FROM tasks WHERE status='active'")
-                all_tasks = c.fetchall()
-                now = datetime.now()
+                c.execute("SELECT value FROM settings WHERE key='nag_interval'")
+                res_nag = c.fetchone()
+                nag_interval = int(res_nag[0]) if res_nag else 15
                 
-                for task in all_tasks:
-                    t_id, t_title, t_deadline, t_status, t_last_alert, last_nag_val = task
-                    deadline_dt = datetime.strptime(t_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
-                    time_left_mins = (deadline_dt - now).total_seconds() / 60
+                if silence_mode == 'off':
+                    c.execute("SELECT id, title, deadline, status, last_alert_type, last_nag_time FROM tasks WHERE status='active'")
+                    all_tasks = c.fetchall()
+                    now = datetime.now()
                     
-                    if time_left_mins <= 0:
-                        should_nag = False
-                        if t_last_alert != 'nag_expired':
-                            should_nag = True
-                        elif last_nag_val:
-                            last_nag_dt = datetime.strptime(last_nag_val, '%Y-%m-%d %H:%M:%S')
-                            if (now - last_nag_dt).total_seconds() / 60 >= nag_interval:
-                                should_nag = True
+                    for task in all_tasks:
+                        t_id, t_title, t_deadline, t_status, t_last_alert, last_nag_val = task
+                        deadline_dt = datetime.strptime(t_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
+                        time_left_mins = (deadline_dt - now).total_seconds() / 60
                         
-                        if should_nag:
-                            trigger_voice_monkey(random.choice(NAG_EXPIRED).format(task=t_title), chime=random.choice(CHIMES))
-                            c.execute("UPDATE tasks SET last_alert_type='nag_expired', last_nag_time=? WHERE id=?", 
-                                      (now.strftime('%Y-%m-%d %H:%M:%S'), t_id))
+                        if time_left_mins <= 0:
+                            should_nag = False
+                            if t_last_alert != 'nag_expired':
+                                should_nag = True
+                            elif last_nag_val:
+                                last_nag_dt = datetime.strptime(last_nag_val, '%Y-%m-%d %H:%M:%S')
+                                if (now - last_nag_dt).total_seconds() / 60 >= nag_interval:
+                                    should_nag = True
+                            
+                            if should_nag:
+                                trigger_voice_monkey(random.choice(NAG_EXPIRED).format(task=t_title), chime=random.choice(CHIMES))
+                                c.execute("UPDATE tasks SET last_alert_type='nag_expired', last_nag_time=? WHERE id=?", 
+                                          (now.strftime('%Y-%m-%d %H:%M:%S'), t_id))
+                        
+                        elif 0 < time_left_mins <= 15 and t_last_alert != 'nag_15':
+                            trigger_voice_monkey(random.choice(NAG_15).format(task=t_title), chime=random.choice(CHIMES))
+                            c.execute("UPDATE tasks SET last_alert_type='nag_15' WHERE id=?", (t_id,))
+                        elif 15 < time_left_mins <= 30 and t_last_alert != 'nag_30':
+                            trigger_voice_monkey(random.choice(NAG_30).format(task=t_title), chime=random.choice(CHIMES))
+                            c.execute("UPDATE tasks SET last_alert_type='nag_30' WHERE id=?", (t_id,))
                     
-                    elif 0 < time_left_mins <= 15 and t_last_alert != 'nag_15':
-                        trigger_voice_monkey(random.choice(NAG_15).format(task=t_title), chime=random.choice(CHIMES))
-                        c.execute("UPDATE tasks SET last_alert_type='nag_15' WHERE id=?", (t_id,))
-                    elif 15 < time_left_mins <= 30 and t_last_alert != 'nag_30':
-                        trigger_voice_monkey(random.choice(NAG_30).format(task=t_title), chime=random.choice(CHIMES))
-                        c.execute("UPDATE tasks SET last_alert_type='nag_30' WHERE id=?", (t_id,))
-                
-                conn.commit()
+                    conn.commit()
+            except Exception as e:
+                print(f"DB error in background worker: {e}")
+            finally:
+                conn.close()
         except Exception as e:
             print(f"Background worker error: {e}")
         time.sleep(60)
@@ -580,8 +585,15 @@ def complete_task(task_id):
             
             # Calculate next date based on interval
             # Parse new interval format (e.g., "1D", "2W")
-            count = int(interval[:-1])
-            unit = interval[-1]
+            if interval == 'weekly':
+                count, unit = 1, 'W'
+            elif interval == 'daily':
+                count, unit = 1, 'D'
+            elif interval == 'monthly':
+                count, unit = 1, 'M'
+            else:
+                count = int(interval[:-1])
+                unit = interval[-1]
             
             if unit == 'D':
                 new_dt = old_dt + timedelta(days=count)
@@ -677,8 +689,15 @@ def manage_recurring():
             # Parse the deadline (Format: YYYY-MM-DDTHH:MM)
             dt = datetime.strptime(task_res[0].replace('T', ' '), '%Y-%m-%d %H:%M')
             
-            count = int(interval[:-1])
-            unit = interval[-1]
+            if interval == 'weekly':
+                count, unit = 1, 'W'
+            elif interval == 'daily':
+                count, unit = 1, 'D'
+            elif interval == 'monthly':
+                count, unit = 1, 'M'
+            else:
+                count = int(interval[:-1])
+                unit = interval[-1]
             
             if unit == 'D':
                 display_str = f"EVERY {count} DAYS @ {s_time}" if count > 1 else f"DAILY @ {s_time}"
