@@ -103,7 +103,7 @@
     }
 
     #clock-full { 
-        font-size: 3.5rem; 
+        font-size: 1.4rem; /* 40% of 3.5rem */
         font-weight: 900; 
         color: #ffd700; 
         white-space: nowrap;
@@ -184,9 +184,11 @@
 }
 
 .task-text { 
-    font-size: 2.8rem; /* 50% bigger impact */
+    font-size: 1.96rem; /* 70% of 2.8rem */
     font-weight: 900; 
     text-transform: uppercase;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .task-deadline { 
@@ -221,9 +223,9 @@
 .sub-text { 
     font-size: 0.85rem; 
     font-weight: bold; 
-    white-space: nowrap; 
-    overflow: hidden; 
-    text-overflow: ellipsis; 
+    white-space: normal; 
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .sub-deadline { 
