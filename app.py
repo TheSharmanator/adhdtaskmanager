@@ -160,6 +160,7 @@ def init_db():
     c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('dnd_start', '22:00')")
     c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('dnd_end', '07:00')")
     c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('nag_interval', '15')")
+    c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('port', '5001')")
     
     conn.commit()
     conn.close()
@@ -228,7 +229,7 @@ def settings():
     
     if request.method == 'POST':
         # List of keys to process normally
-        setting_keys = ['briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours', 'nag_interval', 'kiosk_mode']
+        setting_keys = ['briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours', 'nag_interval', 'kiosk_mode', 'port']
 
         for key in setting_keys:
             val = request.form.get(key)
@@ -610,9 +611,12 @@ def complete_task(task_id):
         # Celebration Data
         msg = random.choice(PRAISE_MESSAGES)
         selected_theme = random.choice(['matrix', 'glitch', 'gold-rush', 'fireworks', 'confetti'])
-        trigger_voice_monkey(msg, audio=random.choice(APPLAUSES))
+        trigger_voice_monkey(msg)
+        
+        applause_num = random.randint(1, 8)
+        audio_url = f"/soundfx/applause{applause_num}.mp3"
 
-        return jsonify({"status": "success", "message": msg, "theme": selected_theme})
+        return jsonify({"status": "success", "message": msg, "theme": selected_theme, "audio": audio_url})
     
     conn.close()
     return jsonify({"status": "error"}), 404
@@ -714,6 +718,11 @@ def serve_media(filename):
 
     return send_from_directory(media_path, filename)
 
+@app.route('/soundfx/<path:filename>')
+def serve_soundfx(filename):
+    soundfx_path = os.path.join(os.path.dirname(__file__), 'soundfx')
+    return send_from_directory(soundfx_path, filename)
+
 
 @app.route('/setup', methods=['GET', 'POST'])
 def setup():
@@ -804,11 +813,17 @@ def edit_task(task_id):
 if __name__ == '__main__':
     init_db()
 
-
+    # Get port from DB
+    conn = sqlite3.connect('tasks.db')
+    c = conn.cursor()
+    c.execute("SELECT value FROM settings WHERE key='port'")
+    res = c.fetchone()
+    app_port = int(res[0]) if res else 5001
+    conn.close()
 
     import threading
     t = threading.Thread(target=background_task_checker, daemon=True)
     t.start()
-    app.run(host='0.0.0.0', port=5001, debug=True)
+    app.run(host='0.0.0.0', port=app_port, debug=True)
 
 

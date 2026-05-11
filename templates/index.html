@@ -404,6 +404,11 @@ function dragLeave(ev) {
                 const overlay = document.getElementById('celebration-overlay');
                 const praise = document.getElementById('praise-text');
                 
+                if (data.audio) {
+                    const audio = new Audio(data.audio);
+                    audio.play().catch(e => console.error("Audio playback failed:", e));
+                }
+                
                 if (overlay && praise) {
                     praise.innerText = data.message || "Task Complete!";
                     overlay.className = ''; 

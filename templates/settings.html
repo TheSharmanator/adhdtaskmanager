@@ -180,6 +180,9 @@ $Shortcut.Save()</pre>
 
                 <label>OVERDUE NAG INTERVAL (MINS):</label>
                 <input type="number" name="nag_interval" class="input" value="{{ settings.nag_interval }}">
+
+                <label>SERVER PORT (Default: 5001):</label>
+                <input type="number" name="port" class="input" value="{{ settings.port or '5001' }}">
             </form>
         </div>
 
