@@ -98,63 +98,6 @@
                 <label>MORNING BRIEFING TIME (HH:MM):</label>
                 <input type="text" name="briefing_time" class="input mask-time" placeholder="08:00" value="{{ settings.briefing_time }}" maxlength="5">
 
-                <button type="button" class="btn-header" style="width: 100%; margin: 25px 0 15px 0; background: #ffd700; color: black; display: block; text-align: center;" onclick="openKioskModal()">📋 SETUP KIOSK SCRIPT</button>
-
-
-                <!-- Kiosk Modal -->
-                <div id="kiosk-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center;">
-                    <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:90%; max-width:600px; max-height: 80vh; overflow-y: auto; box-sizing: border-box;">
-                        <h2 style="color:#ffd700; margin-top:0;">KIOSK SETUP SCRIPTS</h2>
-                        <p style="color:#aaa;">Paste these into your terminal to auto-launch the browser in fullscreen on boot.</p>
-                        
-                        <h3 style="color:white; font-size: 1.2rem;">Windows (PowerShell)</h3>
-                        <div style="position: relative;">
-                            <pre id="code-win" style="background:#222; padding:15px; border-radius:8px; overflow-x:auto; font-family: monospace; font-size: 0.9rem; color: #00ff00;">$WshShell = New-Object -ComObject WScript.Shell
-$Shortcut = $WshShell.CreateShortcut("$env:APPDATA\Microsoft\Windows\Start Menu\Programs\Startup\TaskBoard.lnk")
-$Shortcut.TargetPath = "chrome.exe"
-$Shortcut.Arguments = "--kiosk http://localhost:5001"
-$Shortcut.Save()</pre>
-                            <button type="button" onclick="copyCode('code-win', this)" style="position: absolute; top: 10px; right: 10px; background: #333; color: white; border: 2px solid white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">📋 COPY</button>
-                        </div>
-
-                        <h3 style="color:white; font-size: 1.2rem; margin-top: 20px;">Linux / Pi OS</h3>
-                        <div style="position: relative;">
-                            <pre id="code-linux" style="background:#222; padding:15px; border-radius:8px; overflow-x:auto; font-family: monospace; font-size: 0.9rem; color: #00ff00;">echo "@chromium-browser --kiosk http://localhost:5001" >> ~/.config/lxsession/LXDE-pi/autostart</pre>
-                            <button type="button" onclick="copyCode('code-linux', this)" style="position: absolute; top: 10px; right: 10px; background: #333; color: white; border: 2px solid white; padding: 5px 10px; border-radius: 5px; cursor: pointer; font-weight: bold;">📋 COPY</button>
-                        </div>
-
-
-                        <p style="color:#ff5555; font-weight:bold; font-size: 1rem; margin-top: 20px;">Warning: Kiosk mode takes over the screen. Alt+F4 to exit on Windows, Ctrl+Alt+T to open terminal on Linux.</p>
-                        
-                        <button type="button" onclick="closeKioskModal()" style="width:100%; padding:20px; background:#ffd700; color:black; font-weight:900; font-size: 1.2rem; border:none; border-radius:12px; cursor:pointer; text-transform: uppercase;">CLOSE</button>
-                    </div>
-                </div>
-
-                <script>
-                    function openKioskModal() { document.getElementById('kiosk-modal').style.display = 'flex'; }
-                    function closeKioskModal() { document.getElementById('kiosk-modal').style.display = 'none'; }
-                    
-                    function copyCode(id, btn) {
-                        const text = document.getElementById(id).innerText;
-                        navigator.clipboard.writeText(text).then(() => {
-                            const oldText = btn.innerText;
-                            btn.innerText = "✅ COPIED!";
-                            btn.style.background = "#00ff00";
-                            btn.style.color = "black";
-                            setTimeout(() => {
-                                btn.innerText = oldText;
-                                btn.style.background = "#333";
-                                btn.style.color = "white";
-                            }, 2000);
-                        }).catch(err => {
-                            alert("Failed to copy. Please copy manually.");
-                        });
-                    }
-                </script>
-
-
-
-
                 <label>BRIEFING DAYS:</label>
                 <div class="day-selector">
                     {% for day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
