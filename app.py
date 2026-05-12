@@ -17,35 +17,36 @@ with open(config_path) as f:
     VM_TOKEN = config.get('VM_TOKEN')
     VM_DEVICE = config.get('VM_DEVICE')
     VM_MORNING_DEVICE = config.get('VM_MORNING_DEVICE')
+    USER_NAME = config.get('USER_NAME', 'Joe')
 
 
 
 
 MORNING_GREETINGS = [
-    "Good morning, Joe. Success is the sum of small efforts repeated daily. Your top tasks are...",
+    "Good morning, {name}. Success is the sum of small efforts repeated daily. Your top tasks are...",
     "Morning, mate. Focus on being productive instead of busy. Here’s the plan...",
-    "Wake up, Joe. Your future self is counting on you today. You've got these tasks...",
+    "Wake up, {name}. Your future self is counting on you today. You've got these tasks...",
     "Good morning. Discipline is doing what needs to be done even if you don't feel like it. Top 5...",
-    "Morning, Sharmanator. Don't stop until you're proud. Starting with...",
-    "Good morning, Joe. Today is another chance to get it right. Your priority list is...",
+    "Morning, {name}. Don't stop until you're proud. Starting with...",
+    "Good morning, {name}. Today is another chance to get it right. Your priority list is...",
     "Morning! Great things never come from comfort zones. Let's tackle these...",
-    "Wake up and win, Joe. Action is the foundational key to all success. Your top 5...",
+    "Wake up and win, {name}. Action is the foundational key to all success. Your top 5...",
     "Good morning. The only way to do great work is to love what you do. Let's start with...",
-    "Morning, Joe. Your focus determines your reality. Here is your focus for today...",
+    "Morning, {name}. Your focus determines your reality. Here is your focus for today...",
     "Good morning. Make today count. You’ll never get this day back. First up...",
     "Morning, mate. Small wins lead to big victories. Let’s get these out of the way...",
-    "Good morning, Joe. Excellence is not an act, but a habit. Your habits for today are...",
+    "Good morning, {name}. Excellence is not an act, but a habit. Your habits for today are...",
     "Morning! Don't count the days, make the days count. Here's your list...",
     "Good morning. Energy and persistence conquer all things. Let's go...",
-    "Morning, Joe. Be stronger than your excuses. Your top 5 priorities...",
+    "Morning, {name}. Be stronger than your excuses. Your top 5 priorities...",
     "Good morning. Success doesn't just find you. You have to go out and get it. Starting with...",
-    "Morning, Sharmanator. The secret of getting ahead is getting started. First tasks...",
-    "Good morning, Joe. Hustle until your haters ask if you're hiring. Your board shows...",
+    "Morning, {name}. The secret of getting ahead is getting started. First tasks...",
+    "Good morning, {name}. Hustle until your haters ask if you're hiring. Your board shows...",
     "Morning! Life is short. Don't waste it on things that don't matter. Focus on...",
-    "Good morning, Joe. You are capable of amazing things. Let's prove it with...",
+    "Good morning, {name}. You are capable of amazing things. Let's prove it with...",
     "Morning, mate. Every morning is a new arrival. A new chance. Your top 5...",
     "Good morning. Don't be busy, be productive. Here is what needs doing...",
-    "Morning, Joe. Do something today that your future self will thank you for. Like...",
+    "Morning, {name}. Do something today that your future self will thank you for. Like...",
     "Good morning. You didn't wake up today to be mediocre. Let's be legendary. Starting with..."
 ]
 
@@ -110,7 +111,7 @@ NAG_15 = [
     "15 minute alert for {task}. Finish strong!", "Final stretch! {task} in 15 minutes.",
     "Don't stop now, {task} is due in 15.", "Crunch time. 15 minutes for {task}.",
     "Incoming deadline! {task} in 15 minutes.", "Alert! Only 15 minutes left for {task}.",
-    "Focus, Sharmanator! {task} is due in 15.", "The 15 minute countdown for {task} has started."
+    "Focus, {name}! {task} is due in 15.", "The 15 minute countdown for {task} has started."
 ]
 
 NAG_EXPIRED = [
@@ -273,7 +274,7 @@ def run_morning_briefing():
             return
 
         # 3. Assemble Message with Overdue Awareness
-        message = random.choice(MORNING_GREETINGS)
+        message = random.choice(MORNING_GREETINGS).format(name=USER_NAME)
         
         for i, task in enumerate(tasks, 1):
             title, deadline_str = task
@@ -383,7 +384,7 @@ def background_task_checker():
                                           (now.strftime('%Y-%m-%d %H:%M:%S'), t_id))
                         
                         elif 0 < time_left_mins <= 15 and t_last_alert != 'nag_15':
-                            trigger_voice_monkey(random.choice(NAG_15).format(task=t_title), chime=random.choice(CHIMES))
+                            trigger_voice_monkey(random.choice(NAG_15).format(task=t_title, name=USER_NAME), chime=random.choice(CHIMES))
                             c.execute("UPDATE tasks SET last_alert_type='nag_15' WHERE id=?", (t_id,))
                         elif 15 < time_left_mins <= 30 and t_last_alert != 'nag_30':
                             trigger_voice_monkey(random.choice(NAG_30).format(task=t_title), chime=random.choice(CHIMES))
