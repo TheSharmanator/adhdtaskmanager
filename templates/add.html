@@ -77,6 +77,7 @@
             bottom: 0; 
             left: 0; 
             z-index: 100;
+            display: none; /* Hidden by default */
         }
 
         .hg-button { 
@@ -580,7 +581,9 @@
                     }
                 },
                 onKeyPress: button => {
-                    if (button === "{enter}") document.getElementById("task-form").submit();
+                    if (button === "{enter}") {
+                        document.querySelector(".simple-keyboard").style.display = "none";
+                    }
                 },
                 preventMouseDownDefault: true,
                 layout: {
@@ -600,6 +603,7 @@
                     selectedInputName = e.target.name;
                     myKeyboard.setOptions({ inputName: e.target.name });
                     myKeyboard.setInput(e.target.value);
+                    document.querySelector(".simple-keyboard").style.display = "block";
                 });
             });
         }
