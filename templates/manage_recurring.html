@@ -123,7 +123,7 @@
                     <strong>{{ t.title }}</strong>
                     <small>{{ t.display }}</small>
                 </div>
-                    <form action="/delete_template/{{ t.id }}" method="POST">
+                    <form action="/delete_template/{{ t.id }}" method="POST" autocomplete="off">
                         <button type="submit" class="btn-delete">DELETE</button>
                     </form>
             </div>

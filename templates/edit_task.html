@@ -53,7 +53,7 @@
     <h1>Edit Deadline</h1>
     
     <div class="form-container">
-        <form method="POST" onsubmit="return validateEditForm()">
+        <form method="POST" onsubmit="return validateEditForm()" autocomplete="off">
             <label>TASK NAME (Read Only):</label>
             <input type="text" value="{{ task.title }}" disabled style="background: #333; color: #888;">
 

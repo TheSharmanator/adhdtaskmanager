@@ -321,17 +321,17 @@ NAG_EXPIRED = [
 ]
 
 CHIMES = [
-    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fair_horns%2Fair_horn_01",
-    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fbeeps_and_bloops%2Fboing_01",
-    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fbuzzers%2Fbuzzers_01",
-    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fbuzzers%2Fbuzzers_04",
-    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fchimes_and_bells%2Fchimes_bells_04",
-    "soundbank%3A%2F%2Fsoundlibrary%2Fhome%2Famzn_sfx_doorbell_01",
-    "soundbank%3A%2F%2Fsoundlibrary%2Fhome%2Famzn_sfx_doorbell_chime_02",
-    "soundbank%3A%2F%2Fsoundlibrary%2Fscifi%2Famzn_sfx_scifi_timer_beep_01",
-    "soundbank%3A%2F%2Fsoundlibrary%2Fscifi%2Famzn_sfx_scifi_alarm_01",
-    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fbeeps_and_bloops%2Fbuzz_03",
-    "soundbank%3A%2F%2Fsoundlibrary%2Fmusical%2Famzn_sfx_test_tone_01",
+    "soundbank://soundlibrary/alarms/air_horns/air_horn_01",
+    "soundbank://soundlibrary/alarms/beeps_and_bloops/boing_01",
+    "soundbank://soundlibrary/alarms/buzzers/buzzers_01",
+    "soundbank://soundlibrary/alarms/buzzers/buzzers_04",
+    "soundbank://soundlibrary/alarms/chimes_and_bells/chimes_bells_04",
+    "soundbank://soundlibrary/home/amzn_sfx_doorbell_01",
+    "soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_02",
+    "soundbank://soundlibrary/scifi/amzn_sfx_scifi_timer_beep_01",
+    "soundbank://soundlibrary/scifi/amzn_sfx_scifi_alarm_01",
+    "soundbank://soundlibrary/alarms/beeps_and_bloops/buzz_03",
+    "soundbank://soundlibrary/musical/amzn_sfx_test_tone_01",
 ]
 
 def get_db():
@@ -555,38 +555,38 @@ def background_task_checker():
                         deadline_dt = datetime.strptime(t_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
                         time_left_mins = (deadline_dt - now).total_seconds() / 60
                         
-                    if time_left_mins <= 0:
-                        should_nag = False
-                        if t_last_alert == 'none' or t_last_alert == 'nag_30' or t_last_alert == 'nag_15':
-                            # First time hitting deadline — use NAG_DEADLINE
-                            should_nag = True
-                            nag_list = NAG_DEADLINE
-                            new_alert_type = 'nag_expired'
-                        elif t_last_alert == 'nag_expired':
-                            if last_nag_val:
-                                last_nag_dt = datetime.strptime(last_nag_val, '%Y-%m-%d %H:%M:%S')
-                                if (now - last_nag_dt).total_seconds() / 60 >= nag_interval:
-                                    should_nag = True
-                            else:
+                        if time_left_mins <= 0:
+                            should_nag = False
+                            if t_last_alert == 'none' or t_last_alert == 'nag_30' or t_last_alert == 'nag_15':
+                                # First time hitting deadline — use NAG_DEADLINE
                                 should_nag = True
-                            nag_list = NAG_EXPIRED
-                            new_alert_type = 'nag_expired'
+                                nag_list = NAG_DEADLINE
+                                new_alert_type = 'nag_expired'
+                            elif t_last_alert == 'nag_expired':
+                                if last_nag_val:
+                                    last_nag_dt = datetime.strptime(last_nag_val, '%Y-%m-%d %H:%M:%S')
+                                    if (now - last_nag_dt).total_seconds() / 60 >= nag_interval:
+                                        should_nag = True
+                                else:
+                                    should_nag = True
+                                nag_list = NAG_EXPIRED
+                                new_alert_type = 'nag_expired'
 
-                        if should_nag:
-                            nag_text = f"{USER_NAME}. {t_title}. {random.choice(nag_list)}"
+                            if should_nag:
+                                nag_text = f"{USER_NAME}. {t_title}. {random.choice(nag_list)}"
+                                trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
+                                c.execute("UPDATE tasks SET last_alert_type=?, last_nag_time=? WHERE id=?",
+                                          (new_alert_type, now.strftime('%Y-%m-%d %H:%M:%S'), t_id))
+
+                        elif 0 < time_left_mins <= 15 and t_last_alert not in ('nag_15', 'nag_expired', 'nag_deadline'):
+                            nag_text = f"{USER_NAME}. {t_title}. 15 minutes until deadline. {random.choice(NAG_15)}"
                             trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
-                            c.execute("UPDATE tasks SET last_alert_type=?, last_nag_time=? WHERE id=?",
-                                      (new_alert_type, now.strftime('%Y-%m-%d %H:%M:%S'), t_id))
+                            c.execute("UPDATE tasks SET last_alert_type='nag_15' WHERE id=?", (t_id,))
 
-                    elif 0 < time_left_mins <= 15 and t_last_alert not in ('nag_15', 'nag_expired', 'nag_deadline'):
-                        nag_text = f"{USER_NAME}. {t_title}. 15 minutes until deadline. {random.choice(NAG_15)}"
-                        trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
-                        c.execute("UPDATE tasks SET last_alert_type='nag_15' WHERE id=?", (t_id,))
-
-                    elif 15 < time_left_mins <= 30 and t_last_alert not in ('nag_30', 'nag_15', 'nag_expired', 'nag_deadline'):
-                        nag_text = f"{USER_NAME}. {t_title}. 30 minutes until deadline. {random.choice(NAG_30)}"
-                        trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
-                        c.execute("UPDATE tasks SET last_alert_type='nag_30' WHERE id=?", (t_id,))
+                        elif 15 < time_left_mins <= 30 and t_last_alert not in ('nag_30', 'nag_15', 'nag_expired', 'nag_deadline'):
+                            nag_text = f"{USER_NAME}. {t_title}. 30 minutes until deadline. {random.choice(NAG_30)}"
+                            trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
+                            c.execute("UPDATE tasks SET last_alert_type='nag_30' WHERE id=?", (t_id,))
                     
                     conn.commit()
             except Exception as e:

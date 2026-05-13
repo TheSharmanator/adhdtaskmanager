@@ -93,7 +93,7 @@
                     <strong>{{ t.title }}</strong>
                     <small>WAS DUE: {{ t.was_due }}</small>
                 </div>
-                <form action="/restore/{{ t.id }}" method="POST">
+                <form action="/restore/{{ t.id }}" method="POST" autocomplete="off">
                     <button type="submit" class="btn-recover">RECOVER</button>
                 </form>
             </div>
