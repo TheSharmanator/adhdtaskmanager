@@ -435,7 +435,7 @@ def settings():
     
     if request.method == 'POST':
         # List of keys to process normally
-        setting_keys = ['briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours', 'nag_interval', 'kiosk_mode', 'port']
+        setting_keys = ['briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours', 'nag_interval', 'port']
 
         for key in setting_keys:
             val = request.form.get(key)
