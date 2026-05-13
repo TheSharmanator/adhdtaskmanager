@@ -14,112 +14,324 @@ import os
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
 with open(config_path) as f:
     config = json.load(f)
-    VM_TOKEN = config.get('VM_TOKEN')
-    VM_DEVICE = config.get('VM_DEVICE')
-    VM_MORNING_DEVICE = config.get('VM_MORNING_DEVICE')
+    VM_ENABLED = config.get('VM', False)
+    VM_TOKEN = config.get('VM_TOKEN', '')
+    VM_DEVICE_ALERTS = config.get('VM_DEVICE_ALERTS', '')
+    VM_DEVICE_BRIEFINGS = config.get('VM_DEVICE_BRIEFINGS', '')
+    VM_LANGUAGE = config.get('VM_LANGUAGE', 'en-GB')
     USER_NAME = config.get('USER_NAME', 'Joe')
 
-
-
-
-MORNING_GREETINGS = [
-    "Good morning, {name}. Success is the sum of small efforts repeated daily. Your top tasks are...",
-    "Morning, mate. Focus on being productive instead of busy. Here’s the plan...",
-    "Wake up, {name}. Your future self is counting on you today. You've got these tasks...",
-    "Good morning. Discipline is doing what needs to be done even if you don't feel like it. Top 5...",
-    "Morning, {name}. Don't stop until you're proud. Starting with...",
-    "Good morning, {name}. Today is another chance to get it right. Your priority list is...",
-    "Morning! Great things never come from comfort zones. Let's tackle these...",
-    "Wake up and win, {name}. Action is the foundational key to all success. Your top 5...",
-    "Good morning. The only way to do great work is to love what you do. Let's start with...",
-    "Morning, {name}. Your focus determines your reality. Here is your focus for today...",
-    "Good morning. Make today count. You’ll never get this day back. First up...",
-    "Morning, mate. Small wins lead to big victories. Let’s get these out of the way...",
-    "Good morning, {name}. Excellence is not an act, but a habit. Your habits for today are...",
-    "Morning! Don't count the days, make the days count. Here's your list...",
-    "Good morning. Energy and persistence conquer all things. Let's go...",
-    "Morning, {name}. Be stronger than your excuses. Your top 5 priorities...",
-    "Good morning. Success doesn't just find you. You have to go out and get it. Starting with...",
-    "Morning, {name}. The secret of getting ahead is getting started. First tasks...",
-    "Good morning, {name}. Hustle until your haters ask if you're hiring. Your board shows...",
-    "Morning! Life is short. Don't waste it on things that don't matter. Focus on...",
-    "Good morning, {name}. You are capable of amazing things. Let's prove it with...",
-    "Morning, mate. Every morning is a new arrival. A new chance. Your top 5...",
-    "Good morning. Don't be busy, be productive. Here is what needs doing...",
-    "Morning, {name}. Do something today that your future self will thank you for. Like...",
-    "Good morning. You didn't wake up today to be mediocre. Let's be legendary. Starting with..."
+VOICES = [
+    "Nicole", "Russell", "Amy", "Emma", "Brian",
+    "Raveena", "Aditi", "Ivy", "Joanna", "Kendra",
+    "Kimberley", "Salli", "Joey", "Justin", "Matthew",
+    "Geraint", "Celine", "Lea", "Mathieu"
 ]
 
-VOICES = ["Nicole", "Russell", "Amy", "Emma", "Brian"]
 
-CHIMES = [
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/boing_01",
-    "soundbank://soundlibrary/alarms/air_horns/air_horn_01",
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/woosh_02",
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/bell_01",
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/bell_02",
-    "soundbank://soundlibrary/alarms/chimes_and_bells/chimes_bells_05",
-    "soundbank://soundlibrary/alarms/buzzers/buzzers_01",
-    "soundbank://soundlibrary/alarms/chimes_and_bells/chimes_bells_04",
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/bell_03",
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/bell_04",
-    "soundbank://soundlibrary/home/amzn_sfx_doorbell_01",
-    "soundbank://soundlibrary/home/amzn_sfx_doorbell_chime_02",
-    "soundbank://soundlibrary/musical/amzn_sfx_electronic_beep_01",
-    "soundbank://soundlibrary/musical/amzn_sfx_electronic_beep_02",
-    "soundbank://soundlibrary/scifi/amzn_sfx_scifi_timer_beep_01",
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/intro_02",
-    "soundbank://soundlibrary/scifi/amzn_sfx_scifi_alarm_01",
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/buzz_03",
-    "soundbank://soundlibrary/musical/amzn_sfx_test_tone_01",
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/tone_02",
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/tone_05",
-    "soundbank://soundlibrary/alarms/beeps_and_bloops/woosh_02"
+
+
+MORNING_QUOTES = [
+    "The sun is up, and so are the stakes.",
+    "Fortune favours the bold, so stop hesitating.",
+    "Every day is a fresh roll of the dice.",
+    "Action is the foundational key to all success.",
+    "The only way to predict the future is to build it.",
+    "Efficiency is doing things right; effectiveness is doing the right things.",
+    "Get after it.",
+    "Small gains every day lead to massive results.",
+    "The best revenge is massive success.",
+    "Discipline is the bridge between goals and accomplishment.",
+    "Amateurs sit and wait for inspiration, the rest of us just get up and go to work.",
+    "Focus on the signal, ignore the noise.",
+    "The obstacle is the way.",
+    "Consistency beats intensity every single time.",
+    "Wake up with determination, go to bed with satisfaction.",
+    "Control your morning, control your day.",
+    "Don't count the days, make the days count.",
+    "Simplicity is the ultimate sophistication.",
+    "Energy flows where attention goes.",
+    "You don't have to be great to start, but you have to start to be great.",
+    "Great things never come from comfort zones.",
+    "Be the hammer, not the anvil.",
+    "Own your time or someone else will.",
+    "The secret of getting ahead is getting started.",
+    "Hard work beats talent when talent doesn't work hard.",
+    "Pressure creates diamonds.",
+    "Today is a good day for a breakthrough.",
+    "Don't wait for opportunity. Create it.",
+    "It's a beautiful day to disrupt the status quo.",
+    "Maximum effort, minimum fluff.",
+    "The only person you should try to be better than is the person you were yesterday.",
+    "Make it happen.",
+    "You are the architect of your own reality.",
+    "Start where you are. Use what you have. Do what you can.",
+    "The day is yours for the taking.",
 ]
-
-APPLAUSES = [f"https://media.voicemonkey.io/vom/u/bd587122d47d74b4e29a0b363b5cb73e/69eb5d0b7ec97/applause{i}.mp3" for i in range(1, 9)]
 
 PRAISE_MESSAGES = [
-    "Jolly good show!", "About bloody time.", "Absolute legend.", "Task slain. Who's next?", 
-    "Look at you, being a functioning adult.", "Crushed it. Go grab a beer.", "Finally. I was starting to worry.",
-    "Superior work, captain.", "You're on fire today!", "Dopamine hit incoming!", 
-    "One step closer to freedom.", "Magnificent effort.", "You actually did it. I'm impressed.", 
-    "Victory is yours!", "Task demolished. Stay in the zone.", "Efficiency levels are peaking.",
-    "That's how it's done.", "Boom. Done. What's next?", "System satisfied. Keep going.", 
-    "You're making this look easy.", "Look at that momentum!", "Another one bites the dust.", 
-    "Task purged. Feeling lighter?", "You're outperforming your yesterday self.", 
-    "A masterful execution.", "Pure productivity.", "The board is pleased.", "Legendary status achieved.",
-    "No more nagging for that one!", "Clean sweep.", "You're winning at life right now.",
-    "Keep that streak alive.", "Solid work. Don't stop now.", "Task complete. Dopamine delivered.",
-    "You're a task-finishing machine.", "Outstanding. Simply outstanding.", "Phenomenal hustle.",
-    "Consider that task dominated.", "You've got this handled.", "Smooth operations only.",
-    "That's a win in my book.", "Process complete. Well played.", "You're in the flow now.",
-    "Top tier productivity.", "Exactly as planned. Well done.", "The queue is shrinking!",
-    "Bravo! Truly bravo.", "Focus pays off.", "You're unstoppable today.", "Task buried."
+    "I've never seen anyone handle a workload with that level of clinical precision, {name}, you're in a league of your own.",
+    "That was a world-class bit of execution, {name}, you've genuinely set a benchmark that nobody else is going to touch.",
+    "You've got a rare talent for cutting through the noise and delivering pure quality, {name}, it's impressive to watch.",
+    "The level of detail you've managed to maintain under that kind of pressure is nothing short of elite, {name}.",
+    "You've absolutely played a blinder, {name}, that's the kind of high-spec finish that separates the pros from the amateurs.",
+    "I knew you were capable of great work, {name}, but you've managed to exceed even my highest expectations on this one.",
+    "That was a masterclass in efficiency and grit, {name}, you've made a complex task look like a walk in the park.",
+    "Your ability to stay grounded and deliver such a polished result is a testament to your focus, {name}.",
+    "You've navigated that like a total expert, {name}, I don't think there's a single person who could have done it better.",
+    "There's a real craft to the way you work, {name}, and the results speak volumes about your standards.",
+    "You've delivered a result that is both functional and flawless, {name}, you should be incredibly proud of that graft.",
+    "The sheer momentum you maintained to get this finished to such a high standard is remarkable, {name}.",
+    "You've got a habit of making the impossible look standard, {name}, and this was no exception.",
+    "That was a legendary performance, {name}, you've handled every variable with total composure and skill.",
+    "You've turned in a piece of work that is head and shoulders above the rest, {name}, absolutely top-tier stuff.",
+    "It's rare to see someone operate with that level of clarity and purpose, {name}, you've nailed it.",
+    "You've taken the brief and elevated it into something truly exceptional, {name}, credit to your vision.",
+    "The way you've tightened up every loose end is a display of pure professional excellence, {name}.",
+    "You've got an engine on you, {name}, I'm genuinely floored by how much quality you've packed into this.",
+    "That was a surgical strike of a job, {name}, you went in, did the work, and left everyone else standing.",
+    "That's a gold-plated result if ever I saw one, {name}, you've hit the bullseye and then some.",
+    "Your consistency is your greatest weapon, {name}, and you've just fired another winning shot with this.",
+    "That was a deeply impressive display of competence, {name}, you've made a massive impact today.",
+    "You've treated this task with the respect and focus it deserved, {name}, and the outcome is flawless.",
+    "There's no fluff or filler in what you've produced, {name}, it's just pure, unadulterated quality.",
+    "That's the kind of work that builds a reputation of iron, {name}, you've absolutely crushed it.",
+    "The clarity of your execution is honestly refreshing, {name}, you've simplified the complex and won.",
+    "You've put a real stamp of authority on this project, {name}, nobody can doubt your expertise now.",
+    "That was a marathon effort with a sprint finish, {name}, and you didn't miss a single beat.",
+    "You've produced something that is as robust as it is refined, {name}, a truly professional job.",
+    "You've outclassed the requirements and delivered something truly special, {name}.",
+    "That was a high-performance delivery from start to finish, {name}, you're firing on all cylinders.",
+    "You've got a way of making every move count, {name}, and this result is the ultimate proof.",
+    "That's a textbook example of how to handle a high-stakes task, {name}, you were flawless.",
+    "You've managed to turn hard graft into a work of art, {name}, you're a credit to your craft.",
+    "You've delivered a powerhouse of a result, {name}, it's solid, it's sharp, and it's done.",
+    "That was an incredibly slick operation, {name}, you've handled it with total finesse.",
+    "Your standards are sky-high, {name}, and you've just cleared the bar with plenty of room to spare.",
+    "That was a brilliantly executed piece of work that shows exactly why you're the best at what you do, {name}.",
+    "You've finished this with such authority and style, {name}, it's an absolute win for the books.",
 ]
 
 NAG_30 = [
-    "Heads up! {task} is due in 30 minutes.", "30 minute warning for {task}. Let's get moving.",
-    "Clock is ticking, {task} is due in half an hour.", "Don't get distracted! {task} in 30 minutes.",
-    "Focus time. {task} is coming up in 30 minutes.", "Interval check: {task} is due in 30.",
-    "Just a nudge, {task} is due in 30 minutes.", "Stay on track! {task} is due shortly.",
-    "Time blindness check! 30 minutes left for {task}.", "Half hour remaining for {task}."
+    "Sunshine. Tick tock.",
+    "The sand's running out of the glass.",
+    "Don't make me tap the sign.",
+    "This isn't a drill.",
+    "Better get a move on.",
+    "The clock is winning right now.",
+    "Speed it up, or we're stuffed.",
+    "Efficiency is your only friend now.",
+    "No more faffing about.",
+    "The reaper is at the door.",
+    "Panic is optional; finishing isn't.",
+    "Put your back into it.",
+    "Eyes on the prize.",
+    "You're cutting it fine, aren't you?",
+    "This is the home stretch.",
+    "Less thinking, more doing.",
+    "Don't drop the ball now.",
+    "The guillotine is being sharpened.",
+    "Your time's almost up.",
+    "Last chance to look like a pro.",
+    "Shake a leg.",
+    "The window is closing.",
+    "Make every second count.",
+    "Clock's ticking.",
+    "It's now or never.",
+    "Focus up, work harder.",
+    "This isn't a social club.",
+    "Final warning.",
+    "Time to deliver or disappear.",
+    "The cliff edge is right there.",
+    "Hustle, before it's too late.",
+    "Stop watching the clock and start beating it.",
+    "You're on borrowed time.",
+    "Get it done, no excuses.",
+    "The bells are about to toll.",
+    "It's crunch time.",
+    "The countdown is getting loud.",
+    "End of the line is approaching.",
+    "Pull your finger out.",
+    "Just half an hour left.",
+    "Do you hear that? It's the sound of failure looming.",
+    "Clocking off soon, finish up.",
+    "Don't leave it to the last second.",
+    "Start the final sprint.",
+    "Time is a luxury you've run out of.",
+    "Last bit of gas in the tank, use it.",
+    "Stop daydreaming and start finishing.",
+    "This is your 1800-second warning.",
+    "You're flirting with disaster.",
+    "Wrap it up.",
 ]
 
 NAG_15 = [
-    "Urgent! {task} is due in 15 minutes!", "Double time! 15 minutes left for {task}.",
-    "15 minute alert for {task}. Finish strong!", "Final stretch! {task} in 15 minutes.",
-    "Don't stop now, {task} is due in 15.", "Crunch time. 15 minutes for {task}.",
-    "Incoming deadline! {task} in 15 minutes.", "Alert! Only 15 minutes left for {task}.",
-    "Focus, {name}! {task} is due in 15.", "The 15 minute countdown for {task} has started."
+    "Last chance. Move it.",
+    "The clock has already beaten you half to death.",
+    "Fifteen minutes or you're finished.",
+    "Stop breathing and start doing.",
+    "This is the point of no return.",
+    "The axe is mid-swing.",
+    "Total focus. Right now.",
+    "You're out of runway.",
+    "Move like your life depends on it.",
+    "Zero room for error left.",
+    "The walls are closing in.",
+    "Pick up the pace or pack it in.",
+    "The timer is screaming.",
+    "Every second you waste is a nail in the coffin.",
+    "This is a crisis, act like it.",
+    "Cut the rubbish and deliver.",
+    "You're staring down the barrel of a failure.",
+    "Engage or evaporate.",
+    "Shift it. Now.",
+    "The fuse is down to the last inch.",
+    "The grace period is dead.",
+    "Finish it or face the music.",
+    "Don't you dare stop moving.",
+    "The pressure is on. Deal with it.",
+    "Final sprint. No more talking.",
+    "You're flirting with a total collapse.",
+    "I want results, not sweat.",
+    "It's now or never, and 'now' is nearly gone.",
+    "The guillotine is dropping.",
+    "Blood, sweat, and gears. Go.",
+    "Fifteen minutes. Make them count.",
+    "There is no more 'later'.",
+    "You're playing with fire and you're about to get burned.",
+    "Don't look up until it's finished.",
+    "The countdown is deafening.",
+    "Hustle. Fast.",
+    "The cliff edge is under your feet.",
+    "Whatever you're doing, do it twice as fast.",
+    "This is the end of the line.",
+    "No excuses will save you in fifteen minutes.",
+    "Panic later. Work now.",
+    "The sand has practically run out.",
+    "Speed is the only thing that matters.",
+    "You're on the edge of a catastrophe.",
+    "Shut up and finish.",
+    "The bells are ringing.",
+    "This is your final, final warning.",
+    "Put the hammer down.",
+    "The window has slammed shut.",
+    "Done. Now.",
+]
+
+NAG_DEADLINE = [
+    "The clock has stopped. You've run out of road.",
+    "The silence is deafening.",
+    "You had the warnings and you blew it.",
+    "There's the line, and you're on the wrong side of it.",
+    "I expected a result, not a post-mortem.",
+    "You've let the clock win.",
+    "The window isn't just closed; it's locked.",
+    "All that talk for nothing.",
+    "The opportunity has evaporated.",
+    "I'm looking at a void where a finished task should be.",
+    "You've managed to snatch defeat from the jaws of victory.",
+    "The sand is gone. The glass is empty.",
+    "Is this it? Is this the best we can expect?",
+    "The deadline didn't move; you just stayed still.",
+    "Hope you enjoyed the faffing, because the price is high.",
+    "A total collapse of execution.",
+    "The bells have tolled and you're still at the starting block.",
+    "Zero. Zilch. Nothing to show for it.",
+    "The reaper isn't at the door anymore; he's moved in.",
+    "You had every chance to deliver.",
+    "The guillotine has dropped.",
+    "Utterly underwhelming.",
+    "It's over. You missed the boat.",
+    "The runway ended and you didn't even take off.",
+    "I'm not angry, just profoundly unimpressed.",
+    "You've traded your reputation for a bit of daydreaming.",
+    "The time for excuses expired sixty seconds ago.",
+    "Staring at the wreckage of a missed chance.",
+    "You've failed the most basic requirement: finishing.",
+    "The lights are off and the doors are barred.",
+    "A masterclass in how to fail.",
+    "The countdown reached zero and you blinked.",
+    "Everything's gone cold.",
+    "You had the tools, the time, and the warnings.",
+    "Total silence on the delivery front.",
+    "The cliff edge is behind you now. You're in freefall.",
+    "The final warning was exactly that, final.",
+    "The moment has passed and you weren't in it.",
+    "The sand has run out, and so has my patience.",
+    "Whatever you've got now is too little, too late.",
+    "A spectacular display of inertia.",
+    "The game was yours to lose, and you lost it.",
+    "You've left it all on the table, and the table's being cleared.",
+    "The clock is mocking you now.",
+    "The deadline didn't fail you; you failed the deadline.",
+    "The end of the line. You didn't make the distance.",
+    "Wrap it up. It's a corpse now.",
 ]
 
 NAG_EXPIRED = [
-    "The deadline for {task} has expired. Do it now.", "Attention! {task} is overdue.",
-    "You missed the mark on {task}. Clear it immediately.", "Overdue alert: {task} needs doing.",
-    "Stop wasting time. {task} was due already.", "{task} is sitting in the red. Fix it.",
-    "Still haven't done {task}? Get it done.", "The board is red! {task} is overdue.",
-    "Persistence check: {task} is late. Do it.", "No more excuses, {task} is past due."
+    "The ship hasn't just sailed; it's over the horizon and sinking.",
+    "We're well into the autopsy phase now.",
+    "The clock is mocking us.",
+    "This isn't a delay; it's a monument to inertia.",
+    "We've moved past 'late' and straight into 'pointless'.",
+    "The urgency died hours ago; now it's just embarrassing.",
+    "Staring at a carcass where a project should be.",
+    "The deadline is a distant memory.",
+    "You're not just behind the curve; you've fallen off the map.",
+    "Collecting dust on a ghost task.",
+    "Post-deadline faffing is the worst kind of faffing.",
+    "It's yesterday's news and you haven't even printed it yet.",
+    "This is a masterclass in 'too little, too late'.",
+    "The sand is gone, the glass is smashed, and the table's been sold.",
+    "Are we waiting for a miracle or just a pulse?",
+    "The silence on this is getting loud.",
+    "We've reached the 'why bother' stage.",
+    "You're dragging an anchor through a desert.",
+    "The lights went out a long time ago.",
+    "This isn't a struggle; it's a surrender.",
+    "Still at the starting line while the crowd has gone home.",
+    "The expiry date wasn't a suggestion.",
+    "Wasting time on a corpse.",
+    "The window of relevance has been boarded up.",
+    "We're digging a hole for a job that's already buried.",
+    "Beyond late. Beyond excuses.",
+    "The reaper has grown old waiting for this.",
+    "Total system failure.",
+    "A complete and utter lack of momentum.",
+    "The countdown hit zero and then kept going into the negatives.",
+    "It's a ghost ship. No one's at the helm.",
+    "You've turned a task into a legend of procrastination.",
+    "The world moved on; you didn't.",
+    "Looking at the wreckage of what could have been.",
+    "This is a slow-motion car crash without the motion.",
+    "The bells stopped tolling because they gave up.",
+    "We're in the 'afterlife' of this deadline.",
+    "Your reputation is currently in the bin.",
+    "A void where effort used to live.",
+    "The deadline is ancient history.",
+    "Is there anyone actually in there?",
+    "You've missed the boat, the train, and the point.",
+    "The smell of failure is getting ripe.",
+    "This is a spectacular display of nothingness.",
+    "The grace period is a prehistoric memory.",
+    "Still fumbling with the keys after the lock's been changed.",
+    "You've managed to turn a 'when' into a 'never'.",
+    "The cliff edge is miles behind us now.",
+    "Pack it in. It's expired.",
+]
+
+CHIMES = [
+    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fair_horns%2Fair_horn_01",
+    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fbeeps_and_bloops%2Fboing_01",
+    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fbuzzers%2Fbuzzers_01",
+    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fbuzzers%2Fbuzzers_04",
+    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fchimes_and_bells%2Fchimes_bells_04",
+    "soundbank%3A%2F%2Fsoundlibrary%2Fhome%2Famzn_sfx_doorbell_01",
+    "soundbank%3A%2F%2Fsoundlibrary%2Fhome%2Famzn_sfx_doorbell_chime_02",
+    "soundbank%3A%2F%2Fsoundlibrary%2Fscifi%2Famzn_sfx_scifi_timer_beep_01",
+    "soundbank%3A%2F%2Fsoundlibrary%2Fscifi%2Famzn_sfx_scifi_alarm_01",
+    "soundbank%3A%2F%2Fsoundlibrary%2Falarms%2Fbeeps_and_bloops%2Fbuzz_03",
+    "soundbank%3A%2F%2Fsoundlibrary%2Fmusical%2Famzn_sfx_test_tone_01",
 ]
 
 def get_db():
@@ -167,48 +379,41 @@ def init_db():
     conn.close()
 
 
-def trigger_voice_monkey(text, chime=None, audio=None):
-    # 0. Skip if not fully configured
-    if not VM_TOKEN or not VM_DEVICE or not VM_MORNING_DEVICE:
+def trigger_voice_monkey(text, device=None, chime=None):
+    """Fire a VM announcement. Skips if VM=false in config or DND is active."""
+    if not VM_ENABLED or not VM_TOKEN:
         return
-
-    # 1. Check DND status before doing anything
 
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT key, value FROM settings WHERE key IN ('dnd_start', 'dnd_end', 'silence_mode')")
-    rows = c.fetchall()
-    sets = {row[0]: row[1] for row in rows}
+    sets = {row[0]: row[1] for row in c.fetchall()}
     conn.close()
 
-    # Manual silence check
     if sets.get('silence_mode') == 'on':
         return
 
-    # Time-based DND check
     now_time = datetime.now().strftime('%H:%M')
-    start = sets.get('dnd_start', '22:00')
-    end = sets.get('dnd_end', '07:00')
-
-    # Handle DND wrapping over midnight (e.g., 22:00 to 07:00)
-    if start > end:
-        if now_time >= start or now_time <= end:
+    dnd_start = sets.get('dnd_start', '22:00')
+    dnd_end = sets.get('dnd_end', '07:00')
+    if dnd_start > dnd_end:
+        if now_time >= dnd_start or now_time <= dnd_end:
             return
     else:
-        if start <= now_time <= end:
+        if dnd_start <= now_time <= dnd_end:
             return
 
-    # 2. If we passed the filters, proceed to trigger
+    target_device = device or VM_DEVICE_ALERTS
     url = "https://api-v2.voicemonkey.io/announcement"
     params = {
         "token": VM_TOKEN,
-        "device": VM_DEVICE,
+        "device": target_device,
         "text": text,
         "voice": random.choice(VOICES),
-        "language": "en-GB"
+        "language": VM_LANGUAGE,
     }
-    if chime: params["chime"] = chime
-    if audio and config.get('VM_USE_SOUND', False): params["audio"] = audio
+    if chime:
+        params["chime"] = chime
 
     try:
         requests.get(url, params=params, timeout=5)
@@ -234,8 +439,9 @@ def settings():
 
         for key in setting_keys:
             val = request.form.get(key)
-            if val:
-                c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, val))
+            if not val:
+                return f"Error: Field '{key}' is compulsory.", 400
+            c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, val))
         
         # Handle the Day Buttons: Get the list and join into "Mon,Tue,Wed"
         selected_days = request.form.getlist('briefing_days')
@@ -255,16 +461,13 @@ def settings():
 def run_morning_briefing():
     conn = get_db()
     c = conn.cursor()
-    
-    # 1. Fetch briefing settings
     c.execute("SELECT key, value FROM settings WHERE key IN ('briefing_time', 'briefing_days')")
     sets = {row[0]: row[1] for row in c.fetchall()}
-    
+
     now = datetime.now()
     current_time = now.strftime('%H:%M')
-    current_day_str = now.strftime('%a') 
+    current_day_str = now.strftime('%a')
 
-    # 2. Time and Day Check
     if current_time == sets.get('briefing_time') and current_day_str in sets.get('briefing_days', ''):
         c.execute("SELECT title, deadline FROM tasks WHERE status='active' ORDER BY deadline ASC LIMIT 5")
         tasks = c.fetchall()
@@ -273,40 +476,23 @@ def run_morning_briefing():
         if not tasks:
             return
 
-        # 3. Assemble Message with Overdue Awareness
-        message = random.choice(MORNING_GREETINGS).format(name=USER_NAME)
-        
+        quote = random.choice(MORNING_QUOTES)
+        message = f"Good morning {USER_NAME}. {quote} Here are your top tasks. "
+
         for i, task in enumerate(tasks, 1):
             title, deadline_str = task
             dt = datetime.strptime(deadline_str.replace('T', ' '), '%Y-%m-%d %H:%M')
-            
-            # Format the date/time string
             if dt.date() == now.date():
                 day_speak = "today"
             else:
-                day_speak = dt.strftime('%A, the %d of %B')
-            
+                day_speak = dt.strftime('%A the %d of %B')
             time_speak = dt.strftime('%H:%M')
-
-            # 4. Phrasing based on Overdue status
             if dt < now:
-                message += f" Task {i}: {title} is still overdue. It should've been done on {day_speak} at {time_speak}."
+                message += f"Task {i}: {title}, overdue since {day_speak} at {time_speak}. "
             else:
-                message += f" Task {i}: {title}, due {day_speak} at {time_speak}."
+                message += f"Task {i}: {title}, due {day_speak} at {time_speak}. "
 
-        # 5. Trigger Bedroom Alexa
-        url = "https://api-v2.voicemonkey.io/announcement"
-        params = {
-            "token": VM_TOKEN,
-            "device": VM_MORNING_DEVICE,
-            "text": message,
-            "voice": random.choice(VOICES),
-            "language": "en-GB"
-        }
-        try:
-            requests.get(url, params=params, timeout=5)
-        except:
-            pass
+        trigger_voice_monkey(message, device=VM_DEVICE_BRIEFINGS)
     else:
         conn.close()
 
@@ -369,26 +555,38 @@ def background_task_checker():
                         deadline_dt = datetime.strptime(t_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
                         time_left_mins = (deadline_dt - now).total_seconds() / 60
                         
-                        if time_left_mins <= 0:
-                            should_nag = False
-                            if t_last_alert != 'nag_expired':
-                                should_nag = True
-                            elif last_nag_val:
+                    if time_left_mins <= 0:
+                        should_nag = False
+                        if t_last_alert == 'none' or t_last_alert == 'nag_30' or t_last_alert == 'nag_15':
+                            # First time hitting deadline — use NAG_DEADLINE
+                            should_nag = True
+                            nag_list = NAG_DEADLINE
+                            new_alert_type = 'nag_expired'
+                        elif t_last_alert == 'nag_expired':
+                            if last_nag_val:
                                 last_nag_dt = datetime.strptime(last_nag_val, '%Y-%m-%d %H:%M:%S')
                                 if (now - last_nag_dt).total_seconds() / 60 >= nag_interval:
                                     should_nag = True
-                            
-                            if should_nag:
-                                trigger_voice_monkey(random.choice(NAG_EXPIRED).format(task=t_title), chime=random.choice(CHIMES))
-                                c.execute("UPDATE tasks SET last_alert_type='nag_expired', last_nag_time=? WHERE id=?", 
-                                          (now.strftime('%Y-%m-%d %H:%M:%S'), t_id))
-                        
-                        elif 0 < time_left_mins <= 15 and t_last_alert != 'nag_15':
-                            trigger_voice_monkey(random.choice(NAG_15).format(task=t_title, name=USER_NAME), chime=random.choice(CHIMES))
-                            c.execute("UPDATE tasks SET last_alert_type='nag_15' WHERE id=?", (t_id,))
-                        elif 15 < time_left_mins <= 30 and t_last_alert != 'nag_30':
-                            trigger_voice_monkey(random.choice(NAG_30).format(task=t_title), chime=random.choice(CHIMES))
-                            c.execute("UPDATE tasks SET last_alert_type='nag_30' WHERE id=?", (t_id,))
+                            else:
+                                should_nag = True
+                            nag_list = NAG_EXPIRED
+                            new_alert_type = 'nag_expired'
+
+                        if should_nag:
+                            nag_text = f"{USER_NAME}. {t_title}. {random.choice(nag_list)}"
+                            trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
+                            c.execute("UPDATE tasks SET last_alert_type=?, last_nag_time=? WHERE id=?",
+                                      (new_alert_type, now.strftime('%Y-%m-%d %H:%M:%S'), t_id))
+
+                    elif 0 < time_left_mins <= 15 and t_last_alert not in ('nag_15', 'nag_expired', 'nag_deadline'):
+                        nag_text = f"{USER_NAME}. {t_title}. 15 minutes until deadline. {random.choice(NAG_15)}"
+                        trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
+                        c.execute("UPDATE tasks SET last_alert_type='nag_15' WHERE id=?", (t_id,))
+
+                    elif 15 < time_left_mins <= 30 and t_last_alert not in ('nag_30', 'nag_15', 'nag_expired', 'nag_deadline'):
+                        nag_text = f"{USER_NAME}. {t_title}. 30 minutes until deadline. {random.choice(NAG_30)}"
+                        trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
+                        c.execute("UPDATE tasks SET last_alert_type='nag_30' WHERE id=?", (t_id,))
                     
                     conn.commit()
             except Exception as e:
@@ -517,7 +715,11 @@ def toggle_silence():
 def add_task():
     if request.method == 'POST':
         task_type = request.form.get('type')
-        title = request.form['title']
+        title = request.form.get('title', '').strip()
+        
+        if not title:
+            return "Error: Title is compulsory.", 400
+            
         conn = get_db()
         c = conn.cursor()
 
@@ -525,10 +727,15 @@ def add_task():
             if task_type == 'recurring':
                 interval = request.form.get('interval')
                 recur_time = request.form.get('recur_time')
-                if '-' in uk_start_date:
-                    iso_start_date = uk_start_date
+                recur_start_date = request.form.get('recur_start_date')
+                
+                if not all([interval, recur_time, recur_start_date]):
+                    return "Error: All recurring fields are compulsory.", 400
+                
+                if '-' in recur_start_date:
+                    iso_start_date = recur_start_date
                 else:
-                    day, month, year = uk_start_date.split('/')
+                    day, month, year = recur_start_date.split('/')
                     iso_start_date = f"{year}-{month}-{day}"
                 
                 now_today = datetime.now().strftime('%Y-%m-%d')
@@ -540,14 +747,17 @@ def add_task():
                           (title, first_deadline))
             else:
                 uk_date = request.form.get('deadline_date')
+                d_time = request.form.get('deadline_time')
+                
+                if not all([uk_date, d_time]):
+                    return "Error: All date and time fields are compulsory.", 400
+                    
                 if '-' in uk_date:
                     iso_date = uk_date
                 else:
                     day, month, year = uk_date.split('/')
                     iso_date = f"{year}-{month}-{day}"
                 
-                d_time = request.form.get('deadline_time')
-
                 deadline = f"{iso_date}T{d_time}"
                 c.execute("INSERT INTO tasks (title, deadline, last_alert_type) VALUES (?, ?, 'none')", 
                           (title, deadline))
@@ -557,8 +767,7 @@ def add_task():
             return redirect('/')
         except Exception as e:
             conn.close()
-            # If it fails, we return the same template with an error so your typed data stays there
-            return f"Error: {e}. Go back and check your date format (DD/MM/YYYY)."
+            return f"Error: {e}. Go back and check your data format.", 400
             
     return render_template('add.html')
 
@@ -622,7 +831,7 @@ def complete_task(task_id):
         conn.close()
 
         # Celebration Data
-        msg = random.choice(PRAISE_MESSAGES)
+        msg = random.choice(PRAISE_MESSAGES).format(name=USER_NAME)
         selected_theme = random.choice(['matrix', 'glitch', 'gold-rush', 'fireworks', 'confetti'])
         trigger_voice_monkey(msg)
         
@@ -748,6 +957,8 @@ def serve_soundfx(filename):
 def setup():
     if request.method == 'POST':
         choice = request.form.get('backup_choice')
+        if not choice:
+            return "Error: Backup choice is compulsory.", 400
         if choice == 'no':
             config['setup_complete'] = True
             with open(config_path, 'w') as f:
@@ -760,10 +971,16 @@ def setup():
 @app.route('/setup_oauth', methods=['GET', 'POST'])
 def setup_oauth():
     if request.method == 'POST':
+        client_id = request.form.get('client_id')
+        client_secret = request.form.get('client_secret')
+        
+        if not all([client_id, client_secret]):
+            return "Error: All fields are compulsory.", 400
+            
         # Save credentials here (mocking for now or saving to config)
         config['setup_complete'] = True
-        config['gdrive_client_id'] = request.form.get('client_id')
-        config['gdrive_client_secret'] = request.form.get('client_secret')
+        config['gdrive_client_id'] = client_id
+        config['gdrive_client_secret'] = client_secret
         with open(config_path, 'w') as f:
             json.dump(config, f, indent=4)
         return redirect('/')
@@ -797,6 +1014,9 @@ def edit_task(task_id):
         uk_date = request.form.get('deadline_date')
         d_time = request.form.get('deadline_time')
         
+        if not all([uk_date, d_time]):
+            return "Error: All fields are compulsory.", 400
+            
         if '-' in uk_date:
             iso_date = uk_date
         else:
@@ -844,6 +1064,10 @@ if __name__ == '__main__':
     import threading
     t = threading.Thread(target=background_task_checker, daemon=True)
     t.start()
-    app.run(host='0.0.0.0', port=app_port)
+    
+    import logging
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+    
+    app.run(host='0.0.0.0', port=app_port, debug=True)
 
 

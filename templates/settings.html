@@ -87,7 +87,7 @@
     <header>
         <h2>BOARD SETTINGS</h2>
         <div class="header-btns">
-            <button type="button" class="btn-header btn-save" onclick="document.getElementById('settings-form').submit()">💾 SAVE</button>
+            <button type="button" class="btn-header btn-save" onclick="validateAndSubmitSettings()">💾 SAVE</button>
             <a href="/" class="btn-header btn-cancel">❌ CANCEL</a>
         </div>
     </header>
@@ -159,13 +159,13 @@
 
     <!-- --- TOUCH CLOCK PICKER --- -->
     <div id="clock-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
-        <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box; text-align:center;">
+        <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:20px; width:90%; max-width:300px; box-sizing:border-box; text-align:center;">
             <h2 style="color:#ffd700; margin-top:0; font-size:2rem;">SELECT TIME</h2>
             <div id="clock-digital" style="background:#222; border:3px solid white; padding:10px; font-size:1.8rem; font-weight:900; margin-bottom:15px; border-radius:10px; color:white; display:inline-block; width:120px;">12:00</div>
-            <div id="clock-face" style="width:340px; height:340px; border:6px solid white; border-radius:50%; margin:0 auto; position:relative; background:#1a1a1a; touch-action:none;">
-                <div style="width:16px; height:16px; background:white; border-radius:50%; position:absolute; top:162px; left:162px; z-index:10;"></div>
-                <div id="hour-hand" style="width:14px; height:90px; background:#ffd700; position:absolute; top:82px; left:163px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 8px; z-index: 5;"></div>
-                <div id="minute-hand" style="width:8px; height:130px; background:#00ff00; position:absolute; top:42px; left:166px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
+            <div id="clock-face" style="width:240px; height:240px; border:6px solid white; border-radius:50%; margin:0 auto; position:relative; background:#1a1a1a; touch-action:none;">
+                <div style="width:16px; height:16px; background:white; border-radius:50%; position:absolute; top:112px; left:112px; z-index:10;"></div>
+                <div id="hour-hand" style="width:18px; height:60px; background:#ffd700; position:absolute; top:52px; left:111px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 8px; z-index: 5;"></div>
+                <div id="minute-hand" style="width:10px; height:90px; background:#00ff00; position:absolute; top:22px; left:115px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
             </div>
             
             <div style="display:flex; justify-content:center; gap:20px; margin-top:15px;">
@@ -266,9 +266,9 @@
             num.style.fontWeight = '900';
             num.style.fontSize = '1.4rem';
             const angle = i * 30 * (Math.PI / 180);
-            const radius = 130;
-            const x = 170 + radius * Math.sin(angle) - 10;
-            const y = 170 - radius * Math.cos(angle) - 15;
+            const radius = 90;
+            const x = 120 + radius * Math.sin(angle) - 10;
+            const y = 120 - radius * Math.cos(angle) - 15;
             num.style.left = `${x}px`;
             num.style.top = `${y}px`;
             face.appendChild(num);
@@ -368,13 +368,39 @@
         });
 
 
-        // Time Mask Logic
-        document.addEventListener('input', function (e) {
-            if (e.target.classList.contains('mask-time')) {
-                let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,2})/);
-                e.target.value = !x[2] ? x[1] : x[1] + ':' + x[2];
+        function validateAndSubmitSettings() {
+            const fields = ['briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours', 'nag_interval', 'port'];
+            for (const field of fields) {
+                const el = document.querySelector(`[name="${field}"]`);
+                if (el && !el.value.trim()) {
+                    showError(`Field '${field.replace('_', ' ').toUpperCase()}' is compulsory.`);
+                    return;
+                }
             }
-        });
+            
+            // Check checkboxes
+            const checkboxes = document.querySelectorAll('input[name="briefing_days"]:checked');
+            if (checkboxes.length === 0) {
+                showError("At least one BRIEFING DAY must be selected.");
+                return;
+            }
+            
+            document.getElementById('settings-form').submit();
+        }
+
+        function showError(msg) {
+            document.getElementById('error-message').innerText = msg;
+            document.getElementById('error-popup').style.display = 'flex';
+        }
     </script>
+
+    <!-- --- ERROR POPUP --- -->
+    <div id="error-popup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #ff0055; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box; text-align:center;">
+            <h2 style="color:#ff0055; margin-top:0; font-size:2rem; text-transform:uppercase;">ERROR</h2>
+            <div id="error-message" style="font-size:1.5rem; font-weight:900; color:white; margin-bottom:20px;">Please fill in all fields.</div>
+            <button onclick="document.getElementById('error-popup').style.display='none'" style="width:100%; padding:15px; font-size:1.5rem; font-weight:900; background:#ff0055; color:white; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
+        </div>
+    </div>
 </body>
 </html>

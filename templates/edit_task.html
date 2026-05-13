@@ -50,7 +50,7 @@
     <h1>Edit Deadline</h1>
     
     <div class="form-container">
-        <form method="POST">
+        <form method="POST" onsubmit="return validateEditForm()">
             <label>TASK NAME (Read Only):</label>
             <input type="text" value="{{ task.title }}" disabled style="background: #333; color: #888;">
 
@@ -105,21 +105,22 @@
             </div>
             
             <div style="display:flex; justify-content:space-between; margin-top:20px; gap:10px;">
-                <button onclick="resetPicker()" style="flex:1; padding:20px; font-size:1.5rem; font-weight:900; background:#444; color:white; border-radius:12px; border:3px solid #555; cursor:pointer;">RESET</button>
-                <button id="picker-ok" onclick="confirmDate()" style="flex:1; display:none; padding:20px; font-size:1.5rem; font-weight:900; background:#00ff00; color:black; border-radius:12px; border:3px solid white; cursor:pointer;">OK</button>
+                <button type="button" onclick="document.getElementById('touch-picker').style.display='none'" style="flex:1; padding:20px; font-size:1.5rem; font-weight:900; background:#ff0055; color:white; border-radius:12px; border:3px solid white; cursor:pointer;">CANCEL</button>
+                <button type="button" onclick="resetPicker()" style="flex:1; padding:20px; font-size:1.5rem; font-weight:900; background:#444; color:white; border-radius:12px; border:3px solid #555; cursor:pointer;">RESET</button>
+                <button type="button" id="picker-ok" onclick="confirmDate()" style="flex:1; display:none; padding:20px; font-size:1.5rem; font-weight:900; background:#00ff00; color:black; border-radius:12px; border:3px solid white; cursor:pointer;">OK</button>
             </div>
         </div>
     </div>
 
     <!-- --- TOUCH CLOCK PICKER --- -->
     <div id="clock-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
-        <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box; text-align:center;">
+        <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:20px; width:90%; max-width:300px; box-sizing:border-box; text-align:center;">
             <h2 style="color:#ffd700; margin-top:0; font-size:2rem;">SELECT TIME</h2>
             <div id="clock-digital" style="background:#222; border:3px solid white; padding:10px; font-size:1.8rem; font-weight:900; margin-bottom:15px; border-radius:10px; color:white; display:inline-block; width:120px;">12:00</div>
-            <div id="clock-face" style="width:340px; height:340px; border:6px solid white; border-radius:50%; margin:0 auto; position:relative; background:#1a1a1a; touch-action:none;">
-                <div style="width:16px; height:16px; background:white; border-radius:50%; position:absolute; top:162px; left:162px; z-index:10;"></div>
-                <div id="hour-hand" style="width:14px; height:90px; background:#ffd700; position:absolute; top:82px; left:163px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 8px; z-index: 5;"></div>
-                <div id="minute-hand" style="width:8px; height:130px; background:#00ff00; position:absolute; top:42px; left:166px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
+            <div id="clock-face" style="width:240px; height:240px; border:6px solid white; border-radius:50%; margin:0 auto; position:relative; background:#1a1a1a; touch-action:none;">
+                <div style="width:16px; height:16px; background:white; border-radius:50%; position:absolute; top:112px; left:112px; z-index:10;"></div>
+                <div id="hour-hand" style="width:18px; height:60px; background:#ffd700; position:absolute; top:52px; left:111px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 8px; z-index: 5;"></div>
+                <div id="minute-hand" style="width:10px; height:90px; background:#00ff00; position:absolute; top:22px; left:115px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:20px; gap:10px;">
                 <button onclick="closeClock()" style="flex:1; padding:15px; font-size:1.2rem; font-weight:900; background:#444; color:white; border-radius:10px; border:2px solid #555; cursor:pointer;">CANCEL</button>
@@ -238,9 +239,9 @@
             num.style.fontWeight = '900';
             num.style.fontSize = '1.4rem';
             const angle = i * 30 * (Math.PI / 180);
-            const radius = 130;
-            const x = 170 + radius * Math.sin(angle) - 10;
-            const y = 170 - radius * Math.cos(angle) - 15;
+            const radius = 90;
+            const x = 120 + radius * Math.sin(angle) - 10;
+            const y = 120 - radius * Math.cos(angle) - 15;
             num.style.left = `${x}px`;
             num.style.top = `${y}px`;
             face.appendChild(num);
@@ -336,6 +337,29 @@
         document.querySelectorAll('.mask-time').forEach(input => {
             input.addEventListener('click', e => openClockPicker(e.target));
         });
+        function validateEditForm() {
+            const date = document.querySelector('[name="deadline_date"]').value;
+            const time = document.querySelector('[name="deadline_time"]').value;
+            if (!date || !time) {
+                showError("Date and Time are compulsory.");
+                return false;
+            }
+            return true;
+        }
+
+        function showError(msg) {
+            document.getElementById('error-message').innerText = msg;
+            document.getElementById('error-popup').style.display = 'flex';
+        }
     </script>
+
+    <!-- --- ERROR POPUP --- -->
+    <div id="error-popup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #ff0055; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box; text-align:center;">
+            <h2 style="color:#ff0055; margin-top:0; font-size:2rem; text-transform:uppercase;">ERROR</h2>
+            <div id="error-message" style="font-size:1.5rem; font-weight:900; color:white; margin-bottom:20px;">Please fill in all fields.</div>
+            <button onclick="document.getElementById('error-popup').style.display='none'" style="width:100%; padding:15px; font-size:1.5rem; font-weight:900; background:#ff0055; color:white; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
+        </div>
+    </div>
 </body>
 </html>

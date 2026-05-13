@@ -1,9 +1,11 @@
 {
+    "VM": false,
     "VM_TOKEN": "your_voice_monkey_token_here",
-    "VM_DEVICE": "living-room-echo",
-    "VM_MORNING_DEVICE": "bedroom-alexa",
-    "VM_USE_SOUND": false,
-    "USER_NAME": "Joe",
+    "VM_DEVICE_ALERTS": "your-alert-device-name",
+    "VM_DEVICE_BRIEFINGS": "your-briefing-device-name",
+    "VM_LANGUAGE": "en-GB",
+    "_VM_LANGUAGE_OPTIONS": "de-DE | en-AU | en-CA | en-GB | en-IN | en-US | es-ES | es-MX | es-US | fr-CA | fr-FR | hi-IN | it-IT | ja-JP | pt-BR",
+    "USER_NAME": "YourName",
     "setup_complete": false,
     "gdrive_client_id": "your_gdrive_client_id_here",
     "gdrive_client_secret": "your_gdrive_client_secret_here"
