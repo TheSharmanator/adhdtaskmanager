@@ -88,8 +88,8 @@
 
     header {
         height: auto;
-        min-height: 100px;
-        padding: 10px 25px;
+        min-height: 80px;
+        padding: 5px 15px;
         background: #000;
         display: flex;
         justify-content: space-between; /* Keeps clock left, buttons right */
@@ -118,28 +118,34 @@
     }
 
     .btn-touch {
-        padding: 12px 20px;
-        font-size: 1.1rem;
+        padding: 10px 16px;
+        font-size: 0.9rem;
         font-weight: 900;
         text-decoration: none;
         border-radius: 8px;
         text-transform: uppercase;
-        display: inline-block;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
         border: 3px solid;
         cursor: pointer;
+        min-width: 140px;
+        box-sizing: border-box;
     }
 
     .btn-add { background: #00ff00; color: #000; border-color: #ffd700; }
     .btn-recovery { background: #000; color: #fff; border-color: #fff; }
 
     .nuke-btn { 
-        padding: 12px 20px;
-        font-size: 1.1rem;
+        padding: 10px 16px;
+        font-size: 0.9rem;
         font-weight: 900;
         border-radius: 8px;
         border: 3px solid #800080; /* Purple Border */
         cursor: pointer;
         color: white;
+        min-width: 140px;
+        box-sizing: border-box;
     }
 
     .settings-icon { 
@@ -167,7 +173,7 @@
     flex: 5; /* Increased flex weight to give top tasks more vertical space */
     display: flex; 
     flex-direction: column; 
-    padding: 10px; 
+    padding: 5px; 
 }
 
 .main-task { 
@@ -180,7 +186,7 @@
     align-items: center; 
     position: relative; 
     overflow: hidden; 
-    padding-left: 25px; 
+    padding-left: 15px; 
 }
 
 .task-text { 
@@ -204,14 +210,14 @@
     grid-template-columns: repeat(5, 1fr); /* 5 columns to keep it a thin strip */
     grid-template-rows: repeat(2, 1fr); 
     gap: 5px; 
-    padding: 8px; 
+    padding: 4px; 
     background: #111; 
     border-top: 2px solid #444; 
 }
 
 .sub-task { 
     background: #1a1a1a; 
-    padding: 5px; 
+    padding: 3px; 
     border-radius: 4px; 
     border: 1px solid #333; 
     display: flex; 
@@ -290,7 +296,7 @@
         <div id="clock-full">LOADING CLOCK...</div>
     </div>
     <div class="header-btns">
-        <a href="/edit_list" class="btn-touch" style="background: #ffd700; color: #000; border-color: #fff; font-size: 1.8rem; padding: 10px 20px;">🕒</a>
+        <a href="/edit_list" class="btn-touch" style="background: #ffd700; color: #000; border-color: #fff; font-size: 1.4rem;">🕒</a>
         <a href="/add" class="btn-touch btn-add">+ ADD TASK</a>
 
         
