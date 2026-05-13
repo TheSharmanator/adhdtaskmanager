@@ -44,6 +44,9 @@
         }
         .p-btn:active, .p-btn.active { background: #ffd700; color: black; border-color: #ffd700; }
         #month-step .p-btn { padding: 10px; font-size: 1.2rem; }
+        
+        .side-by-side { display: flex; gap: 20px; width: 100%; align-items: flex-end; }
+        .side-by-side > div { flex: 1; }
     </style>
 </head>
 <body>
@@ -54,11 +57,16 @@
             <label>TASK NAME (Read Only):</label>
             <input type="text" value="{{ task.title }}" disabled style="background: #333; color: #888;">
 
-            <label>DATE (DD/MM/YYYY):</label>
-            <input type="text" name="deadline_date" class="mask-date" value="{{ task.date }}" readonly>
-
-            <label>TIME (HH:MM):</label>
-            <input type="text" name="deadline_time" class="mask-time" value="{{ task.time }}" readonly>
+            <div class="side-by-side">
+                <div>
+                    <label>DATE (DD/MM/YYYY):</label>
+                    <input type="text" name="deadline_date" class="mask-date" value="{{ task.date }}" readonly>
+                </div>
+                <div>
+                    <label>TIME (HH:MM):</label>
+                    <input type="text" name="deadline_time" class="mask-time" value="{{ task.time }}" readonly>
+                </div>
+            </div>
 
             <button type="submit" class="btn-save">💾 Save Changes</button>
             <a href="/edit_list" class="btn-cancel">❌ Cancel</a>
@@ -120,7 +128,7 @@
             <div id="clock-face" style="width:240px; height:240px; border:6px solid white; border-radius:50%; margin:0 auto; position:relative; background:#1a1a1a; touch-action:none;">
                 <div style="width:16px; height:16px; background:white; border-radius:50%; position:absolute; top:112px; left:112px; z-index:10;"></div>
                 <div id="hour-hand" style="width:18px; height:60px; background:#ffd700; position:absolute; top:52px; left:111px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 8px; z-index: 5;"></div>
-                <div id="minute-hand" style="width:10px; height:90px; background:#00ff00; position:absolute; top:22px; left:115px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
+                <div id="minute-hand" style="width:16px; height:90px; background:#00ff00; position:absolute; top:22px; left:112px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:20px; gap:10px;">
                 <button onclick="closeClock()" style="flex:1; padding:15px; font-size:1.2rem; font-weight:900; background:#444; color:white; border-radius:10px; border:2px solid #555; cursor:pointer;">CANCEL</button>
@@ -323,7 +331,7 @@
             const x = clientX - centerX;
             const y = clientY - centerY;
             const dist = Math.sqrt(x*x + y*y);
-            activeHand = (dist < 110) ? 'hour' : 'minute';
+            activeHand = (dist < 75) ? 'hour' : 'minute';
             handleClockMove(e);
         }
 

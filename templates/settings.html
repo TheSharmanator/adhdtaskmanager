@@ -165,7 +165,7 @@
             <div id="clock-face" style="width:240px; height:240px; border:6px solid white; border-radius:50%; margin:0 auto; position:relative; background:#1a1a1a; touch-action:none;">
                 <div style="width:16px; height:16px; background:white; border-radius:50%; position:absolute; top:112px; left:112px; z-index:10;"></div>
                 <div id="hour-hand" style="width:18px; height:60px; background:#ffd700; position:absolute; top:52px; left:111px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 8px; z-index: 5;"></div>
-                <div id="minute-hand" style="width:10px; height:90px; background:#00ff00; position:absolute; top:22px; left:115px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
+                <div id="minute-hand" style="width:16px; height:90px; background:#00ff00; position:absolute; top:22px; left:112px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
             </div>
             
             <div style="display:flex; justify-content:center; gap:20px; margin-top:15px;">
@@ -350,7 +350,7 @@
             const x = clientX - centerX;
             const y = clientY - centerY;
             const dist = Math.sqrt(x*x + y*y);
-            if (dist < 110) { activeHand = 'hour'; } else { activeHand = 'minute'; }
+            if (dist < 75) { activeHand = 'hour'; } else { activeHand = 'minute'; }
             handleClockMove(e);
         }
 
