@@ -298,6 +298,9 @@
         <div id="clock-full">LOADING CLOCK...</div>
     </div>
     <div class="header-btns">
+        <a href="/settings" style="text-decoration: none; color: inherit;">
+            <div class="settings-icon">⚙️</div>
+        </a>
         <a href="/edit_list" class="btn-touch" style="background: #ffd700; color: #000; border-color: #fff;">EDIT TASK</a>
         <a href="/add" class="btn-touch btn-add">+ ADD TASK</a>
 
@@ -308,10 +311,6 @@
                 style="background: {{ '#555' if silence_mode == 'on' else '#900' }};">
             {{ 'UNSILENCE' if silence_mode == 'on' else 'SILENCE' }}
         </button>
-        
-        <a href="/settings" style="text-decoration: none; color: inherit;">
-            <div class="settings-icon">⚙️</div>
-        </a>
     </div>
 </header>
 

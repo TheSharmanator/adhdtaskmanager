@@ -96,6 +96,18 @@
     <div id="main-container">
         <div id="scroll-area">
             <form id="settings-form" method="POST" autocomplete="off">
+                <div class="side-by-side" style="align-items: flex-end; margin-top: 5px; margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 10px;">
+                    <div style="flex: 2; display: flex; gap: 5px; padding-bottom: 5px;">
+                        <button type="button" class="p-btn screen-btn active" onclick="setScreenSize('small', this)">SMALL SCREEN</button>
+                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('medium', this)">MEDIUM SCREEN</button>
+                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('large', this)">LARGE SCREEN</button>
+                    </div>
+                    <div style="flex: 1;">
+                        <label>SERVER PORT:</label>
+                        <input type="number" name="port" class="input" value="{{ settings.port or '5001' }}">
+                    </div>
+                </div>
+
                 <label>MORNING BRIEFING TIME (HH:MM):</label>
                 <input type="text" name="briefing_time" class="input mask-time" placeholder="08:00" value="{{ settings.briefing_time }}" maxlength="5">
 
@@ -130,17 +142,7 @@
                     </div>
                 </div>
 
-                <div class="side-by-side" style="align-items: flex-end; margin-top: 5px;">
-                    <div style="flex: 1;">
-                        <label>SERVER PORT:</label>
-                        <input type="number" name="port" class="input" value="{{ settings.port or '5001' }}">
-                    </div>
-                    <div style="flex: 2; display: flex; gap: 5px; padding-bottom: 5px;">
-                        <button type="button" class="p-btn screen-btn active" onclick="setScreenSize('small', this)">SMALL SCREEN</button>
-                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('medium', this)">MEDIUM SCREEN</button>
-                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('large', this)">LARGE SCREEN</button>
-                    </div>
-                </div>
+
             </form>
         </div>
 
