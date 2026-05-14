@@ -464,7 +464,7 @@ function dragLeave(ev) {
             setTimeout(() => {
                 cancelAnimationFrame(animationId);
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }, 5000);
+            }, 10000);
         }
 
         // 3. Drag and Drop Logic
@@ -500,7 +500,7 @@ function dragLeave(ev) {
 
                     setTimeout(() => { 
                         location.reload(); 
-                    }, 5000);
+                    }, 10000);
                 } else {
                     location.reload();
                 }
