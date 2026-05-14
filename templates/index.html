@@ -258,6 +258,7 @@
 
 </style>
 
+    <script src="/static/js/scale.js"></script>
 </head>
 
 <body>
@@ -541,6 +542,40 @@ function dragOver(ev) {
 function dragLeave(ev) {
     ev.currentTarget.classList.remove('drop-hover');
 }
+
+// 5. DND 3-Tap Wake Logic
+let dndTapCount = 0;
+let dndTapTimeout;
+let dndWakeTimeout;
+
+const dndOverlay = document.getElementById('dnd-overlay');
+if (dndOverlay) {
+    dndOverlay.addEventListener('click', () => {
+        dndTapCount++;
+        clearTimeout(dndTapTimeout);
+        
+        if (dndTapCount >= 3) {
+            dndOverlay.style.display = 'none';
+            dndTapCount = 0;
+            resetDndWakeTimer();
+        } else {
+            dndTapTimeout = setTimeout(() => { dndTapCount = 0; }, 1000);
+        }
+    });
+}
+
+function resetDndWakeTimer() {
+    clearTimeout(dndWakeTimeout);
+    dndWakeTimeout = setTimeout(() => {
+        if (dndOverlay) dndOverlay.style.display = 'flex';
+    }, 120000); // 2 minutes
+}
+
+document.body.addEventListener('click', () => {
+    if (dndOverlay && dndOverlay.style.display === 'none' && dndWakeTimeout) {
+        resetDndWakeTimer();
+    }
+});
     </script>
 </body>
 </html>

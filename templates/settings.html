@@ -82,6 +82,7 @@
         .p-btn:active, .p-btn.active { background: #ffd700; color: black; border-color: #ffd700; }
 
     </style>
+    <script src="/static/js/scale.js"></script>
 </head>
 <body>
     <header>
@@ -226,8 +227,28 @@
 
         function setScreenSize(size, btn) {
             document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
+            if(btn) btn.classList.add('active');
+            localStorage.setItem('ui_scale_pref', size);
+            
+            const scales = {
+                'small': '1.0',
+                'medium': '1.39',
+                'large': '2.08'
+            };
+            const scaleVal = scales[size] || '1.0';
+            document.documentElement.style.setProperty('--ui-scale', scaleVal);
+            document.documentElement.style.zoom = scaleVal;
         }
+
+        // Initialize button state
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedSize = localStorage.getItem('ui_scale_pref') || 'small';
+            const btn = document.querySelector(`.screen-btn[onclick*="'${savedSize}'"]`);
+            if (btn) {
+                document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            }
+        });
 
         // --- NUMPAD PICKER LOGIC ---
         let activeNumpadInput = null;
