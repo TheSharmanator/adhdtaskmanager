@@ -62,12 +62,12 @@
         .side-by-side div { flex: 1; }
 
         /* Day Selector */
-        .day-selector { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
+        .day-selector { display: flex; gap: 8px; margin-top: 15px; }
         .day-selector input { display: none; }
         .day-selector label { 
-            flex: 1; min-width: 80px; padding: 20px; background: #333; 
-            border: 4px solid white; border-radius: 12px; text-align: center; 
-            cursor: pointer; font-size: 1.2rem; color: white; margin-top: 0;
+            flex: 1; padding: 15px 5px; background: #333; 
+            border: 3px solid white; border-radius: 10px; text-align: center; 
+            cursor: pointer; font-size: 1.0rem; color: white; margin-top: 0;
             font-weight: 900;
         }
         .day-selector input:checked + label { background: #0066ff; border-color: #ffd700; }
@@ -118,14 +118,28 @@
                     </div>
                 </div>
 
-                <label>PROGRESS BAR SCALE (HOURS):</label>
-                <input type="number" name="bar_start_hours" step="0.1" class="input" value="{{ settings.bar_start_hours }}">
+                <div class="side-by-side">
+                    <div>
+                        <label>PROGRESS BAR SCALE (HOURS):</label>
+                        <input type="number" name="bar_start_hours" step="0.1" class="input" value="{{ settings.bar_start_hours }}">
+                    </div>
+                    <div>
+                        <label>OVERDUE NAG INTERVAL (MINS):</label>
+                        <input type="number" name="nag_interval" class="input" value="{{ settings.nag_interval }}">
+                    </div>
+                </div>
 
-                <label>OVERDUE NAG INTERVAL (MINS):</label>
-                <input type="number" name="nag_interval" class="input" value="{{ settings.nag_interval }}">
-
-                <label>SERVER PORT (Default: 5001):</label>
-                <input type="number" name="port" class="input" value="{{ settings.port or '5001' }}">
+                <div class="side-by-side" style="align-items: flex-end; margin-top: 20px;">
+                    <div style="flex: 1;">
+                        <label>SERVER PORT:</label>
+                        <input type="number" name="port" class="input" value="{{ settings.port or '5001' }}">
+                    </div>
+                    <div style="flex: 2; display: flex; gap: 8px; padding-bottom: 5px;">
+                        <button type="button" class="p-btn screen-btn active" onclick="setScreenSize('small', this)">SMALL SCREEN</button>
+                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('medium', this)">MEDIUM SCREEN</button>
+                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('large', this)">LARGE SCREEN</button>
+                    </div>
+                </div>
             </form>
         </div>
 
@@ -208,6 +222,11 @@
             window.addEventListener('mouseup', stopHandler);
             window.addEventListener('touchmove', moveHandler, { passive: false });
             window.addEventListener('touchend', stopHandler);
+        }
+
+        function setScreenSize(size, btn) {
+            document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
         }
 
         // --- NUMPAD PICKER LOGIC ---
