@@ -92,6 +92,7 @@
         padding: 5px 15px;
         background: #000;
         display: flex;
+        flex-wrap: wrap;
         justify-content: space-between; /* Keeps clock left, buttons right */
         align-items: center;
         border-bottom: 2px solid #333;
@@ -353,14 +354,7 @@
 
     <script>
 
-function dragEnter(ev) {
-    ev.preventDefault();
-    ev.currentTarget.classList.add('drop-hover');
-}
 
-function dragLeave(ev) {
-    ev.currentTarget.classList.remove('drop-hover');
-}
         // 1. Clock and Date Logic
         function updateClock() {
             const now = new Date();
