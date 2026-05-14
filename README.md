@@ -133,6 +133,11 @@ Using the information from above, run this command in your terminal/command prom
 {browsername} --kiosk --noerrdialogs --disable-infobars http://{ip address}:5001
 ```
 
+### 🚪 How to Exit Kiosk Mode
+If you need to close the app while in Kiosk mode:
+*   **Windows**: Press `Alt + F4`. 
+*   **Linux**: Press `Alt + F4`. If you are stuck, press `Ctrl + Alt + T` to open a terminal and run `pkill chromium` or `pkill chrome`.
+
 ### Step C: Creating a Desktop Shortcut
 **On Windows:**
 1. Right-click your Desktop > **New** > **Shortcut**.
