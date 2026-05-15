@@ -769,7 +769,9 @@ def add_task():
             conn.close()
             return f"Error: {e}. Go back and check your data format.", 400
             
-    return render_template('add.html')
+    ua = request.headers.get('User-Agent', '').lower()
+    is_mobile = any(x in ua for x in ['iphone', 'android', 'mobile'])
+    return render_template('add.html', is_mobile=is_mobile)
 
 @app.route('/complete/<int:task_id>', methods=['POST'])
 def complete_task(task_id):

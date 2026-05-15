@@ -286,7 +286,7 @@
 
 
     <script>
-        const isMobile = window.innerWidth <= 600;
+        const isMobile = {{ 'true' if is_mobile else 'false' }};
 
         if (isMobile) {
             document.querySelectorAll('.mask-date').forEach(input => input.type = 'date');
@@ -371,11 +371,18 @@
             document.getElementById('touch-picker').style.display = 'none';
         }
         
-        document.querySelectorAll('.mask-date').forEach(input => {
-            input.addEventListener('click', e => {
-                openPicker(e.target);
+        if (!isMobile) {
+            document.querySelectorAll('.mask-date').forEach(input => {
+                input.addEventListener('click', e => {
+                    openPicker(e.target);
+                });
             });
-        });
+            document.querySelectorAll('.mask-time').forEach(input => {
+                input.addEventListener('click', e => {
+                    openClockPicker(e.target);
+                });
+            });
+        }
 
         // --- CLOCK PICKER LOGIC ---
         let activeClockInput = null;
@@ -517,11 +524,7 @@
         window.addEventListener('mouseup', () => activeHand = null);
         window.addEventListener('touchend', () => activeHand = null);
 
-        document.querySelectorAll('.mask-time').forEach(input => {
-            input.addEventListener('click', e => {
-                openClockPicker(e.target);
-            });
-        });
+
 
         function updateInterval() {
             const unit = document.querySelector('input[name="interval_unit"]:checked').value;
@@ -621,16 +624,18 @@
             });
         }
 
-        document.addEventListener('input', function (e) {
-            if (e.target.classList.contains('mask-date')) {
-                let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,2})(\d{0,4})/);
-                e.target.value = !x[2] ? x[1] : x[1] + '/' + x[2] + (x[3] ? '/' + x[3] : '');
-            }
-            if (e.target.classList.contains('mask-time')) {
-                let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,2})/);
-                e.target.value = !x[2] ? x[1] : x[1] + ':' + x[2];
-            }
-        });
+        if (!isMobile) {
+            document.addEventListener('input', function (e) {
+                if (e.target.classList.contains('mask-date')) {
+                    let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,2})(\d{0,4})/);
+                    e.target.value = !x[2] ? x[1] : x[1] + '/' + x[2] + (x[3] ? '/' + x[3] : '');
+                }
+                if (e.target.classList.contains('mask-time')) {
+                    let x = e.target.value.replace(/\D/g, '').match(/(\d{0,2})(\d{0,2})/);
+                    e.target.value = !x[2] ? x[1] : x[1] + ':' + x[2];
+                }
+            });
+        }
         function validateAndSubmit() {
             const taskType = document.getElementById('task-type').value;
             const title = document.querySelector('[name="title"]').value.trim();
