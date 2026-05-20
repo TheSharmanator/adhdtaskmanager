@@ -112,6 +112,39 @@ PRAISE_MESSAGES = [
     "You've finished this with such authority and style, {name}, it's an absolute win for the books.",
 ]
 
+LATE_PRAISE_MESSAGES = [
+    "Better late than never, {name}, though in this specific case, \"never\" was actually a viable contender.",
+    "If time is a flat circle, {name}, then technically you've smashed it. If it’s linear, we have a problem.",
+    "Incredible stuff, {name}. I’ll notify the history museums that the missing era has finally concluded.",
+    "I’d applaud, {name}, but the kinetic energy required feels a bit redundant at this point in the century.",
+    "Outstanding, {name}. The deadline passed so long ago it’s actually achieved vintage status.",
+    "Look at you go, {name}. Proof that if you wait long enough, the urgency solves itself anyway.",
+    "Brilliant. I’ll go tell the client to uncancel the funeral, shall I, {name}?",
+    "A masterclass in suspense, {name}. I genuinely didn't think I'd live to see the final act.",
+    "Spot on, {name}. Just a few days short of a calendar miracle.",
+    "If we were measuring this in dog years, {name}, you’d be a digital archaeologist right now.",
+    "It’s a masterpiece, {name}. Much like the Sagrada Família, we weren't sure it would happen in our lifetime.",
+    "Splendid work, {name}. The panic we felt last Tuesday has officially ripened into mild amusement.",
+    "Fast? No. Thorough? Also debatable. But it is here, {name}, and that’s what we'll tell the police.",
+    "Quick, {name}, let’s file this away before the sun burns out and renders the whole thing moot.",
+    "You’ve really captured the essence of \"scenic route\" with this one, {name}.",
+    "Truly, {name}, your commitment to ignoring the space-time continuum is nothing short of heroic.",
+    "I didn't realise we were operating on GMT—Grievously Miscalculated Time, {name}.",
+    "Absolute lightning speed, {name}. Assuming we are tracking the movement of tectonic plates.",
+    "Well, {name}, the project has evolved, the client has retired, but your contribution is safely logged.",
+    "Huzzah, {name}. The ghost ship has finally drifted into harbor.",
+    "I love how you refuse to be constrained by arbitrary concepts like \"tuesdays,\" {name}.",
+    "Tremendous. I’ll go wake up the stakeholders, {name}, they’ve been in stasis waiting for this.",
+    "Like a fine wine, {name}. Fermented well past the point of legal consumption.",
+    "You've crossed the finish line, {name}! Granted, the stadium lights are off and the cleaners are sweeping up.",
+    "It’s here. I’d pop champagne, {name}, but the bubbles evaporated three days ago.",
+    "If procrastination were an Olympic sport, {name}, this would be your podium moment.",
+    "Magnificent timing, {name}. If the goal was to catch everyone completely off guard by actually finishing.",
+    "And there it is. The digital equivalent of a message in a bottle, {name}.",
+    "I suppose congratulations are in order, {name}. You’ve successfully outlasted the original deadline's relevance.",
+    "Stop the press, {name}. No, seriously, stop it—they've already printed the retraction.",
+]
+
 NAG_30 = [
     "Sunshine. Tick tock.",
     "The sand's running out of the glass.",
@@ -833,7 +866,11 @@ def complete_task(task_id):
         conn.close()
 
         # Celebration Data
-        msg = random.choice(PRAISE_MESSAGES).format(name=USER_NAME)
+        deadline_dt = datetime.strptime(current_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
+        if datetime.now() > deadline_dt:
+            msg = random.choice(LATE_PRAISE_MESSAGES).format(name=USER_NAME)
+        else:
+            msg = random.choice(PRAISE_MESSAGES).format(name=USER_NAME)
         selected_theme = random.choice(['matrix', 'glitch', 'gold-rush', 'fireworks', 'confetti'])
         trigger_voice_monkey(msg)
         
