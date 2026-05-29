@@ -173,3 +173,43 @@ Full v2 implementation across 6 files. No new spec decisions were made — all w
 
 *Future sessions appended below*
 
+---
+
+## Session 003 — 2026-05-29 (continued same day)
+
+**Type:** Bug fix / Dev environment clarification  
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`  
+**Status:** Complete
+
+### What Was Done
+
+Short wrap-up session. Two items addressed:
+
+**1. Windows dev testing confirmed viable**
+
+Confirmed the app is fully testable on Windows in a regular browser without the Raspberry Pi kiosk environment. Setup steps agreed:
+- `pip install -r requirements.txt`
+- Copy `config.json.example` → `config.json`, set `setup_complete: true`
+- `python app.py` → `http://localhost:5001`
+
+What works on Windows: all routes, DB, AI features, Focus Mode, tree, Week View, Quick Add, Settings.  
+What doesn't: Alexa/Voice Monkey (off by default anyway), audio autoplay, kiosk scaling.
+
+**2. Display clarified: 14" touchscreen, not 7"**
+
+The Pi is running a 14" touch panel (not the standard 7" Pi display). Resolution not yet confirmed but likely 1920×1080. The current CSS was written for 800×480 — font sizes, card dimensions, overlay sizing, and the tree SVG will all need reviewing against the actual resolution. This is deferred to next session once the resolution is confirmed.
+
+**3. Bug fix: missing `requests` dependency**
+
+`requirements.txt` was missing `requests`, which `llm_service.py` imports for all LLM API calls. Added `requests==2.31.0`.
+
+### Files Changed This Session
+- `requirements.txt` — added `requests==2.31.0`
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All v2 code pushed and ready to install
+- Dev testing can proceed on Windows immediately
+- **Blocked on**: 14" display resolution confirmation before CSS layout work
+- Next session: confirm resolution → audit and fix font sizes, card dimensions, overlay sizing, tree SVG scale throughout all templates
+
