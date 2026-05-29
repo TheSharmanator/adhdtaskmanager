@@ -171,10 +171,6 @@ Full v2 implementation across 6 files. No new spec decisions were made — all w
 
 ---
 
-*Future sessions appended below*
-
----
-
 ## Session 003 — 2026-05-29 (continued same day)
 
 **Type:** Bug fix / Dev environment clarification  
@@ -213,3 +209,53 @@ The Pi is running a 14" touch panel (not the standard 7" Pi display). Resolution
 - **Blocked on**: 14" display resolution confirmation before CSS layout work
 - Next session: confirm resolution → audit and fix font sizes, card dimensions, overlay sizing, tree SVG scale throughout all templates
 
+---
+
+## Session 004 — 2026-05-29 (continued same day)
+
+**Type:** Display scaling fix  
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`  
+**Status:** Complete — ready for user pull and test
+
+### What Was Done
+
+**Display confirmed: 14" 1920×1080 touchscreen**
+
+User confirmed resolution. Identified and fixed two problems:
+
+**1. scale.js and settings.html were inconsistent and wrong for 1920×1080**
+
+- `scale.js` had: `{ small: 1.0, medium: 1.0, large: 1.39 }` — medium was no-op, large far too small
+- `settings.html` had: `{ small: 1.0, medium: 1.39, large: 2.08 }` — different values, still wrong for 1080p
+
+The correct zoom for 1920×1080 from the 800px-wide base design is **2.4** (1920÷800). At zoom 2.4:
+- Virtual CSS viewport = 800px wide — matches the design exactly
+- Virtual height = 1080÷2.4 = 450px — 30px less than the 480px design, flex adapts
+- All overlays, card sizes, fonts, tree SVG all scale proportionally — no individual element changes needed
+
+**2. Fixed values and labelled the button**
+
+Both files now use: `{ small: 1.0, medium: 1.5, large: 2.4 }`.
+LARGE button now sub-labelled "1920×1080" so it's obvious on first setup.
+Removed dead medium-specific font override injection from scale.js (was overriding fonts separately but zoom already handles that).
+
+**First-run instructions for 1920×1080:**
+1. Open app → Settings → tap **LARGE** (1920×1080)
+2. Setting persists in localStorage — all pages pick it up via scale.js on load
+
+**Dev testing on Windows:**
+- DevTools → device toolbar → 1920×1080 custom → Settings → LARGE
+
+### Files Changed This Session
+- `static/js/scale.js` — corrected zoom values, removed dead font injection
+- `templates/settings.html` — matching zoom values, LARGE button labelled "1920×1080"
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All code pushed, ready to pull and test
+- **Waiting for**: user to pull branch, install, run, and test on Windows (DevTools 1920×1080) or Pi
+- Next session: runtime bug fixes from first real test
+
+---
+
+*Future sessions appended below*
