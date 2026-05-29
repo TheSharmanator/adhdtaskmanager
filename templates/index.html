@@ -3,550 +3,1177 @@
 <head>
     <meta charset="UTF-8">
     <title>ADHD Task Board</title>
-
 <style>
-
-/* Prevent children from breaking the drag hover state */
-.task-content, .progress-bg, .task-text, .task-deadline {
+/* Prevent children from stealing drag hover */
+.task-content, .progress-bg, .task-text, .task-deadline, .duration-chip {
     pointer-events: none !important;
 }
 
-/* Drag Highlight - High Priority Override */
-/* Drag Highlight - Total Override */
-.main-task.drop-hover { 
-    background: #0000ff !important; 
-    color: #ffffff !important; 
-    border-color: #ffffff !important; 
-    animation: none !important; /* Forces the flashing to STOP immediately */
+/* Drag highlight */
+.main-task.drop-hover {
+    background: #0000ff !important;
+    color: #ffffff !important;
+    border-color: #ffffff !important;
+    animation: none !important;
+}
+.main-task.drop-hover .task-deadline { color: #ffffff !important; }
+
+/* DND overlay */
+#dnd-overlay {
+    display: {{ 'flex' if dnd_active else 'none' }};
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: black; z-index: 10001;
+    justify-content: center; align-items: center;
 }
 
-.main-task.drop-hover .task-deadline { 
-    color: #ffffff !important; 
+/* Celebration overlay */
+#celebration-overlay {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 9999; justify-content: center; align-items: center;
+    flex-direction: column; pointer-events: none;
 }
 
-    /* DND Overlay - Total Blanking */
-    #dnd-overlay {
-        display: {{ 'flex' if dnd_active else 'none' }};
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: black;
-        z-index: 10001;
-        justify-content: center;
-        align-items: center;
-    }
+.theme-matrix { background: #002200 !important; color: #00ff00 !important; }
+.theme-matrix::after { content: ""; }
+.theme-glitch { background: #220022 !important; color: #ff00ff !important; }
+.theme-gold-rush { background: #332200 !important; color: #ffd700 !important; }
+.theme-fireworks { background: #000033 !important; color: #ffffff !important; }
+.theme-confetti { background: #330000 !important; color: #ff5555 !important; }
 
-    /* --- HIGH-ENERGY VISUAL FINALE THEMES --- */
-    #celebration-overlay {
-        display: none;
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
-        z-index: 9999;
-        justify-content: center;
-        align-items: center;
-        flex-direction: column;
-        pointer-events: none;
-    }
-
-    .theme-matrix, .theme-glitch, .theme-gold-rush, .theme-fireworks, .theme-confetti {
-        overflow: hidden;
-    }
-
-    .theme-matrix::after, .theme-glitch::after, .theme-gold-rush::after, 
-    .theme-fireworks::after, .theme-confetti::after {
-        position: absolute;
-        font-size: 15rem;
-        animation: burst-animation 0.7s ease-out infinite;
-    }
-
-    @keyframes burst-animation { 
-        0% { transform: scale(0); opacity: 1; } 
-        100% { transform: scale(4); opacity: 0; } 
-    }
-
-    .theme-matrix { background: #002200 !important; color: #00ff00 !important; }
-    .theme-matrix::after { content: "💾"; }
-    .theme-glitch { background: #220022 !important; color: #ff00ff !important; }
-    .theme-glitch::after { content: "⚡"; }
-    .theme-gold-rush { background: #332200 !important; color: #ffd700 !important; }
-    .theme-gold-rush::after { content: "💰"; }
-    .theme-fireworks { background: #000033 !important; color: #ffffff !important; }
-    .theme-fireworks::after { content: "✨"; }
-    .theme-confetti { background: #330000 !important; color: #ff5555 !important; }
-    .theme-confetti::after { content: "🎉"; }
-
-    /* --- CORE DASHBOARD STYLES --- */
-    body { 
-        background: #121212; 
-        color: #e0e0e0; 
-        font-family: sans-serif; 
-        margin: 0; 
-        display: flex; 
-        flex-direction: column; 
-        height: 100vh; 
-        overflow: hidden; 
-    }
-
-    header {
-        height: auto;
-        min-height: 80px;
-        padding: 5px 15px;
-        background: #000;
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between; /* Keeps clock left, buttons right */
-        align-items: center;
-        border-bottom: 2px solid #333;
-    }
-
-    #clock-container {
-        display: flex;
-        align-items: center;
-    }
-
-    #clock-full { 
-        font-size: 1.4rem; /* 40% of 3.5rem */
-        font-weight: 900; 
-        color: #ffd700; 
-        white-space: nowrap;
-        letter-spacing: 2px;
-        text-transform: uppercase;
-    }
-
-    .header-btns { 
-        display: flex; 
-        gap: 15px; 
-        align-items: center; 
-    }
-
-    .btn-touch {
-        padding: 10px 16px;
-        font-size: 0.9rem;
-        font-weight: 900;
-        text-decoration: none;
-        border-radius: 8px;
-        text-transform: uppercase;
-        display: inline-flex;
-        justify-content: center;
-        align-items: center;
-        border: 3px solid;
-        cursor: pointer;
-        min-width: 140px;
-        box-sizing: border-box;
-    }
-
-    .btn-add { background: #00ff00; color: #000; border-color: #ffd700; }
-    .btn-recovery { background: #000; color: #fff; border-color: #fff; }
-
-    .nuke-btn { 
-        padding: 10px 16px;
-        font-size: 0.9rem;
-        font-weight: 900;
-        border-radius: 8px;
-        border: 3px solid #800080; /* Purple Border */
-        cursor: pointer;
-        color: white;
-        min-width: 140px;
-        box-sizing: border-box;
-    }
-
-    .settings-icon { 
-        font-size: 3.2rem; 
-        margin-left: 15px;
-        cursor: pointer;
-        user-select: none;
-    }
-
-
-    .progress-bg { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(0, 255, 0, 0.2); z-index: 0; transition: width 1s linear; }
-    .task-content { z-index: 1; display: flex; flex-direction: column; pointer-events: none; }
-
-
-
-    @keyframes flash-yellow { 0% { background: #1e1e1e; } 50% { background: #ffff00; color: #000; } 100% { background: #1e1e1e; } }
-    @keyframes flash-orange { 0% { background: #1e1e1e; } 50% { background: #ffae42; color: #000; } 100% { background: #1e1e1e; } }
-    @keyframes flash-red { 0% { background: #1e1e1e; } 50% { background: #ff0000; color: #fff; } 100% { background: #1e1e1e; } }
-
-    .phase-yellow { animation: flash-yellow 2s infinite; }
-    .phase-orange { animation: flash-orange 1s infinite; }
-    .phase-red { animation: flash-red 0.5s infinite; border-color: #ff0000 !important; }
-
-#top-five { 
-    flex: 5; /* Increased flex weight to give top tasks more vertical space */
-    display: flex; 
-    flex-direction: column; 
-    padding: 5px; 
+/* CORE */
+body {
+    background: #121212; color: #e0e0e0; font-family: sans-serif;
+    margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden;
 }
 
-.main-task { 
-    flex: 1; 
-    margin: 5px; 
-    background: #1e1e1e; 
-    border: 3px solid #333; 
-    border-radius: 12px; 
-    display: flex; 
-    align-items: center; 
-    position: relative; 
-    overflow: hidden; 
-    padding-left: 15px; 
+header {
+    min-height: 70px; padding: 5px 12px;
+    background: #000; display: flex; flex-wrap: wrap;
+    justify-content: space-between; align-items: center;
+    border-bottom: 2px solid #333; gap: 8px;
 }
 
-.task-text { 
-    font-size: 1.6rem; 
-    font-weight: normal; 
-    text-transform: uppercase;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+#clock-full {
+    font-size: 1.3rem; font-weight: 900; color: #ffd700;
+    white-space: nowrap; letter-spacing: 2px; text-transform: uppercase;
 }
 
-.task-deadline { 
-    font-size: 0.85rem; 
-    color: #ffd700; 
-    font-weight: bold; 
-    text-transform: uppercase;
+/* Capacity chip */
+#cap-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 8px; border: 2px solid #444;
+    font-weight: 900; font-size: 0.85rem; cursor: pointer; white-space: nowrap;
+    background: #1a1a1a; color: #888;
+}
+#cap-chip.cap-warn { background: #332200; border-color: #ffd700; color: #ffd700; }
+#cap-chip.cap-over { background: #330000; border-color: #ff0055; color: #ff0055; animation: pulse-red 1s infinite; }
+
+#cap-bar-track { width: 80px; height: 12px; background: #333; border-radius: 6px; overflow: hidden; }
+#cap-bar-fill { height: 100%; border-radius: 6px; transition: width 0.5s; }
+
+@keyframes pulse-red { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+.header-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.btn-touch {
+    padding: 8px 12px; font-size: 0.85rem; font-weight: 900; text-decoration: none;
+    border-radius: 8px; text-transform: uppercase; display: inline-flex;
+    justify-content: center; align-items: center; border: 2px solid; cursor: pointer;
+    min-width: 90px; box-sizing: border-box; white-space: nowrap;
+}
+.btn-add { background: #00ff00; color: #000; border-color: #ffd700; }
+.btn-recovery { background: #000; color: #fff; border-color: #fff; }
+.btn-tonight { background: #002244; color: #66aaff; border-color: #0066cc; }
+.btn-week { background: #220044; color: #cc88ff; border-color: #7700cc; }
+.btn-quickadd { background: #1a1a00; color: #ffff00; border-color: #cccc00; }
+.nuke-btn {
+    padding: 8px 12px; font-size: 0.85rem; font-weight: 900; border-radius: 8px;
+    border: 2px solid #800080; cursor: pointer; color: white; min-width: 90px; box-sizing: border-box;
+}
+.settings-icon { font-size: 2.4rem; cursor: pointer; user-select: none; }
+
+/* TOP FIVE */
+#top-five {
+    flex: 5; display: flex; flex-direction: column; padding: 5px;
 }
 
-#bottom-ten { 
-    flex: 1; /* Shrunk down to make room for the big boys */
-    display: grid; 
-    grid-template-columns: repeat(5, 1fr); /* 5 columns to keep it a thin strip */
-    grid-template-rows: repeat(2, 1fr); 
-    gap: 5px; 
-    padding: 4px; 
-    background: #111; 
-    border-top: 2px solid #444; 
+.main-task {
+    flex: 1; margin: 5px; background: #1e1e1e; border: 3px solid #333;
+    border-radius: 12px; display: flex; align-items: center;
+    position: relative; overflow: hidden; padding-left: 15px;
+    cursor: default;
 }
 
-.sub-task { 
-    background: #1a1a1a; 
-    padding: 3px; 
-    border-radius: 4px; 
-    border: 1px solid #333; 
-    display: flex; 
-    flex-direction: column; 
-    justify-content: center;
-    overflow: hidden;
+.progress-bg { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(0,255,0,0.2); z-index: 0; transition: width 1s linear; }
+.task-content { z-index: 1; display: flex; flex-direction: column; flex: 1; pointer-events: none; min-width: 0; }
+.task-text { font-size: 1.5rem; font-weight: normal; text-transform: uppercase; word-wrap: break-word; overflow-wrap: break-word; }
+.task-deadline { font-size: 0.85rem; color: #ffd700; font-weight: bold; text-transform: uppercase; }
+
+.focus-btn {
+    z-index: 2; pointer-events: auto;
+    padding: 10px 14px; margin: 0 8px; background: #0033aa; color: white;
+    border: 2px solid #0055ff; border-radius: 8px; font-size: 0.85rem;
+    font-weight: 900; cursor: pointer; white-space: nowrap; text-transform: uppercase;
+    flex-shrink: 0;
+}
+.focus-btn:active { background: #0055ff; }
+
+.duration-chip {
+    z-index: 1; pointer-events: none;
+    padding: 8px 12px; margin-right: 10px; background: #222; color: #888;
+    border: 2px solid #333; border-radius: 8px; font-size: 0.8rem;
+    font-weight: 900; white-space: nowrap; flex-shrink: 0;
+}
+.duration-chip.has-duration { color: #aaa; border-color: #444; }
+
+/* PHASE ANIMATIONS */
+@keyframes flash-yellow { 0% { background: #1e1e1e; } 50% { background: #ffff00; color: #000; } 100% { background: #1e1e1e; } }
+@keyframes flash-orange { 0% { background: #1e1e1e; } 50% { background: #ffae42; color: #000; } 100% { background: #1e1e1e; } }
+@keyframes flash-red { 0% { background: #1e1e1e; } 50% { background: #ff0000; color: #fff; } 100% { background: #1e1e1e; } }
+.phase-yellow { animation: flash-yellow 2s infinite; }
+.phase-orange { animation: flash-orange 1s infinite; }
+.phase-red { animation: flash-red 0.5s infinite; border-color: #ff0000 !important; }
+
+/* QUEUE (bottom) */
+#queue-section {
+    flex: 2; display: flex; overflow: hidden; border-top: 2px solid #222;
+    background: #0a0a0a;
 }
 
-.sub-text { 
-    font-size: 0.85rem; 
-    font-weight: bold; 
-    white-space: normal; 
-    word-wrap: break-word;
-    overflow-wrap: break-word;
+#queue-scroll-area {
+    flex: 1; overflow-y: scroll; scrollbar-width: none; -ms-overflow-style: none;
+}
+#queue-scroll-area::-webkit-scrollbar { display: none; }
+
+#queue-scrollbar {
+    width: 50px; background: #111; border-left: 3px solid #333;
+    position: relative; cursor: pointer; flex-shrink: 0;
+}
+#queue-thumb {
+    width: 100%; height: 60px; background: #555;
+    border-top: 2px solid #888; border-bottom: 2px solid #888;
+    position: absolute; top: 0;
 }
 
-.sub-deadline { 
-    font-size: 0.7rem; 
-    color: #888; 
+.queue-task {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-bottom: 1px solid #1a1a1a;
+    background: #111;
 }
-    
-    #control-bar { height: 90px; background: #000; display: flex; justify-content: center; align-items: center; border-top: 2px solid #333; }
-#smiley-source { 
-    width: auto; 
-    height: 70px; 
-    background: transparent;
-    display: flex; 
-    justify-content: center; 
-    align-items: center; 
-    cursor: grab; 
+.queue-task:hover { background: #1a1a1a; }
+.queue-task.phase-yellow { animation: flash-yellow 3s infinite; }
+.queue-task.phase-orange { animation: flash-orange 1.5s infinite; }
+.queue-task.phase-red { animation: flash-red 0.8s infinite; }
+
+.qt-title { font-size: 0.95rem; font-weight: bold; color: #ccc; text-transform: uppercase; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qt-due { font-size: 0.75rem; color: #666; white-space: nowrap; }
+.qt-dur { font-size: 0.75rem; color: #555; white-space: nowrap; }
+
+/* CONTROL BAR */
+#control-bar { height: 80px; background: #000; display: flex; justify-content: center; align-items: center; border-top: 2px solid #333; }
+#smiley-source { height: 65px; background: transparent; display: flex; justify-content: center; align-items: center; cursor: grab; }
+#smiley-img { height: 65px; width: auto; object-fit: contain; }
+
+/* TREE */
+#tree-svg { position: fixed; bottom: 85px; right: 12px; pointer-events: none; z-index: 0; opacity: 0.3; }
+
+/* ─── OVERLAYS ─── */
+
+/* Generic overlay base */
+.overlay-bg {
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.93); z-index: 500;
+    justify-content: center; align-items: center; flex-direction: column;
+}
+.overlay-card {
+    background: #111; border-radius: 20px; padding: 30px;
+    width: 92%; max-width: 600px; box-sizing: border-box;
+    max-height: 90vh; overflow-y: auto;
 }
 
-#smiley-img { 
-    height: 70px; 
-    width: auto; /* Maintains original proportions */
-    object-fit: contain; 
-}    
+/* FOCUS POPUP */
+#focus-popup .overlay-card { border: 5px solid #0066ff; }
+#focus-task-name { font-size: 1.6rem; font-weight: 900; color: white; text-transform: uppercase; margin: 10px 0; }
+#focus-duration-input {
+    width: 100%; padding: 16px; background: #222; color: white;
+    border: 3px solid white; font-size: 2rem; font-weight: 900;
+    border-radius: 10px; box-sizing: border-box; text-align: center; margin: 10px 0;
+}
+.focus-yes-btn {
+    width: 100%; padding: 20px; background: #00cc00; color: black;
+    border: 3px solid white; border-radius: 12px; font-size: 1.4rem;
+    font-weight: 900; cursor: pointer; text-transform: uppercase; margin: 8px 0;
+}
+.focus-no-btn {
+    width: 100%; padding: 14px; background: #333; color: #aaa;
+    border: 2px solid #555; border-radius: 10px; font-size: 1.1rem;
+    font-weight: 900; cursor: pointer; text-transform: uppercase;
+}
 
+/* ONE TASK MODE */
+#otm-overlay {
+    background: rgba(0,0,0,0.98) !important;
+    z-index: 800;
+}
+#otm-overlay .overlay-card {
+    border: 5px solid #0066ff; max-width: 800px; text-align: center;
+}
+#otm-task-name { font-size: 2rem; font-weight: 900; color: white; text-transform: uppercase; margin: 10px 0; line-height: 1.2; }
+#otm-timer { font-size: 5rem; font-weight: 900; color: #00ff00; font-variant-numeric: tabular-nums; margin: 15px 0; letter-spacing: 4px; }
+#otm-first-step {
+    font-size: 1.2rem; color: #ffd700; font-weight: 900; padding: 15px;
+    background: #1a1a00; border: 2px solid #ffd700; border-radius: 10px;
+    margin: 10px 0; transition: opacity 1s ease;
+}
+#otm-warning { font-size: 1.1rem; color: #ff8800; font-weight: 900; display: none; margin: 8px 0; }
+.otm-done-btn {
+    width: 100%; padding: 22px; background: #00cc00; color: black;
+    border: 3px solid white; border-radius: 12px; font-size: 1.5rem;
+    font-weight: 900; cursor: pointer; text-transform: uppercase; margin: 8px 0;
+}
+.otm-cancel-btn {
+    width: 100%; padding: 14px; background: #330000; color: #ff6666;
+    border: 2px solid #ff0055; border-radius: 10px; font-size: 1.1rem;
+    font-weight: 900; cursor: pointer; text-transform: uppercase;
+}
+
+/* WEEK VIEW */
+#week-overlay { z-index: 600; }
+#week-overlay .overlay-card { max-width: 900px; border: 5px solid #7700cc; }
+.week-day-row {
+    margin: 8px 0; padding: 12px; background: #1a1a1a; border-radius: 10px;
+    border: 2px solid #333;
+}
+.week-day-row.overloaded { border-color: #ff0055; background: #1a0008; }
+.week-day-row.warn { border-color: #ffd700; background: #1a1200; }
+.week-day-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.week-day-name { font-size: 1.1rem; font-weight: 900; color: white; text-transform: uppercase; min-width: 50px; }
+.week-cap-bar-track { flex: 1; height: 14px; background: #333; border-radius: 6px; overflow: hidden; }
+.week-cap-bar-fill { height: 100%; border-radius: 6px; }
+.week-cap-label { font-size: 0.85rem; font-weight: 900; color: #888; min-width: 80px; text-align: right; }
+.week-rebalance-btn {
+    padding: 6px 12px; background: #550000; color: #ff6666;
+    border: 2px solid #ff0055; border-radius: 6px; font-size: 0.8rem;
+    font-weight: 900; cursor: pointer; text-transform: uppercase;
+}
+.week-task-list { font-size: 0.8rem; color: #777; padding-left: 8px; }
+
+/* QUICK ADD */
+#quickadd-overlay { z-index: 600; }
+#quickadd-overlay .overlay-card { border: 5px solid #cccc00; }
+#quickadd-input {
+    width: 100%; padding: 16px; background: #1a1a00; color: white;
+    border: 3px solid #ffd700; font-size: 1.3rem; font-weight: 900;
+    border-radius: 10px; box-sizing: border-box; margin: 10px 0;
+    resize: none; height: 100px; font-family: sans-serif;
+}
+#quickadd-parsed { display: none; margin-top: 15px; }
+.parsed-field { margin: 6px 0; padding: 8px; background: #1a1a1a; border-radius: 6px; font-size: 0.9rem; }
+.parsed-label { color: #ffd700; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; }
+.parsed-value { color: white; font-size: 1.0rem; font-weight: 900; }
+.qa-parse-btn {
+    width: 100%; padding: 16px; background: #555500; color: #ffff00;
+    border: 3px solid #cccc00; border-radius: 10px; font-size: 1.2rem;
+    font-weight: 900; cursor: pointer; text-transform: uppercase; margin: 8px 0;
+}
+.qa-save-btn {
+    width: 100%; padding: 18px; background: #00aa00; color: black;
+    border: 3px solid white; border-radius: 10px; font-size: 1.3rem;
+    font-weight: 900; cursor: pointer; text-transform: uppercase; margin: 8px 0;
+    display: none;
+}
+
+/* TONIGHT */
+#tonight-overlay { z-index: 600; }
+#tonight-overlay .overlay-card { border: 5px solid #0066cc; }
+.tonight-section { margin: 15px 0; padding: 12px; background: #1a1a2a; border-radius: 10px; border: 2px solid #0044aa; }
+.tonight-section h4 { margin: 0 0 8px 0; color: #66aaff; font-size: 1.0rem; text-transform: uppercase; }
+.tonight-item { font-size: 0.9rem; color: #ccc; padding: 4px 0; border-bottom: 1px solid #222; }
+.tonight-item:last-child { border-bottom: none; }
+
+/* CONFIRM popup */
+#confirm-popup .overlay-card { border: 5px solid #ff8800; max-width: 500px; text-align: center; }
 </style>
 
     <script src="/static/js/scale.js"></script>
 </head>
 
 <body>
-
 {% if is_mobile %}
-    <style>
-        body { overflow-y: auto !important; height: auto !important; }
-    </style>
+<style>body { overflow-y: auto !important; height: auto !important; }</style>
+<div style="padding: 15px; background: #121212; min-height: 100vh; font-family: sans-serif;">
+    <h2 style="color: #ffd700; text-align: center; font-size: 2.5rem; margin-bottom: 20px; text-transform: uppercase;">ADHD BOARD</h2>
+    <a href="/add" style="display: block; text-align: center; margin-bottom: 20px; text-decoration: none; padding: 20px; font-size: 1.5rem; font-weight: 900; background: #00ff00; color: black; border-radius: 12px; border: 3px solid white;">+ ADD TASK</a>
+    {% for task in main_tasks + queue_tasks %}
+    <div style="background: #222; border: 4px solid white; margin-bottom: 15px; padding: 20px; border-radius: 16px; display: flex; justify-content: space-between; align-items: center;">
+        <div style="flex: 1; padding-right: 10px;">
+            <div style="font-size: 1.5rem; font-weight: 900; color: white; text-transform: uppercase;">{{ task.title }}</div>
+            <div style="font-size: 1.1rem; color: #ffd700; margin-top: 6px;">{{ task.deadline }}</div>
+        </div>
+        <button onclick="drop(event, {{ task.id }})" style="background: #00ff00; color: black; border: 3px solid white; padding: 18px; border-radius: 12px; font-weight: 900; font-size: 1.2rem;">DONE</button>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
 
-    <div style="padding: 15px; background: #121212; min-height: 100vh; font-family: sans-serif;">
-        <h2 style="color: #ffd700; text-align: center; font-size: 3.25rem; margin-bottom: 30px; text-transform: uppercase;">MOBILE BOARD</h2>
-        
-        <a href="/add" class="btn-touch btn-add" style="display: block; text-align: center; margin-bottom: 35px; text-decoration: none; padding: 30px; font-size: 1.8rem;">+ ADD TASK</a>
+<!-- DND overlay -->
+<div id="dnd-overlay"></div>
 
-        <div id="mobile-task-list">
-            {% for task in main_tasks + queue_tasks %}
-            <div style="background: #222; border: 5px solid white; margin-bottom: 20px; padding: 25px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center;">
-                <div style="flex: 1; padding-right: 15px;">
-                    <div style="font-size: 2.1rem; font-weight: 900; color: white; text-transform: uppercase; line-height: 1.1;">{{ task.title }}</div>
-                    <div style="font-size: 1.3rem; color: #ffd700; font-weight: bold; margin-top: 10px;">{{ task.deadline }}</div>
-                </div>
-                <button onclick="drop(event, {{ task.id }})" style="background: #00ff00; color: black; border: 4px solid white; padding: 25px; border-radius: 15px; font-weight: 900; font-size: 1.5rem;">DONE</button>
-            </div>
-            {% endfor %}
+<!-- Celebration overlay -->
+<div id="celebration-overlay">
+    <canvas id="fireworks-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998;"></canvas>
+    <h1 id="praise-text" style="font-size: 4rem; text-align: center; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); z-index: 10000; margin: 20px; padding: 20px; background: rgba(0,0,0,0.7); border-radius: 20px;"></h1>
+</div>
+
+<!-- ─── HEADER ─── -->
+<header>
+    <div id="clock-full">LOADING...</div>
+
+    <!-- Capacity chip -->
+    <div id="cap-chip" onclick="editTodayCap()" title="Tap to adjust today's capacity">
+        <span id="cap-text">TODAY: —</span>
+        <div id="cap-bar-track" style="display:none;">
+            <div id="cap-bar-fill"></div>
         </div>
     </div>
-    {% else %}
-    <div id="dnd-overlay"></div>
-    <div id="celebration-overlay">
-        <canvas id="fireworks-canvas" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 9998;"></canvas>
-        <h1 id="praise-text" style="font-size: 5rem; text-align: center; text-shadow: 2px 2px 10px rgba(0,0,0,0.5); z-index: 10000; margin: 0;"></h1>
-    </div>
 
-<header>
-    <div id="clock-container">
-        <div id="clock-full">LOADING CLOCK...</div>
-    </div>
     <div class="header-btns">
+        <button class="btn-touch btn-quickadd" onclick="openQuickAdd()">QUICK ADD</button>
+        <button class="btn-touch btn-tonight" onclick="openTonight()">TONIGHT</button>
+        <button class="btn-touch btn-week" onclick="openWeekView()">WEEK VIEW</button>
+        <a href="/add" class="btn-touch btn-add">+ ADD</a>
         <a href="/settings" style="text-decoration: none; color: inherit;">
             <div class="settings-icon">⚙️</div>
         </a>
-        <a href="/edit_list" class="btn-touch" style="background: #ffd700; color: #000; border-color: #fff;">EDIT TASK</a>
-        <a href="/add" class="btn-touch btn-add">+ ADD TASK</a>
-
-        
-        <a href="/recovery" class="btn-touch btn-recovery">RECOVERY</a>
-        
-        <button id="nuke-btn" class="nuke-btn" onclick="toggleSilence()" 
+        <button id="nuke-btn" class="nuke-btn" onclick="toggleSilence()"
                 style="background: {{ '#555' if silence_mode == 'on' else '#900' }};">
             {{ 'UNSILENCE' if silence_mode == 'on' else 'SILENCE' }}
         </button>
     </div>
 </header>
 
-    <div id="top-five">
-        {% for task in main_tasks %}
-<div class="main-task {{ task.phase }}" 
-     ondragover="dragOver(event)" 
-     ondragenter="dragEnter(event)" 
-     ondragleave="dragLeave(event)" 
-     ondrop="drop(event, {{ task.id }})">
-                <div class="progress-bg" style="width: {{ task.percent }}%;"></div>
-                <div class="task-content">
-                    <span class="task-text">{{ task.title }}</span>
-                    <span class="task-deadline">DUE: {{ task.deadline }}</span>
-                </div>
-            </div>
-        {% endfor %}
-        {% for i in range(5 - (main_tasks|length)) %}
-            <div class="main-task"><span class="task-text" style="color: #333;">(Waiting for task...)</span></div>
-        {% endfor %}
+<!-- ─── TOP FIVE ─── -->
+<div id="top-five">
+    {% for task in main_tasks %}
+    <div class="main-task {{ task.phase }}"
+         ondragover="dragOver(event)"
+         ondragenter="dragEnter(event)"
+         ondragleave="dragLeave(event)"
+         ondrop="drop(event, {{ task.id }})">
+        <div class="progress-bg" style="width: {{ task.percent }}%;"></div>
+        <div class="task-content">
+            <span class="task-text">{{ task.title }}</span>
+            <span class="task-deadline">
+                {% if task.deadline_type == 'none' %}BACKLOG{% else %}DUE: {{ task.deadline }}{% endif %}
+            </span>
+        </div>
+        <button class="focus-btn"
+                onclick="openFocusPopup({{ task.id }}, '{{ task.title | replace("'", "\\'") }}', {{ task.duration_minutes or 30 }})">
+            FOCUS
+        </button>
+        <div class="duration-chip {{ 'has-duration' if task.duration_minutes else '' }}">
+            {% if task.duration_minutes %}{{ task.duration_minutes }} MIN{% else %}? MIN{% endif %}
+        </div>
     </div>
+    {% endfor %}
+    {% for i in range(5 - (main_tasks|length)) %}
+    <div class="main-task"><span class="task-text" style="color: #2a2a2a; pointer-events: none;">(waiting for task...)</span></div>
+    {% endfor %}
+</div>
 
-    <div id="bottom-ten">
+<!-- ─── QUEUE (scrollable) ─── -->
+<div id="queue-section">
+    <div id="queue-scroll-area">
         {% for task in queue_tasks %}
-            <div class="sub-task {{ task.phase }}">
-                <span class="sub-text">{{ task.title }}</span>
-                <span class="sub-deadline">Due: {{ task.deadline }}</span>
-            </div>
+        <div class="queue-task {{ task.phase }}">
+            <div class="qt-title">{{ task.title }}</div>
+            <div class="qt-due">{% if task.deadline_type == 'none' %}BACKLOG{% else %}{{ task.deadline }}{% endif %}</div>
+            <div class="qt-dur">{% if task.duration_minutes %}{{ task.duration_minutes }}m{% endif %}</div>
+        </div>
         {% endfor %}
-        {% for i in range(10 - (queue_tasks|length)) %}
-            <div class="sub-task"><span class="sub-text" style="color: #444;">(Waiting...)</span></div>
-        {% endfor %}
+        {% if not queue_tasks %}
+        <div style="padding: 12px; color: #333; font-size: 0.9rem; text-align: center;">No queued tasks</div>
+        {% endif %}
     </div>
+    <div id="queue-scrollbar" onmousedown="startQueueScroll(event)" ontouchstart="startQueueScroll(event)">
+        <div id="queue-thumb"></div>
+    </div>
+</div>
 
+<!-- ─── CONTROL BAR ─── -->
 <div id="control-bar">
     <div id="smiley-source" draggable="true" ondragstart="drag(event)">
-        <img src="/media/smiley.png" id="smiley-img" alt="Smiley">
+        <img src="/media/smiley.png" id="smiley-img" alt="Done">
     </div>
-</div> {% endif %}
+</div>
 
-    <script>
+<!-- Tree SVG -->
+<svg id="tree-svg" width="180" height="240"></svg>
 
+<!-- ─── OVERLAYS ─── -->
 
-        // 1. Clock and Date Logic
-        function updateClock() {
-            const now = new Date();
-            const clockEl = document.getElementById('clock-full');
-            
-            if (clockEl) {
-                const day = now.toLocaleDateString('en-GB', { weekday: 'short' });
-                const date = now.getDate();
-                const month = now.toLocaleDateString('en-GB', { month: 'short' });
-                const year = now.getFullYear();
-                const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-                
-                // Format: SUN 26 APR 2026 13:05
-                clockEl.innerText = `${day} ${date} ${month} ${year} ${time}`.toUpperCase();
-            }
+<!-- FOCUS POPUP -->
+<div id="focus-popup" class="overlay-bg">
+    <div class="overlay-card">
+        <h2 style="color:#0066ff; margin:0; text-transform:uppercase; font-size:1.4rem;">Working on this now?</h2>
+        <div id="focus-task-name"></div>
+        <label style="color:#ffd700; font-size:0.85rem; font-weight:900; text-transform:uppercase; display:block; margin-top:12px;">PLANNED MINUTES:</label>
+        <input type="number" id="focus-duration-input" min="5" max="960" step="5" value="30">
+        <button class="focus-yes-btn" onclick="startFocusMode()">YES — START FOCUS</button>
+        <button class="focus-no-btn" onclick="closeFocusPopup()">NO — NOT YET</button>
+    </div>
+</div>
+
+<!-- ONE TASK MODE -->
+<div id="otm-overlay" class="overlay-bg" style="z-index:800;">
+    <div class="overlay-card" style="border:5px solid #0066ff; max-width:800px; text-align:center;">
+        <div style="font-size:0.8rem; color:#555; text-transform:uppercase; letter-spacing:2px; margin-bottom:5px;">FOCUS MODE</div>
+        <div id="otm-task-name"></div>
+        <div id="otm-timer">00:00</div>
+        <div id="otm-first-step" style="display:none;"></div>
+        <div id="otm-warning" style="display:none; font-size:1.1rem; color:#ff8800; font-weight:900; padding:8px; background:#1a0a00; border-radius:8px; margin:8px 0;">2 MINUTES REMAINING — WRAP IT UP!</div>
+        <button class="otm-done-btn" onclick="endFocus('complete')">DONE — TASK COMPLETE</button>
+        <button class="otm-cancel-btn" onclick="endFocus('cancel')">CANCEL FOCUS</button>
+    </div>
+</div>
+
+<!-- WEEK VIEW -->
+<div id="week-overlay" class="overlay-bg">
+    <div class="overlay-card" style="border:5px solid #7700cc; max-width:900px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h2 style="color:#cc88ff; margin:0; text-transform:uppercase;">WEEK VIEW</h2>
+            <button onclick="closeWeekView()" style="padding:10px 16px; background:#333; color:white; border:2px solid #555; border-radius:8px; font-weight:900; cursor:pointer;">CLOSE</button>
+        </div>
+        <div id="week-content">
+            <div style="color:#555; text-align:center; padding:20px;">Loading...</div>
+        </div>
+    </div>
+</div>
+
+<!-- QUICK ADD -->
+<div id="quickadd-overlay" class="overlay-bg">
+    <div class="overlay-card" style="border:5px solid #cccc00;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2 style="color:#ffff00; margin:0; text-transform:uppercase;">QUICK ADD</h2>
+            <button onclick="closeQuickAdd()" style="padding:8px 14px; background:#333; color:white; border:2px solid #555; border-radius:8px; font-weight:900; cursor:pointer;">CLOSE</button>
+        </div>
+        <p style="color:#888; font-size:0.9rem; margin:5px 0;">Type your task in plain English and AI will parse it.</p>
+        <textarea id="quickadd-input" placeholder="e.g. Submit tax return by Friday 5pm, about 2 hours work"></textarea>
+        <button class="qa-parse-btn" onclick="parseQuickAdd()">PARSE WITH AI</button>
+        <div id="quickadd-parsed">
+            <div class="parsed-field"><div class="parsed-label">Title</div><div class="parsed-value" id="qa-title">—</div></div>
+            <div class="parsed-field"><div class="parsed-label">Date</div><div class="parsed-value" id="qa-date">—</div></div>
+            <div class="parsed-field"><div class="parsed-label">Time</div><div class="parsed-value" id="qa-time">—</div></div>
+            <div class="parsed-field"><div class="parsed-label">Type</div><div class="parsed-value" id="qa-type">—</div></div>
+            <div class="parsed-field"><div class="parsed-label">Duration</div><div class="parsed-value" id="qa-duration">—</div></div>
+            <button class="qa-save-btn" id="qa-save-btn" onclick="saveQuickAdd()">SAVE TASK</button>
+        </div>
+        <div id="quickadd-status" style="margin-top:8px; font-size:0.9rem; color:#888;"></div>
+    </div>
+</div>
+
+<!-- TONIGHT -->
+<div id="tonight-overlay" class="overlay-bg">
+    <div class="overlay-card" style="border:5px solid #0066cc; max-width:700px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2 style="color:#66aaff; margin:0; text-transform:uppercase;">TONIGHT</h2>
+            <button onclick="closeTonight()" style="padding:8px 14px; background:#333; color:white; border:2px solid #555; border-radius:8px; font-weight:900; cursor:pointer;">CLOSE</button>
+        </div>
+        <div id="tonight-content">
+            <div style="color:#555; text-align:center; padding:20px;">Loading...</div>
+        </div>
+    </div>
+</div>
+
+<!-- CAPACITY EDIT POPUP -->
+<div id="cap-edit-overlay" class="overlay-bg">
+    <div class="overlay-card" style="border:5px solid #ffd700; max-width:400px; text-align:center;">
+        <h2 style="color:#ffd700; margin:0 0 15px 0; text-transform:uppercase;">TODAY'S CAPACITY</h2>
+        <p style="color:#888; font-size:0.9rem;">Override available hours for today only.</p>
+        <input type="number" id="cap-edit-input" min="0" max="16" step="0.5"
+               style="width:100%; padding:20px; background:#222; color:white; border:3px solid white; font-size:2.5rem; font-weight:900; border-radius:10px; box-sizing:border-box; text-align:center; margin:10px 0;">
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button onclick="saveCapOverride()" style="flex:1; padding:16px; background:#00cc00; color:black; border:3px solid white; border-radius:10px; font-size:1.2rem; font-weight:900; cursor:pointer; text-transform:uppercase;">SAVE</button>
+            <button onclick="document.getElementById('cap-edit-overlay').style.display='none'" style="flex:1; padding:16px; background:#333; color:white; border:2px solid #555; border-radius:10px; font-size:1.2rem; font-weight:900; cursor:pointer; text-transform:uppercase;">CANCEL</button>
+        </div>
+    </div>
+</div>
+
+<!-- REBALANCE CONFIRM -->
+<div id="rebalance-confirm" class="overlay-bg">
+    <div class="overlay-card" style="border:5px solid #ff8800; max-width:500px; text-align:center;">
+        <h2 style="color:#ff8800; margin:0 0 15px 0; text-transform:uppercase;">MOVE TASK?</h2>
+        <div id="rebalance-proposal" style="font-size:1.0rem; color:#ccc; line-height:1.6; margin:10px 0;"></div>
+        <div style="display:flex; gap:10px; margin-top:15px;">
+            <button onclick="applyRebalance()" style="flex:1; padding:16px; background:#00aa00; color:black; border:3px solid white; border-radius:10px; font-size:1.1rem; font-weight:900; cursor:pointer; text-transform:uppercase;">YES — MOVE IT</button>
+            <button onclick="document.getElementById('rebalance-confirm').style.display='none'" style="flex:1; padding:16px; background:#333; color:white; border:2px solid #555; border-radius:10px; font-size:1.1rem; font-weight:900; cursor:pointer; text-transform:uppercase;">NO</button>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+
+<script>
+// ─── STATE ───
+let focusTaskId = null;
+let focusTaskTitle = null;
+let focusPlannedMinutes = 0;
+let focusSessionId = null;
+let focusSecondsRemaining = 0;
+let focusTimerInterval = null;
+let focusNagCount = 0;
+let focusBreakTimeouts = [];
+let pendingRebalance = null;
+let parsedQuickAdd = null;
+
+const todayCap = {{ today_cap }};
+const todayPlanned = {{ today_planned }};
+const capPct = {{ cap_pct }};
+const treeData = {{ tree | tojson }};
+const activeFocus = {{ (active_focus | tojson) if active_focus else 'null' }};
+
+// ─── CLOCK ───
+function updateClock() {
+    const el = document.getElementById('clock-full');
+    if (!el) return;
+    const now = new Date();
+    const day = now.toLocaleDateString('en-GB', { weekday: 'short' });
+    const date = now.getDate();
+    const month = now.toLocaleDateString('en-GB', { month: 'short' });
+    const year = now.getFullYear();
+    const time = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+    el.innerText = `${day} ${date} ${month} ${year} ${time}`.toUpperCase();
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ─── CAPACITY CHIP ───
+function initCapChip() {
+    const chip = document.getElementById('cap-chip');
+    const text = document.getElementById('cap-text');
+    const track = document.getElementById('cap-bar-track');
+    const fill = document.getElementById('cap-bar-fill');
+    if (!chip) return;
+
+    text.innerText = `TODAY: ${todayPlanned.toFixed(1)}h / ${todayCap.toFixed(1)}h`;
+
+    if (capPct >= 80) {
+        track.style.display = 'block';
+        const pct = Math.min(capPct, 100);
+        fill.style.width = pct + '%';
+        if (capPct >= 100) {
+            fill.style.background = '#ff0055';
+            chip.className = 'cap-over';
+        } else {
+            fill.style.background = '#ffd700';
+            chip.className = 'cap-warn';
         }
-        
-        setInterval(updateClock, 1000);
-        updateClock();
+    }
+}
+initCapChip();
 
-        // 2. Poll for updates every 10 seconds without reload
-        setInterval(() => {
-            fetch('/api/tasks')
-            .then(res => res.json())
-            .then(data => {
-                // Here we would update the DOM. 
-                // For now, if lengths differ, reload to be safe.
-                const currentCount = document.querySelectorAll('.main-task .task-text').length;
-                if (data.length !== currentCount) {
-                    location.reload();
-                }
-            });
-        }, 10000);
-
-
-        // Fireworks Logic
-        function startFireworks() {
-            const canvas = document.getElementById('fireworks-canvas');
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            
-            let particles = [];
-            const colors = ['#ff0044', '#00ffcc', '#ffff00', '#ff00ff', '#00ff00', '#ffffff', '#ffaa00'];
-            
-            function Particle(x, y, color) {
-                this.x = x;
-                this.y = y;
-                this.color = color;
-                this.radius = Math.random() * 3 + 1;
-                this.velocity = {
-                    x: (Math.random() - 0.5) * 12,
-                    y: (Math.random() - 0.5) * 12
-                };
-                this.alpha = 1;
-                this.decay = Math.random() * 0.015 + 0.005;
-                
-                this.draw = function() {
-                    ctx.save();
-                    ctx.globalAlpha = this.alpha;
-                    ctx.beginPath();
-                    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-                    ctx.fillStyle = this.color;
-                    ctx.fill();
-                    ctx.restore();
-                };
-                
-                this.update = function() {
-                    this.draw();
-                    this.velocity.y += 0.05; // gravity
-                    this.x += this.velocity.x;
-                    this.y += this.velocity.y;
-                    this.alpha -= this.decay;
-                };
-            }
-            
-            function createFirework(x, y) {
-                const count = 100;
-                const color = colors[Math.floor(Math.random() * colors.length)];
-                for (let i = 0; i < count; i++) {
-                    particles.push(new Particle(x, y, color));
-                }
-            }
-            
-            let animationId;
-            function animate() {
-                animationId = requestAnimationFrame(animate);
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                if (Math.random() < 0.05) {
-                    createFirework(Math.random() * canvas.width, Math.random() * canvas.height * 0.7);
-                }
-                
-                particles = particles.filter(p => p.alpha > 0);
-                particles.forEach(p => p.update());
-            }
-            
-            animate();
-            
-            setTimeout(() => {
-                cancelAnimationFrame(animationId);
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }, 10000);
-        }
-
-        // 3. Drag and Drop Logic
-        function drag(ev) { 
-            ev.dataTransfer.setData("text", ev.target.id); 
-        }
-
-        function drop(ev, taskId) {
-            ev.preventDefault();
-            ev.currentTarget.classList.remove('drop-hover'); // Remove blue immediately
-            
-            fetch('/complete/' + taskId, { method: 'POST' })
-            .then(res => {
-                if (!res.ok) throw new Error('Server Error');
-                return res.json();
-            })
-            .then(data => {
-                const overlay = document.getElementById('celebration-overlay');
-                const praise = document.getElementById('praise-text');
-                
-                if (data.audio) {
-                    const audio = new Audio(data.audio);
-                    audio.play().catch(e => console.error("Audio playback failed:", e));
-                }
-                
-                if (overlay && praise) {
-                    praise.innerText = data.message || "Task Complete!";
-                    overlay.className = ''; 
-                    overlay.classList.add('theme-' + (data.theme || 'matrix'));
-                    overlay.style.display = 'flex';
-                    
-                    startFireworks();
-
-                    setTimeout(() => { 
-                        location.reload(); 
-                    }, 10000);
-                } else {
-                    location.reload();
-                }
-            })
-            .catch(err => {
-                console.error("Drop error:", err);
-                location.reload();
-            });
-        }
-
-        // 4. Silence Toggle Logic
-        function toggleSilence() {
-            fetch('/toggle_silence', { method: 'POST' })
-            .then(res => res.json())
-            .then(data => {
-                const btn = document.getElementById('nuke-btn');
-                if (data.mode === 'on') {
-                    btn.innerText = 'UNSILENCE';
-                    btn.style.background = '#555';
-                } else {
-                    btn.innerText = 'SILENCE';
-                    btn.style.background = '#900';
-                }
-            });
-        }
-
-function dragEnter(ev) {
-    ev.preventDefault();
-    ev.currentTarget.classList.add('drop-hover');
+function editTodayCap() {
+    document.getElementById('cap-edit-input').value = todayCap;
+    document.getElementById('cap-edit-overlay').style.display = 'flex';
 }
 
-/* Add this to ensure the blue stays locked on while moving */
-function dragOver(ev) {
-    ev.preventDefault();
-    ev.currentTarget.classList.add('drop-hover');
+function saveCapOverride() {
+    const hours = parseFloat(document.getElementById('cap-edit-input').value);
+    if (isNaN(hours) || hours < 0) return;
+    fetch('/api/capacity/update', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({day: 'today', hours})
+    }).then(() => { document.getElementById('cap-edit-overlay').style.display = 'none'; location.reload(); });
 }
 
-function dragLeave(ev) {
+// ─── TREE ───
+function drawTree(variant, growth) {
+    const svg = document.getElementById('tree-svg');
+    if (!svg) return;
+    svg.innerHTML = '';
+    const w = 180, h = 240;
+    svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+
+    const trunkW = 20, trunkH = 75;
+    const trunkX = w/2 - trunkW/2;
+    const trunkY = h - trunkH;
+
+    const trunk = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    trunk.setAttribute('x', trunkX); trunk.setAttribute('y', trunkY);
+    trunk.setAttribute('width', trunkW); trunk.setAttribute('height', trunkH);
+    trunk.setAttribute('fill', '#5C4033'); trunk.setAttribute('rx', '5');
+    svg.appendChild(trunk);
+
+    if (!growth || growth <= 0.02) return;
+
+    const scale = Math.min(growth, 1.0);
+    const maxR = 70 * scale;
+    const cx = w/2;
+    const topY = trunkY;
+
+    const colors = { oak:'#2d7a2d', cherry:'#e08aaa', pine:'#1a5c1a', willow:'#3d8b3d', maple:'#cc5500' };
+    const color = colors[variant] || '#2d7a2d';
+
+    const ns = 'http://www.w3.org/2000/svg';
+
+    if (variant === 'pine') {
+        const tri = document.createElementNS(ns, 'polygon');
+        tri.setAttribute('points', `${cx},${topY - maxR*1.3} ${cx-maxR},${topY} ${cx+maxR},${topY}`);
+        tri.setAttribute('fill', color);
+        svg.appendChild(tri);
+        if (scale > 0.5) {
+            const tri2 = document.createElementNS(ns, 'polygon');
+            tri2.setAttribute('points', `${cx},${topY-maxR*1.8} ${cx-maxR*0.7},${topY-maxR*0.55} ${cx+maxR*0.7},${topY-maxR*0.55}`);
+            tri2.setAttribute('fill', '#145214');
+            svg.appendChild(tri2);
+        }
+    } else if (variant === 'cherry') {
+        const blobs = [[0,-0.9],[-.5,-.5],[.5,-.5],[-.25,-1.3],[.25,-1.3]];
+        blobs.forEach(([dx,dy]) => {
+            const el = document.createElementNS(ns, 'ellipse');
+            el.setAttribute('cx', cx + dx*maxR*0.9); el.setAttribute('cy', topY + dy*maxR*0.85);
+            el.setAttribute('rx', maxR*0.5); el.setAttribute('ry', maxR*0.45);
+            el.setAttribute('fill', color); el.setAttribute('opacity', '0.92');
+            svg.appendChild(el);
+        });
+    } else if (variant === 'willow') {
+        const oval = document.createElementNS(ns, 'ellipse');
+        oval.setAttribute('cx', cx); oval.setAttribute('cy', topY - maxR*0.4);
+        oval.setAttribute('rx', maxR*0.55); oval.setAttribute('ry', maxR*0.38);
+        oval.setAttribute('fill', color);
+        svg.appendChild(oval);
+        const bc = Math.ceil(6 * scale);
+        for (let i = 0; i < bc; i++) {
+            const a = (i - (bc-1)/2) * (70/(bc-1||1));
+            const rad = a * Math.PI/180;
+            const bx = cx + Math.sin(rad)*maxR*0.5;
+            const ey = topY + maxR*0.7*scale;
+            const path = document.createElementNS(ns, 'path');
+            path.setAttribute('d', `M${bx},${topY-maxR*0.1} Q${bx+Math.sin(rad)*15},${topY+(ey-topY)*0.4} ${bx},${ey}`);
+            path.setAttribute('stroke', color); path.setAttribute('stroke-width', '4'); path.setAttribute('fill', 'none');
+            svg.appendChild(path);
+        }
+    } else if (variant === 'maple') {
+        const spokes = 7;
+        const pts = [];
+        for (let i = 0; i < spokes*2; i++) {
+            const r = (i%2===0) ? maxR : maxR*0.5;
+            const ang = (i/(spokes*2))*Math.PI*2 - Math.PI/2;
+            pts.push(`${cx + r*Math.cos(ang)},${topY - maxR*0.5 + r*Math.sin(ang)*0.7}`);
+        }
+        const star = document.createElementNS(ns, 'polygon');
+        star.setAttribute('points', pts.join(' '));
+        star.setAttribute('fill', color);
+        svg.appendChild(star);
+    } else {
+        // oak default
+        const oval = document.createElementNS(ns, 'ellipse');
+        oval.setAttribute('cx', cx); oval.setAttribute('cy', topY - maxR*0.5);
+        oval.setAttribute('rx', maxR); oval.setAttribute('ry', maxR*0.75);
+        oval.setAttribute('fill', color);
+        svg.appendChild(oval);
+        if (scale > 0.6) {
+            const ov2 = document.createElementNS(ns, 'ellipse');
+            ov2.setAttribute('cx', cx - maxR*0.4); ov2.setAttribute('cy', topY - maxR*0.2);
+            ov2.setAttribute('rx', maxR*0.45); ov2.setAttribute('ry', maxR*0.35);
+            ov2.setAttribute('fill', '#1e5c1e');
+            svg.appendChild(ov2);
+        }
+    }
+}
+
+drawTree(treeData.tree_variant, treeData.growth_level);
+
+// ─── FOCUS MODE ───
+function openFocusPopup(taskId, taskTitle, defaultMinutes) {
+    focusTaskId = taskId;
+    focusTaskTitle = taskTitle;
+    document.getElementById('focus-task-name').innerText = taskTitle;
+    document.getElementById('focus-duration-input').value = defaultMinutes || 30;
+    document.getElementById('focus-popup').style.display = 'flex';
+}
+
+function closeFocusPopup() {
+    document.getElementById('focus-popup').style.display = 'none';
+}
+
+function startFocusMode() {
+    const mins = parseInt(document.getElementById('focus-duration-input').value) || 30;
+    closeFocusPopup();
+
+    fetch('/api/focus/start', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({task_id: focusTaskId, planned_minutes: mins})
+    })
+    .then(r => r.json())
+    .then(d => {
+        focusSessionId = d.session_id;
+        focusPlannedMinutes = mins;
+        launchOTM(focusTaskTitle, d.first_step, focusSessionId, mins, 0);
+    })
+    .catch(() => {
+        focusSessionId = null;
+        focusPlannedMinutes = mins;
+        launchOTM(focusTaskTitle, 'Take the first small step right now.', null, mins, 0);
+    });
+}
+
+function launchOTM(title, firstStep, sessionId, plannedMinutes, elapsedSeconds) {
+    focusSessionId = sessionId;
+    focusPlannedMinutes = plannedMinutes;
+    focusSecondsRemaining = (plannedMinutes * 60) - elapsedSeconds;
+    focusNagCount = 0;
+
+    document.getElementById('otm-task-name').innerText = title;
+
+    const stepEl = document.getElementById('otm-first-step');
+    if (firstStep && firstStep !== '') {
+        stepEl.innerText = 'START: ' + firstStep;
+        stepEl.style.display = 'block';
+        stepEl.style.opacity = '1';
+        setTimeout(() => { stepEl.style.opacity = '0'; }, 5000);
+        setTimeout(() => { stepEl.style.display = 'none'; }, 6000);
+    } else {
+        stepEl.style.display = 'none';
+    }
+
+    document.getElementById('otm-warning').style.display = 'none';
+    document.getElementById('otm-overlay').style.display = 'flex';
+    updateTimerDisplay();
+
+    // Clear old intervals
+    clearInterval(focusTimerInterval);
+    focusBreakTimeouts.forEach(t => clearTimeout(t));
+    focusBreakTimeouts = [];
+
+    // Start countdown
+    focusTimerInterval = setInterval(() => {
+        focusSecondsRemaining--;
+        updateTimerDisplay();
+        if (focusSecondsRemaining <= 0) {
+            clearInterval(focusTimerInterval);
+            handleFocusExpired();
+        } else if (focusSecondsRemaining === 120) {
+            document.getElementById('otm-warning').style.display = 'block';
+        }
+    }, 1000);
+
+    // Schedule break reminders
+    setupBreakReminders(plannedMinutes, elapsedSeconds);
+}
+
+function updateTimerDisplay() {
+    const el = document.getElementById('otm-timer');
+    if (!el) return;
+    const s = Math.max(0, focusSecondsRemaining);
+    const mins = Math.floor(s / 60);
+    const secs = s % 60;
+    el.innerText = `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+    const pct = s / (focusPlannedMinutes * 60);
+    let color = '#00ff00';
+    if (pct < 0.5) color = '#ffd700';
+    if (pct < 0.25) color = '#ff8800';
+    if (pct < 0.1) color = '#ff0000';
+    el.style.color = color;
+}
+
+function setupBreakReminders(plannedMinutes, alreadyElapsed) {
+    if (plannedMinutes < 30) return;
+    const intervals = [];
+    if (plannedMinutes < 60) {
+        intervals.push(Math.floor(plannedMinutes / 2) * 60);
+    } else {
+        for (let m = 30; m < plannedMinutes; m += 30) intervals.push(m * 60);
+    }
+    intervals.forEach(elapsedSecs => {
+        const remaining = elapsedSecs - alreadyElapsed;
+        if (remaining > 0) {
+            const t = setTimeout(() => {
+                if (focusTimerInterval) fireBreakReminder(elapsedSecs / 60);
+            }, remaining * 1000);
+            focusBreakTimeouts.push(t);
+        }
+    });
+}
+
+function fireBreakReminder(elapsedMins) {
+    fetch('/api/focus/break_reminder', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({elapsed_minutes: elapsedMins}) });
+    flashOverlay('#003300', 2000);
+}
+
+function flashOverlay(color, ms) {
+    const el = document.getElementById('otm-overlay');
+    const orig = el.style.background;
+    el.style.background = color;
+    setTimeout(() => { el.style.background = orig; }, ms);
+}
+
+function handleFocusExpired() {
+    document.getElementById('otm-timer').innerText = 'TIME UP!';
+    document.getElementById('otm-timer').style.color = '#ff0000';
+    nagFocusExpired();
+}
+
+function nagFocusExpired() {
+    fetch('/api/focus/expired', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({escalation: focusNagCount, session_id: focusSessionId, task_id: focusTaskId})
+    });
+    focusNagCount++;
+    const t = setTimeout(() => {
+        if (document.getElementById('otm-overlay').style.display !== 'none') nagFocusExpired();
+    }, 120000);
+    focusBreakTimeouts.push(t);
+}
+
+function endFocus(reason) {
+    clearInterval(focusTimerInterval);
+    focusBreakTimeouts.forEach(t => clearTimeout(t));
+    focusBreakTimeouts = [];
+
+    document.getElementById('otm-overlay').style.display = 'none';
+
+    fetch('/api/focus/end', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({reason, session_id: focusSessionId, task_id: focusTaskId})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (reason === 'complete' && d.status === 'success') {
+            triggerCompletion(d);
+        } else {
+            location.reload();
+        }
+    })
+    .catch(() => location.reload());
+}
+
+function triggerCompletion(data) {
+    const overlay = document.getElementById('celebration-overlay');
+    const praise = document.getElementById('praise-text');
+    if (data.audio) { try { new Audio(data.audio).play(); } catch(e) {} }
+    if (overlay && praise) {
+        praise.innerText = data.message || 'TASK COMPLETE!';
+        overlay.className = '';
+        overlay.classList.add('theme-' + (data.theme || 'fireworks'));
+        overlay.style.display = 'flex';
+        startFireworks();
+        setTimeout(() => { location.reload(); }, 8000);
+    } else {
+        location.reload();
+    }
+}
+
+// Resume active focus if present on page load
+if (activeFocus) {
+    focusTaskId = activeFocus.task_id;
+    focusTaskTitle = activeFocus.task_title;
+    const elapsed = activeFocus.elapsed_seconds || 0;
+    if (elapsed < activeFocus.planned_minutes * 60) {
+        launchOTM(activeFocus.task_title, null, activeFocus.session_id || activeFocus.id, activeFocus.planned_minutes, elapsed);
+    }
+}
+
+// ─── WEEK VIEW ───
+function openWeekView() {
+    document.getElementById('week-overlay').style.display = 'flex';
+    document.getElementById('week-content').innerHTML = '<div style="color:#555; text-align:center; padding:20px;">Loading...</div>';
+    fetch('/api/week_view')
+    .then(r => r.json())
+    .then(data => renderWeekView(data))
+    .catch(() => { document.getElementById('week-content').innerHTML = '<div style="color:#ff0055; padding:20px;">Failed to load week view.</div>'; });
+}
+
+function closeWeekView() {
+    document.getElementById('week-overlay').style.display = 'none';
+}
+
+function renderWeekView(days) {
+    let html = '';
+    days.forEach(day => {
+        const pct = day.available_hours > 0 ? Math.min((day.planned_hours / day.available_hours) * 100, 100) : 0;
+        const overloaded = day.overloaded;
+        const warn = pct >= 80 && !overloaded;
+        const fillColor = overloaded ? '#ff0055' : warn ? '#ffd700' : '#00aa44';
+        const rowClass = overloaded ? 'overloaded' : warn ? 'warn' : '';
+        const tasksHtml = day.tasks.slice(0, 5).map(t => `<span style="margin-right:8px; color:#666;">${t.title} (${t.duration_minutes || '?'}m)</span>`).join('');
+        const extraCount = day.tasks.length - 5;
+        html += `
+        <div class="week-day-row ${rowClass}">
+            <div class="week-day-header">
+                <div class="week-day-name">${day.day}</div>
+                <div class="week-cap-bar-track"><div class="week-cap-bar-fill" style="width:${pct}%; background:${fillColor};"></div></div>
+                <div class="week-cap-label">${day.planned_hours.toFixed(1)}h / ${day.available_hours.toFixed(1)}h</div>
+                ${overloaded ? `<button class="week-rebalance-btn" onclick="requestRebalance('${day.day}')">REBALANCE</button>` : ''}
+            </div>
+            <div class="week-task-list">${tasksHtml}${extraCount > 0 ? `<span style="color:#555;">+${extraCount} more</span>` : ''}</div>
+        </div>`;
+    });
+    document.getElementById('week-content').innerHTML = html || '<div style="color:#555; padding:20px;">No tasks this week.</div>';
+}
+
+function requestRebalance(dayName) {
+    document.getElementById('rebalance-proposal').innerText = 'Asking AI...';
+    document.getElementById('rebalance-confirm').style.display = 'flex';
+    fetch(`/api/rebalance/${dayName}`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+        if (d.error) { document.getElementById('rebalance-proposal').innerText = d.error; pendingRebalance = null; return; }
+        pendingRebalance = d;
+        document.getElementById('rebalance-proposal').innerHTML =
+            `Move <strong style="color:white;">"${d.task_title}"</strong> to <strong style="color:#ffd700;">${d.move_to}</strong><br><span style="color:#888; font-size:0.85rem;">${d.reason}</span>`;
+    })
+    .catch(() => { document.getElementById('rebalance-proposal').innerText = 'AI request failed.'; pendingRebalance = null; });
+}
+
+function applyRebalance() {
+    if (!pendingRebalance) { document.getElementById('rebalance-confirm').style.display = 'none'; return; }
+    fetch('/api/rebalance/apply', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(pendingRebalance)
+    })
+    .then(r => r.json())
+    .then(() => { document.getElementById('rebalance-confirm').style.display = 'none'; openWeekView(); })
+    .catch(() => { document.getElementById('rebalance-confirm').style.display = 'none'; });
+}
+
+// ─── QUICK ADD ───
+function openQuickAdd() {
+    document.getElementById('quickadd-input').value = '';
+    document.getElementById('quickadd-parsed').style.display = 'none';
+    document.getElementById('qa-save-btn').style.display = 'none';
+    document.getElementById('quickadd-status').innerText = '';
+    parsedQuickAdd = null;
+    document.getElementById('quickadd-overlay').style.display = 'flex';
+    setTimeout(() => document.getElementById('quickadd-input').focus(), 200);
+}
+
+function closeQuickAdd() {
+    document.getElementById('quickadd-overlay').style.display = 'none';
+}
+
+function parseQuickAdd() {
+    const text = document.getElementById('quickadd-input').value.trim();
+    if (!text) return;
+    const status = document.getElementById('quickadd-status');
+    status.innerText = 'Parsing...';
+    document.getElementById('quickadd-parsed').style.display = 'none';
+
+    fetch('/api/quick_add_parse', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text})
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.error || !d.title) { status.innerText = d.error || 'Could not parse — try again or add manually.'; return; }
+        parsedQuickAdd = d;
+        document.getElementById('qa-title').innerText = d.title || '—';
+        document.getElementById('qa-date').innerText = d.deadline_date || 'No date';
+        document.getElementById('qa-time').innerText = d.deadline_time || '—';
+        document.getElementById('qa-type').innerText = (d.deadline_type || 'none').toUpperCase();
+        document.getElementById('qa-duration').innerText = d.duration_minutes ? `${d.duration_minutes} minutes` : 'Not specified';
+        document.getElementById('quickadd-parsed').style.display = 'block';
+        document.getElementById('qa-save-btn').style.display = 'block';
+        status.innerText = '';
+    })
+    .catch(() => { status.innerText = 'AI unavailable — add task manually.'; });
+}
+
+function saveQuickAdd() {
+    if (!parsedQuickAdd) return;
+    const btn = document.getElementById('qa-save-btn');
+    btn.innerText = 'SAVING...';
+    btn.disabled = true;
+
+    const form = new FormData();
+    form.append('type', 'one-off');
+    form.append('title', parsedQuickAdd.title || '');
+    form.append('deadline_type', parsedQuickAdd.deadline_type || 'none');
+    form.append('duration_minutes', parsedQuickAdd.duration_minutes || '');
+
+    if (parsedQuickAdd.deadline_date) {
+        // Convert YYYY-MM-DD to DD/MM/YYYY
+        const parts = parsedQuickAdd.deadline_date.split('-');
+        if (parts.length === 3) form.append('deadline_date', `${parts[2]}/${parts[1]}/${parts[0]}`);
+    }
+    if (parsedQuickAdd.deadline_time) form.append('deadline_time', parsedQuickAdd.deadline_time);
+
+    fetch('/add', { method: 'POST', body: form })
+    .then(r => {
+        if (r.ok || r.redirected) { closeQuickAdd(); location.reload(); }
+        else { btn.innerText = 'SAVE TASK'; btn.disabled = false; document.getElementById('quickadd-status').innerText = 'Save failed.'; }
+    })
+    .catch(() => { btn.innerText = 'SAVE TASK'; btn.disabled = false; });
+}
+
+// ─── TONIGHT ───
+function openTonight() {
+    document.getElementById('tonight-overlay').style.display = 'flex';
+    document.getElementById('tonight-content').innerHTML = '<div style="color:#555; text-align:center; padding:20px;">Loading...</div>';
+    fetch('/api/tonight')
+    .then(r => r.json())
+    .then(d => renderTonight(d))
+    .catch(() => { document.getElementById('tonight-content').innerHTML = '<div style="color:#ff0055; padding:20px;">Failed to load.</div>'; });
+}
+
+function closeTonight() {
+    document.getElementById('tonight-overlay').style.display = 'none';
+}
+
+function renderTonight(d) {
+    const completed = d.completed_today || [];
+    const completedHtml = completed.length
+        ? completed.map(t => `<div class="tonight-item">✅ ${t}</div>`).join('')
+        : '<div class="tonight-item" style="color:#444;">None completed today</div>';
+
+    const tomorrow = d.tomorrow_tasks || [];
+    const tomorrowHtml = tomorrow.length
+        ? tomorrow.map(t => `<div class="tonight-item">• ${t.title} ${t.type !== 'none' ? `— ${t.duration}` : '(backlog)'}</div>`).join('')
+        : '<div class="tonight-item" style="color:#444;">Nothing due tomorrow</div>';
+
+    const capLabel = (d.tomorrow_available_h != null)
+        ? `${d.tomorrow_planned_h}h planned / ${d.tomorrow_available_h}h available (${d.tomorrow_day})`
+        : '—';
+
+    const backlog = d.backlog_preview || [];
+
+    document.getElementById('tonight-content').innerHTML = `
+        <div class="tonight-section">
+            <h4>COMPLETED TODAY</h4>
+            ${completedHtml}
+        </div>
+        <div class="tonight-section">
+            <h4>TOMORROW — ${capLabel}</h4>
+            ${tomorrowHtml}
+        </div>
+        ${backlog.length ? `
+        <div class="tonight-section">
+            <h4>BACKLOG</h4>
+            ${backlog.slice(0,5).map(t => `<div class="tonight-item">· ${t.title}</div>`).join('')}
+        </div>` : ''}
+    `;
+}
+
+// ─── QUEUE SCROLLBAR ───
+const queueArea = document.getElementById('queue-scroll-area');
+const queueThumb = document.getElementById('queue-thumb');
+const queueTrack = document.getElementById('queue-scrollbar');
+
+if (queueArea) {
+    queueArea.addEventListener('scroll', () => {
+        const pct = queueArea.scrollTop / (queueArea.scrollHeight - queueArea.clientHeight || 1);
+        queueThumb.style.top = (pct * (queueTrack.clientHeight - queueThumb.clientHeight)) + 'px';
+    });
+}
+
+function startQueueScroll(e) {
+    const move = (ev) => {
+        const y = (ev.touches ? ev.touches[0].clientY : ev.clientY) - queueTrack.getBoundingClientRect().top;
+        const pct = Math.max(0, Math.min(1, y / queueTrack.clientHeight));
+        queueArea.scrollTop = pct * (queueArea.scrollHeight - queueArea.clientHeight);
+    };
+    const stop = () => {
+        window.removeEventListener('mousemove', move);
+        window.removeEventListener('mouseup', stop);
+        window.removeEventListener('touchmove', move);
+        window.removeEventListener('touchend', stop);
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', stop);
+    window.addEventListener('touchmove', move, { passive: false });
+    window.addEventListener('touchend', stop);
+}
+
+// ─── FIREWORKS ───
+function startFireworks() {
+    const canvas = document.getElementById('fireworks-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    let particles = [];
+    const colors = ['#ff0044','#00ffcc','#ffff00','#ff00ff','#00ff00','#ffffff','#ffaa00'];
+
+    function Particle(x,y,color) {
+        this.x=x; this.y=y; this.color=color; this.radius=Math.random()*3+1;
+        this.vx=(Math.random()-.5)*12; this.vy=(Math.random()-.5)*12;
+        this.alpha=1; this.decay=Math.random()*0.015+0.005;
+    }
+    Particle.prototype.update = function() {
+        this.vy+=0.05; this.x+=this.vx; this.y+=this.vy; this.alpha-=this.decay;
+        ctx.save(); ctx.globalAlpha=this.alpha; ctx.beginPath();
+        ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fillStyle=this.color; ctx.fill(); ctx.restore();
+    };
+
+    function createFirework(x,y) {
+        const c=colors[Math.floor(Math.random()*colors.length)];
+        for(let i=0;i<80;i++) particles.push(new Particle(x,y,c));
+    }
+
+    let animId;
+    function animate() {
+        animId=requestAnimationFrame(animate);
+        ctx.fillStyle='rgba(0,0,0,0.1)'; ctx.fillRect(0,0,canvas.width,canvas.height);
+        if(Math.random()<0.06) createFirework(Math.random()*canvas.width, Math.random()*canvas.height*0.7);
+        particles=particles.filter(p=>p.alpha>0);
+        particles.forEach(p=>p.update());
+    }
+    animate();
+    setTimeout(()=>{ cancelAnimationFrame(animId); ctx.clearRect(0,0,canvas.width,canvas.height); }, 8000);
+}
+
+// ─── DRAG & DROP (completion) ───
+function drag(ev) { ev.dataTransfer.setData("text", ev.target.id); }
+
+function drop(ev, taskId) {
+    ev.preventDefault();
     ev.currentTarget.classList.remove('drop-hover');
+    fetch('/complete/' + taskId, { method: 'POST' })
+    .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+    .then(data => {
+        if (data.audio) { try { new Audio(data.audio).play(); } catch(e) {} }
+        const overlay = document.getElementById('celebration-overlay');
+        const praise = document.getElementById('praise-text');
+        if (overlay && praise) {
+            praise.innerText = data.message || 'TASK COMPLETE!';
+            overlay.className = '';
+            overlay.classList.add('theme-' + (data.theme || 'fireworks'));
+            overlay.style.display = 'flex';
+            startFireworks();
+            setTimeout(() => location.reload(), 8000);
+        } else { location.reload(); }
+    })
+    .catch(() => location.reload());
 }
 
-// 5. DND 3-Tap Wake Logic
-let dndTapCount = 0;
-let dndTapTimeout;
-let dndWakeTimeout;
+function dragEnter(ev) { ev.preventDefault(); ev.currentTarget.classList.add('drop-hover'); }
+function dragOver(ev) { ev.preventDefault(); ev.currentTarget.classList.add('drop-hover'); }
+function dragLeave(ev) { ev.currentTarget.classList.remove('drop-hover'); }
 
+// ─── SILENCE ───
+function toggleSilence() {
+    fetch('/toggle_silence', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+        const btn = document.getElementById('nuke-btn');
+        btn.innerText = data.mode === 'on' ? 'UNSILENCE' : 'SILENCE';
+        btn.style.background = data.mode === 'on' ? '#555' : '#900';
+    });
+}
+
+// ─── DND 3-TAP WAKE ───
+let dndTapCount = 0, dndTapTimeout, dndWakeTimeout;
 const dndOverlay = document.getElementById('dnd-overlay');
 if (dndOverlay) {
     dndOverlay.addEventListener('click', () => {
         dndTapCount++;
         clearTimeout(dndTapTimeout);
-        
         if (dndTapCount >= 3) {
             dndOverlay.style.display = 'none';
             dndTapCount = 0;
@@ -559,16 +1186,23 @@ if (dndOverlay) {
 
 function resetDndWakeTimer() {
     clearTimeout(dndWakeTimeout);
-    dndWakeTimeout = setTimeout(() => {
-        if (dndOverlay) dndOverlay.style.display = 'flex';
-    }, 120000); // 2 minutes
+    dndWakeTimeout = setTimeout(() => { if (dndOverlay) dndOverlay.style.display = 'flex'; }, 120000);
 }
 
 document.body.addEventListener('click', () => {
-    if (dndOverlay && dndOverlay.style.display === 'none' && dndWakeTimeout) {
-        resetDndWakeTimer();
-    }
+    if (dndOverlay && dndOverlay.style.display === 'none' && dndWakeTimeout) resetDndWakeTimer();
 });
-    </script>
+
+// ─── POLL ───
+setInterval(() => {
+    if (document.getElementById('otm-overlay').style.display !== 'none') return; // Don't reload during focus
+    fetch('/api/tasks')
+    .then(r => r.json())
+    .then(data => {
+        const current = document.querySelectorAll('.main-task .task-text').length;
+        if (data.length !== current) location.reload();
+    });
+}, 15000);
+</script>
 </body>
 </html>

@@ -3,15 +3,13 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>System Settings</title>
-    <link rel="stylesheet" href="/static/js/simple-keyboard.css">
     <style>
-        body { 
-            background: #121212; color: white; font-family: sans-serif; 
+        body {
+            background: #121212; color: white; font-family: sans-serif;
             margin: 0; padding: 0; display: flex; flex-direction: column;
-            height: 100vh; overflow: hidden; 
+            height: 100vh; overflow: hidden;
         }
 
-        /* --- STREAMLINED COMMAND HEADER --- */
         header {
             background: #000; padding: 5px 10px; border-bottom: 3px solid white;
             display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; z-index: 100;
@@ -19,88 +17,108 @@
 
         h2 { margin: 0; font-size: 1.6rem; text-transform: uppercase; color: #ffd700; }
 
-        .header-btns { display: flex; gap: 10px; }
-
-        .btn-header { 
-            padding: 8px 12px; border: 2px solid white; border-radius: 8px; 
+        .btn-header {
+            padding: 8px 12px; border: 2px solid white; border-radius: 8px;
             font-weight: 900; font-size: 0.95rem; text-decoration: none; text-transform: uppercase;
             cursor: pointer; display: flex; align-items: center;
         }
         .btn-save { background: #00ff00; color: black; }
         .btn-cancel { background: #444; color: white; }
 
-        /* --- MAIN LAYOUT --- */
         #main-container { display: flex; flex: 1; overflow: hidden; }
 
         #scroll-area {
-            flex: 1; overflow-y: scroll; padding: 5px;
+            flex: 1; overflow-y: scroll; padding: 10px 15px;
             scrollbar-width: none; -ms-overflow-style: none;
+            padding-bottom: 50px;
         }
         #scroll-area::-webkit-scrollbar { display: none; }
 
-        /* Chunky Scrollbar */
-        #custom-scrollbar {
-            width: 70px; background: #1a1a1a; border-left: 3px solid white; 
-            position: relative; cursor: pointer;
-        }
-        #scroll-thumb {
-            width: 100%; height: 90px; background: #ffd700;
-            border-bottom: 3px solid white; border-top: 3px solid white;
-            position: absolute; top: 0;
-        }
+        #custom-scrollbar { width: 70px; background: #1a1a1a; border-left: 3px solid white; position: relative; cursor: pointer; }
+        #scroll-thumb { width: 100%; height: 90px; background: #ffd700; border-bottom: 3px solid white; border-top: 3px solid white; position: absolute; top: 0; }
 
-        form { width: 100%; max-width: 800px; margin: 0 auto; padding-bottom: 50px; }
-        label { font-size: 0.9rem; font-weight: bold; color: #ffd700; display: block; margin-top: 5px; text-transform: uppercase; }
-        
-        input { 
-            width: 100%; padding: 8px; margin: 3px 0; background: #222; 
-            color: white; border: 2px solid white; font-size: 1.25rem; 
+        form { width: 100%; max-width: 850px; margin: 0 auto; padding-bottom: 50px; }
+
+        label { font-size: 0.9rem; font-weight: bold; color: #ffd700; display: block; margin-top: 8px; text-transform: uppercase; }
+        small { font-size: 0.7rem; font-weight: normal; color: #888; }
+
+        input[type="text"], input[type="number"], input[type="password"] {
+            width: 100%; padding: 10px; margin: 3px 0; background: #222;
+            color: white; border: 2px solid white; font-size: 1.2rem;
             font-weight: 900; border-radius: 8px; box-sizing: border-box;
         }
 
         .side-by-side { display: flex; gap: 10px; width: 100%; }
-        .side-by-side div { flex: 1; }
+        .side-by-side > div { flex: 1; }
 
-        /* Day Selector */
-        .day-selector { display: flex; gap: 8px; margin-top: 15px; }
+        /* Section headers */
+        .section-header {
+            border-top: 3px solid #ffd700; margin-top: 20px; padding-top: 12px; margin-bottom: 5px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .section-header h3 { margin: 0; font-size: 1.1rem; text-transform: uppercase; color: #ffd700; }
+
+        /* Day selector */
+        .day-selector { display: flex; gap: 8px; margin-top: 10px; }
         .day-selector input { display: none; }
-        .day-selector label { 
-            flex: 1; padding: 5px 2px; background: #333; 
-            border: 2px solid white; border-radius: 8px; text-align: center; 
-            cursor: pointer; font-size: 0.9rem; color: white; margin-top: 0;
-            font-weight: 900;
+        .day-selector label {
+            flex: 1; padding: 5px 2px; background: #333;
+            border: 2px solid white; border-radius: 8px; text-align: center;
+            cursor: pointer; font-size: 0.9rem; color: white; margin-top: 0; font-weight: 900;
         }
         .day-selector input:checked + label { background: #0066ff; border-color: #ffd700; }
 
-        /* FAT FINGER PICKERS */
-        .p-btn { 
-            background: #222; color: white; border: 3px solid white; 
-            font-size: 1.0rem; font-weight: 900; padding: 10px; 
-            border-radius: 8px; cursor: pointer; 
+        /* Provider / big buttons */
+        .p-btn {
+            background: #222; color: white; border: 2px solid white;
+            font-size: 0.95rem; font-weight: 900; padding: 12px 8px;
+            border-radius: 8px; cursor: pointer;
             display: flex; justify-content: center; align-items: center;
+            text-align: center;
         }
-        .p-btn:active, .p-btn.active { background: #ffd700; color: black; border-color: #ffd700; }
+        .p-btn:active, .p-btn.active { background: #0066ff; color: white; border-color: #ffd700; }
 
+        .screen-btn.active { background: #ffd700 !important; color: black !important; border-color: white !important; }
+
+        /* Daily capacity grid */
+        .cap-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 10px; }
+        .cap-grid > div { text-align: center; }
+        .cap-grid label { font-size: 0.75rem; text-align: center; margin-top: 0; }
+        .cap-grid input { text-align: center; font-size: 1.1rem; padding: 8px 4px; }
+
+        /* AI test result */
+        #test-result {
+            flex: 2; padding: 10px 14px; font-size: 0.9rem; font-weight: 900;
+            border-radius: 8px; background: #1a1a1a;
+        }
+
+        @media (max-width: 600px) {
+            .cap-grid { grid-template-columns: repeat(4, 1fr); }
+            .side-by-side { flex-direction: column; }
+            #custom-scrollbar { display: none; }
+        }
     </style>
     <script src="/static/js/scale.js"></script>
 </head>
 <body>
     <header>
         <h2>BOARD SETTINGS</h2>
-        <div class="header-btns">
-            <button type="button" class="btn-header btn-save" onclick="validateAndSubmitSettings()">💾 SAVE</button>
-            <a href="/" class="btn-header btn-cancel">❌ CANCEL</a>
+        <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn-header btn-save" onclick="validateAndSubmitSettings()">SAVE</button>
+            <a href="/" class="btn-header btn-cancel">CANCEL</a>
         </div>
     </header>
 
     <div id="main-container">
         <div id="scroll-area">
             <form id="settings-form" method="POST" autocomplete="off">
-                <div class="side-by-side" style="align-items: flex-end; margin-top: 5px; margin-bottom: 10px; border-bottom: 2px solid #333; padding-bottom: 10px;">
+
+                <!-- SCREEN + PORT -->
+                <div class="side-by-side" style="align-items: flex-end; margin-top: 5px; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 5px;">
                     <div style="flex: 2; display: flex; gap: 5px; padding-bottom: 5px;">
-                        <button type="button" class="p-btn screen-btn active" onclick="setScreenSize('small', this)">SMALL SCREEN</button>
-                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('medium', this)">MEDIUM SCREEN</button>
-                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('large', this)">LARGE SCREEN</button>
+                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('small', this)">SMALL</button>
+                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('medium', this)">MEDIUM</button>
+                        <button type="button" class="p-btn screen-btn" onclick="setScreenSize('large', this)">LARGE</button>
                     </div>
                     <div style="flex: 1;">
                         <label>SERVER PORT:</label>
@@ -108,18 +126,20 @@
                     </div>
                 </div>
 
+                <!-- BRIEFING -->
                 <label>MORNING BRIEFING TIME (HH:MM):</label>
                 <input type="text" name="briefing_time" class="input mask-time" placeholder="08:00" value="{{ settings.briefing_time }}" maxlength="5">
 
                 <label>BRIEFING DAYS:</label>
                 <div class="day-selector">
                     {% for day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
-                    <input type="checkbox" name="briefing_days" id="day-{{ day }}" value="{{ day }}" 
+                    <input type="checkbox" name="briefing_days" id="day-{{ day }}" value="{{ day }}"
                            {% if day in settings.briefing_days %}checked{% endif %}>
                     <label for="day-{{ day }}">{{ day|upper }}</label>
                     {% endfor %}
                 </div>
 
+                <!-- DND -->
                 <div class="side-by-side">
                     <div>
                         <label>DND START (HH:MM):</label>
@@ -131,9 +151,10 @@
                     </div>
                 </div>
 
+                <!-- BAR + NAG -->
                 <div class="side-by-side">
                     <div>
-                        <label>PROGRESS BAR SCALE (HOURS):</label>
+                        <label>PROGRESS BAR SCALE (HRS):</label>
                         <input type="number" name="bar_start_hours" step="0.1" class="input" value="{{ settings.bar_start_hours }}">
                     </div>
                     <div>
@@ -142,6 +163,72 @@
                     </div>
                 </div>
 
+                <!-- USER NAME -->
+                <label>YOUR NAME:</label>
+                <input type="text" name="user_name" class="input" value="{{ settings.user_name or '' }}" placeholder="Name">
+
+                <!-- ─── AI SECTION ─── -->
+                <div class="section-header">
+                    <h3>AI ASSISTANT</h3>
+                </div>
+
+                <label>PROVIDER:</label>
+                <div style="display: flex; gap: 10px; margin: 6px 0;">
+                    <button type="button" class="p-btn provider-btn" id="prov-openai" onclick="setProvider('openai', this)">OPENAI</button>
+                    <button type="button" class="p-btn provider-btn" id="prov-anthropic" onclick="setProvider('anthropic', this)">ANTHROPIC</button>
+                    <button type="button" class="p-btn provider-btn" id="prov-ollama" onclick="setProvider('ollama', this)">OLLAMA (LOCAL)</button>
+                </div>
+                <input type="hidden" name="llm_provider" id="llm_provider_val" value="{{ settings.llm_provider or '' }}">
+
+                <div class="side-by-side">
+                    <div>
+                        <label>QUICK MODEL <small>(estimates, messages)</small>:</label>
+                        <input type="text" name="llm_quick_model" class="input" value="{{ settings.llm_quick_model or '' }}" placeholder="gpt-4o-mini">
+                    </div>
+                    <div>
+                        <label>DEEP MODEL <small>(breakdown, scheduling)</small>:</label>
+                        <input type="text" name="llm_deep_model" class="input" value="{{ settings.llm_deep_model or '' }}" placeholder="gpt-4o">
+                    </div>
+                </div>
+
+                <div id="api-key-section">
+                    <label>API KEY:</label>
+                    <input type="password" name="llm_api_key" class="input" value="{{ settings.llm_api_key or '' }}" placeholder="sk-...">
+                </div>
+
+                <div id="ollama-section" style="display:none;">
+                    <label>OLLAMA HOST:</label>
+                    <input type="text" name="llm_ollama_host" class="input" value="{{ settings.llm_ollama_host or 'http://localhost:11434' }}" placeholder="http://192.168.x.x:11434">
+                </div>
+
+                <div style="display: flex; gap: 10px; align-items: stretch; margin-top: 10px;">
+                    <button type="button" id="test-btn" onclick="testLLM()" class="p-btn" style="flex: 1; background: #004488; border-color: #0088ff;">TEST CONNECTION</button>
+                    <button type="button" onclick="showLLMHelp()" class="p-btn" style="width: 50px; font-size: 1.4rem; border-color: #555;">?</button>
+                    <div id="test-result" style="flex: 2;">—</div>
+                </div>
+
+                <!-- ADHD BUFFER -->
+                <div class="section-header" style="border-color: #555;">
+                    <h3 style="color: #aaa;">ADHD BUFFER</h3>
+                </div>
+
+                <label>BUFFER % <small>(added to AI time estimates — beat the clock!)</small>:</label>
+                <input type="number" name="adhd_buffer_pct" class="input" value="{{ settings.adhd_buffer_pct or 30 }}" min="0" max="100" step="5">
+
+                <!-- DAILY CAPACITY -->
+                <div class="section-header" style="border-color: #555;">
+                    <h3 style="color: #aaa;">DAILY CAPACITY (HOURS)</h3>
+                </div>
+                <p style="font-size: 0.8rem; color: #666; margin: 4px 0 8px 0;">How many working hours are available each weekday. Used for scheduling and the capacity bar.</p>
+
+                <div class="cap-grid">
+                    {% for day_key, day_label in [('cap_mon','MON'),('cap_tue','TUE'),('cap_wed','WED'),('cap_thu','THU'),('cap_fri','FRI'),('cap_sat','SAT'),('cap_sun','SUN')] %}
+                    <div>
+                        <label>{{ day_label }}</label>
+                        <input type="number" name="{{ day_key }}" class="input" value="{{ settings.get(day_key, 6.0) }}" min="0" max="16" step="0.5">
+                    </div>
+                    {% endfor %}
+                </div>
 
             </form>
         </div>
@@ -151,7 +238,7 @@
         </div>
     </div>
 
-    <!-- --- TOUCH NUMPAD PICKER --- -->
+    <!-- TOUCH NUMPAD -->
     <div id="touch-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
         <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box;">
             <h2 id="picker-title" style="text-align:center; color:#ffd700; margin-top:0; font-size:2rem; text-transform:uppercase;">ENTER NUMBER</h2>
@@ -166,15 +253,15 @@
                 <button class="p-btn" onclick="pType('7')">7</button>
                 <button class="p-btn" onclick="pType('8')">8</button>
                 <button class="p-btn" onclick="pType('9')">9</button>
-                <button class="p-btn" onclick="pClear()" style="background:#ff0055; color:white;">CLR</button>
+                <button class="p-btn" onclick="pClear()" style="background:#ff0055; color:white; border-color:#ff0055;">CLR</button>
                 <button class="p-btn" onclick="pType('0')">0</button>
                 <button class="p-btn" onclick="pType('.')">.</button>
-                <button class="p-btn" onclick="pClose()" style="background:#00ff00; color:black; grid-column: span 3; margin-top:10px; height: 70px; font-size: 2rem;">OK</button>
+                <button class="p-btn" onclick="pClose()" style="background:#00ff00; color:black; border-color:#00ff00; grid-column: span 3; margin-top:10px; height: 70px; font-size: 2rem;">OK</button>
             </div>
         </div>
     </div>
 
-    <!-- --- TOUCH CLOCK PICKER --- -->
+    <!-- TOUCH CLOCK -->
     <div id="clock-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
         <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:20px; width:90%; max-width:300px; box-sizing:border-box; text-align:center;">
             <h2 style="color:#ffd700; margin-top:0; font-size:2rem;">SELECT TIME</h2>
@@ -184,12 +271,10 @@
                 <div id="hour-hand" style="width:18px; height:60px; background:#ffd700; position:absolute; top:52px; left:111px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 8px; z-index: 5;"></div>
                 <div id="minute-hand" style="width:16px; height:90px; background:#00ff00; position:absolute; top:22px; left:112px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
             </div>
-            
             <div style="display:flex; justify-content:center; gap:20px; margin-top:15px;">
                 <button type="button" id="toggle-am" class="p-btn active" onclick="setAMPM('AM')">AM</button>
                 <button type="button" id="toggle-pm" class="p-btn" onclick="setAMPM('PM')">PM</button>
             </div>
-            
             <div style="display:flex; justify-content:space-between; margin-top:20px; gap:10px;">
                 <button onclick="closeClock()" style="flex:1; padding:15px; font-size:1.2rem; font-weight:900; background:#444; color:white; border-radius:10px; border:2px solid #555; cursor:pointer;">CANCEL</button>
                 <button onclick="confirmTime()" style="flex:1; padding:15px; font-size:1.2rem; font-weight:900; background:#00ff00; color:black; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
@@ -197,62 +282,123 @@
         </div>
     </div>
 
+    <!-- LLM HELP POPUP -->
+    <div id="llm-help-popup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #0066ff; border-radius:20px; padding:30px; width:90%; max-width:600px; box-sizing:border-box;">
+            <h2 style="color:#0066ff; margin-top:0; text-transform:uppercase;">AI SETUP HELP</h2>
+            <p style="color:#ccc; line-height:1.6; font-size:1.0rem;">
+                <strong style="color:#ffd700;">OPENAI:</strong> Get your API key from platform.openai.com. Quick model: <code>gpt-4o-mini</code>, Deep model: <code>gpt-4o</code>.<br><br>
+                <strong style="color:#ffd700;">ANTHROPIC:</strong> Get your key from console.anthropic.com. Quick: <code>claude-haiku-4-5-20251001</code>, Deep: <code>claude-sonnet-4-6</code>.<br><br>
+                <strong style="color:#ffd700;">OLLAMA (LOCAL):</strong> Run Ollama on any machine on your network. Set the host to <code>http://192.168.x.x:11434</code>. Model name must match exactly what Ollama has pulled (e.g. <code>llama3.2</code>).
+            </p>
+            <button onclick="document.getElementById('llm-help-popup').style.display='none'" style="width:100%; padding:15px; font-size:1.2rem; font-weight:900; background:#0066ff; color:white; border-radius:10px; border:2px solid white; cursor:pointer; margin-top:10px;">GOT IT</button>
+        </div>
+    </div>
+
+    <!-- ERROR POPUP -->
+    <div id="error-popup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #ff0055; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box; text-align:center;">
+            <h2 style="color:#ff0055; margin-top:0; font-size:2rem; text-transform:uppercase;">ERROR</h2>
+            <div id="error-message" style="font-size:1.5rem; font-weight:900; color:white; margin-bottom:20px;"></div>
+            <button onclick="document.getElementById('error-popup').style.display='none'" style="width:100%; padding:15px; font-size:1.5rem; font-weight:900; background:#ff0055; color:white; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
+        </div>
+    </div>
+
     <script>
-        // Chunky Scrollbar Logic
+        // Scrollbar
         const scrollArea = document.getElementById('scroll-area');
         const thumb = document.getElementById('scroll-thumb');
         const track = document.getElementById('custom-scrollbar');
 
         scrollArea.addEventListener('scroll', () => {
-            const scrollPercent = scrollArea.scrollTop / (scrollArea.scrollHeight - scrollArea.clientHeight);
-            const thumbPos = scrollPercent * (track.clientHeight - thumb.clientHeight);
-            thumb.style.top = thumbPos + 'px';
+            const pct = scrollArea.scrollTop / (scrollArea.scrollHeight - scrollArea.clientHeight);
+            thumb.style.top = (pct * (track.clientHeight - thumb.clientHeight)) + 'px';
         });
 
         function startScroll(e) {
-            const moveHandler = (moveEvent) => {
-                const y = (moveEvent.touches ? moveEvent.touches[0].clientY : moveEvent.clientY) - track.getBoundingClientRect().top;
-                const percent = Math.max(0, Math.min(1, y / track.clientHeight));
-                scrollArea.scrollTop = percent * (scrollArea.scrollHeight - scrollArea.clientHeight);
+            const move = (ev) => {
+                const y = (ev.touches ? ev.touches[0].clientY : ev.clientY) - track.getBoundingClientRect().top;
+                const pct = Math.max(0, Math.min(1, y / track.clientHeight));
+                scrollArea.scrollTop = pct * (scrollArea.scrollHeight - scrollArea.clientHeight);
             };
-            const stopHandler = () => {
-                window.removeEventListener('mousemove', moveHandler);
-                window.removeEventListener('mouseup', stopHandler);
-                window.removeEventListener('touchmove', moveHandler);
-                window.removeEventListener('touchend', stopHandler);
+            const stop = () => {
+                window.removeEventListener('mousemove', move);
+                window.removeEventListener('mouseup', stop);
+                window.removeEventListener('touchmove', move);
+                window.removeEventListener('touchend', stop);
             };
-            window.addEventListener('mousemove', moveHandler);
-            window.addEventListener('mouseup', stopHandler);
-            window.addEventListener('touchmove', moveHandler, { passive: false });
-            window.addEventListener('touchend', stopHandler);
+            window.addEventListener('mousemove', move);
+            window.addEventListener('mouseup', stop);
+            window.addEventListener('touchmove', move, { passive: false });
+            window.addEventListener('touchend', stop);
         }
 
+        // Screen size
         function setScreenSize(size, btn) {
             document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('active'));
-            if(btn) btn.classList.add('active');
+            if (btn) btn.classList.add('active');
             localStorage.setItem('ui_scale_pref', size);
-            
-            const scales = {
-                'small': '1.0',
-                'medium': '1.39',
-                'large': '2.08'
-            };
-            const scaleVal = scales[size] || '1.0';
-            document.documentElement.style.setProperty('--ui-scale', scaleVal);
-            document.documentElement.style.zoom = scaleVal;
+            const scales = { 'small': '1.0', 'medium': '1.39', 'large': '2.08' };
+            document.documentElement.style.zoom = scales[size] || '1.0';
         }
 
-        // Initialize button state
         window.addEventListener('DOMContentLoaded', () => {
             const savedSize = localStorage.getItem('ui_scale_pref') || 'small';
             const btn = document.querySelector(`.screen-btn[onclick*="'${savedSize}'"]`);
-            if (btn) {
-                document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
+            if (btn) { document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+
+            // Init provider UI
+            const prov = document.getElementById('llm_provider_val').value;
+            if (prov) {
+                const provBtn = document.getElementById('prov-' + prov);
+                if (provBtn) provBtn.classList.add('active');
+                updateProviderUI(prov);
             }
         });
 
-        // --- NUMPAD PICKER LOGIC ---
+        // Provider selector
+        function setProvider(provider, btn) {
+            document.getElementById('llm_provider_val').value = provider;
+            document.querySelectorAll('.provider-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            updateProviderUI(provider);
+        }
+
+        function updateProviderUI(provider) {
+            document.getElementById('api-key-section').style.display = (provider === 'ollama') ? 'none' : 'block';
+            document.getElementById('ollama-section').style.display = (provider === 'ollama') ? 'block' : 'none';
+        }
+
+        // Test LLM connection
+        function testLLM() {
+            const btn = document.getElementById('test-btn');
+            const result = document.getElementById('test-result');
+            btn.innerText = 'TESTING...';
+            btn.disabled = true;
+            result.innerText = '...';
+            result.style.color = '#888';
+
+            fetch('/api/test_llm', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                result.innerText = d.message;
+                result.style.color = d.success ? '#00ff00' : '#ff0055';
+            })
+            .catch(() => {
+                result.innerText = 'Request failed.';
+                result.style.color = '#ff0055';
+            })
+            .finally(() => {
+                btn.innerText = 'TEST CONNECTION';
+                btn.disabled = false;
+            });
+        }
+
+        function showLLMHelp() {
+            document.getElementById('llm-help-popup').style.display = 'flex';
+        }
+
+        // Numpad picker
         let activeNumpadInput = null;
 
         function openNumpad(inputEl) {
@@ -263,6 +409,7 @@
 
         function pType(val) {
             if (!activeNumpadInput) return;
+            if (activeNumpadInput.value === '--') activeNumpadInput.value = '';
             activeNumpadInput.value += val;
             activeNumpadInput.dispatchEvent(new Event('input', { bubbles: true }));
             document.getElementById('picker-display').innerText = activeNumpadInput.value;
@@ -280,17 +427,13 @@
         }
 
         document.querySelectorAll('input[type="number"]').forEach(input => {
-            input.addEventListener('click', e => {
-                openNumpad(e.target);
-            });
+            input.addEventListener('click', e => openNumpad(e.target));
         });
 
-        // --- CLOCK PICKER LOGIC ---
+        // Clock picker
         let activeClockInput = null;
-        let currentHour = 12;
-        let currentMinute = 0;
-        let activeHand = null;
-        let currentAMPM = 'AM';
+        let currentHour = 8, currentMinute = 0;
+        let activeHand = null, currentAMPM = 'AM';
 
         function setAMPM(val) {
             currentAMPM = val;
@@ -303,16 +446,10 @@
         for (let i = 1; i <= 12; i++) {
             const num = document.createElement('div');
             num.innerText = i;
-            num.style.position = 'absolute';
-            num.style.color = 'white';
-            num.style.fontWeight = '900';
-            num.style.fontSize = '1.4rem';
+            num.style.cssText = `position:absolute; color:white; font-weight:900; font-size:1.4rem;`;
             const angle = i * 30 * (Math.PI / 180);
-            const radius = 90;
-            const x = 120 + radius * Math.sin(angle) - 10;
-            const y = 120 - radius * Math.cos(angle) - 15;
-            num.style.left = `${x}px`;
-            num.style.top = `${y}px`;
+            num.style.left = `${120 + 90 * Math.sin(angle) - 10}px`;
+            num.style.top = `${120 - 90 * Math.cos(angle) - 15}px`;
             face.appendChild(num);
         }
 
@@ -322,77 +459,46 @@
             updateClockDisplay();
         }
 
-        function closeClock() {
-            document.getElementById('clock-picker').style.display = 'none';
-            activeHand = null;
-        }
+        function closeClock() { document.getElementById('clock-picker').style.display = 'none'; activeHand = null; }
 
         function confirmTime() {
             if (!activeClockInput) return;
-            let displayHour = currentHour;
-            if (currentAMPM === 'PM' && currentHour < 12) {
-                displayHour += 12;
-            } else if (currentAMPM === 'AM' && currentHour === 12) {
-                displayHour = 0;
-            }
-            const hStr = String(displayHour).padStart(2, '0');
-            const mStr = String(currentMinute).padStart(2, '0');
-            activeClockInput.value = `${hStr}:${mStr}`;
+            let h = currentHour;
+            if (currentAMPM === 'PM' && h < 12) h += 12;
+            else if (currentAMPM === 'AM' && h === 12) h = 0;
+            activeClockInput.value = `${String(h).padStart(2,'0')}:${String(currentMinute).padStart(2,'0')}`;
             activeClockInput.dispatchEvent(new Event('input', { bubbles: true }));
             closeClock();
         }
 
         function updateClockDisplay() {
-            let displayHour = currentHour;
-            if (currentAMPM === 'PM' && currentHour < 12) {
-                displayHour += 12;
-            } else if (currentAMPM === 'AM' && currentHour === 12) {
-                displayHour = 0;
-            }
-            
-            document.getElementById('clock-digital').innerText = `${String(displayHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
-            const hDeg = (currentHour % 12) * 30;
-            const mDeg = currentMinute * 6;
-            document.getElementById('hour-hand').style.transform = `rotate(${hDeg}deg)`;
-            document.getElementById('minute-hand').style.transform = `rotate(${mDeg}deg)`;
+            let h = currentHour;
+            if (currentAMPM === 'PM' && h < 12) h += 12;
+            else if (currentAMPM === 'AM' && h === 12) h = 0;
+            document.getElementById('clock-digital').innerText = `${String(h).padStart(2,'0')}:${String(currentMinute).padStart(2,'0')}`;
+            document.getElementById('hour-hand').style.transform = `rotate(${(currentHour % 12) * 30}deg)`;
+            document.getElementById('minute-hand').style.transform = `rotate(${currentMinute * 6}deg)`;
         }
 
         function handleClockMove(e) {
             if (!activeHand) return;
             const rect = face.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
+            const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const x = clientX - centerX;
-            const y = clientY - centerY;
-            let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
+            let angle = Math.atan2(clientY - cy, clientX - cx) * (180 / Math.PI) + 90;
             if (angle < 0) angle += 360;
-            
-            if (activeHand === 'hour') {
-                let hour = Math.round(angle / 30);
-                if (hour === 0) hour = 12;
-                if (hour > 12) hour = 12;
-                currentHour = hour;
-            } else if (activeHand === 'minute') {
-                let min = Math.round(angle / 6);
-                min = Math.round(min / 5) * 5;
-                if (min === 60) min = 0;
-                currentMinute = min;
-            }
+            if (activeHand === 'hour') { let h = Math.round(angle / 30); currentHour = (h === 0 || h > 12) ? 12 : h; }
+            else { let m = Math.round(Math.round(angle / 6) / 5) * 5; currentMinute = (m === 60) ? 0 : m; }
             updateClockDisplay();
         }
 
         function startClockDrag(e) {
             const rect = face.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
+            const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const x = clientX - centerX;
-            const y = clientY - centerY;
-            const dist = Math.sqrt(x*x + y*y);
-            if (dist < 75) { activeHand = 'hour'; } else { activeHand = 'minute'; }
+            activeHand = Math.sqrt((clientX-cx)**2 + (clientY-cy)**2) < 75 ? 'hour' : 'minute';
             handleClockMove(e);
         }
 
@@ -404,29 +510,21 @@
         window.addEventListener('touchend', () => activeHand = null);
 
         document.querySelectorAll('.mask-time').forEach(input => {
-            input.addEventListener('click', e => {
-                openClockPicker(e.target);
-            });
+            input.addEventListener('click', e => openClockPicker(e.target));
         });
 
-
+        // Validation + submit
         function validateAndSubmitSettings() {
             const fields = ['briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours', 'nag_interval', 'port'];
             for (const field of fields) {
                 const el = document.querySelector(`[name="${field}"]`);
                 if (el && !el.value.trim()) {
-                    showError(`Field '${field.replace('_', ' ').toUpperCase()}' is compulsory.`);
+                    showError(`'${field.replace(/_/g,' ').toUpperCase()}' is required.`);
                     return;
                 }
             }
-            
-            // Check checkboxes
             const checkboxes = document.querySelectorAll('input[name="briefing_days"]:checked');
-            if (checkboxes.length === 0) {
-                showError("At least one BRIEFING DAY must be selected.");
-                return;
-            }
-            
+            if (checkboxes.length === 0) { showError("Select at least one BRIEFING DAY."); return; }
             document.getElementById('settings-form').submit();
         }
 
@@ -435,14 +533,5 @@
             document.getElementById('error-popup').style.display = 'flex';
         }
     </script>
-
-    <!-- --- ERROR POPUP --- -->
-    <div id="error-popup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
-        <div style="background:#111; border:5px solid #ff0055; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box; text-align:center;">
-            <h2 style="color:#ff0055; margin-top:0; font-size:2rem; text-transform:uppercase;">ERROR</h2>
-            <div id="error-message" style="font-size:1.5rem; font-weight:900; color:white; margin-bottom:20px;">Please fill in all fields.</div>
-            <button onclick="document.getElementById('error-popup').style.display='none'" style="width:100%; padding:15px; font-size:1.5rem; font-weight:900; background:#ff0055; color:white; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
-        </div>
-    </div>
 </body>
 </html>

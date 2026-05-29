@@ -2,89 +2,140 @@
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Edit Deadline</title>
+    <title>Edit Task</title>
     <style>
-        body { 
-            background: #121212; color: white; font-family: sans-serif; 
-            margin: 0; padding: 5px; display: flex; flex-direction: column;
-            height: 100vh; overflow: hidden; 
-        }
-        h1 { color: #ffd700; text-align: center; text-transform: uppercase; font-size: 1.6rem; margin: 5px 0; }
-        
-        .form-container { width: 100%; max-width: 600px; margin: 0 auto; flex: 1; }
-        
-        label { font-size: 1.1rem; font-weight: bold; color: #ffd700; display: block; margin-top: 5px; text-transform: uppercase; }
-        
-        input[type="text"] { 
-            width: 100%; padding: 5px; margin: 3px 0; background: #222; 
-            color: white; border: 2px solid white; font-size: 1.4rem; 
-            font-weight: 900; border-radius: 8px; box-sizing: border-box;
-        }
-        
-        .btn-save {
-            width: 100%; padding: 8px; background: #00ff00; color: black;
-            font-size: 1.4rem; font-weight: 900; border-radius: 8px;
-            border: 2px solid white; cursor: pointer; text-transform: uppercase;
-            margin-top: 10px;
-        }
-        
-        .btn-cancel {
-            display: block; width: 100%; padding: 5px; background: #444; color: white;
-            text-align: center; font-weight: 900; text-decoration: none;
-            border-radius: 8px; border: 2px solid #666; text-transform: uppercase;
-            margin-top: 5px; box-sizing: border-box; font-size: 1.0rem;
+        body {
+            background: #121212; color: white; font-family: sans-serif;
+            margin: 0; padding: 0; display: flex; flex-direction: column;
+            height: 100vh; overflow: hidden;
         }
 
-        /* --- PICKER STYLES (Copied from add.html) --- */
-        .p-btn { 
-            background: #222; color: white; border: 2px solid white; 
-            font-size: 1.2rem; font-weight: 900; padding: 8px; 
-            border-radius: 8px; cursor: pointer; 
+        header {
+            background: #000; padding: 10px 15px; border-bottom: 4px solid white;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+
+        h2 { margin: 0; font-size: 1.4rem; text-transform: uppercase; color: #ffd700; }
+
+        .btn-header {
+            padding: 10px 14px; border: 3px solid white; border-radius: 8px;
+            font-weight: 900; font-size: 0.85rem; text-decoration: none;
+            text-transform: uppercase; cursor: pointer; display: flex; align-items: center;
+        }
+        .btn-save { background: #00ff00; color: black; }
+        .btn-cancel { background: #444; color: white; }
+
+        #main-container { display: flex; flex: 1; overflow: hidden; }
+        #scroll-area { flex: 1; overflow-y: scroll; padding: 20px; scrollbar-width: none; -ms-overflow-style: none; padding-bottom: 100px; }
+        #scroll-area::-webkit-scrollbar { display: none; }
+
+        form { width: 100%; max-width: 800px; margin: 0 auto; }
+        label { font-size: 1.0rem; font-weight: bold; color: #ffd700; display: block; margin-top: 15px; text-transform: uppercase; }
+
+        input[type="text"], input[type="number"] {
+            width: 100%; padding: 14px; margin: 5px 0; background: #222;
+            color: white; border: 3px solid white; font-size: 1.3rem;
+            font-weight: 900; border-radius: 10px; box-sizing: border-box;
+        }
+        input:disabled { background: #1a1a1a; color: #555; border-color: #333; }
+
+        .side-by-side { display: flex; gap: 15px; width: 100%; align-items: flex-end; }
+        .side-by-side > div { flex: 1; }
+
+        /* Deadline Type Buttons */
+        .dl-type-row { display: flex; gap: 12px; margin: 10px 0; }
+        .dl-btn {
+            flex: 1; padding: 18px 8px; background: #222; color: #888;
+            border: 4px solid #444; border-radius: 14px; font-size: 1.0rem;
+            font-weight: 900; cursor: pointer; text-transform: uppercase;
+            text-align: center; line-height: 1.3;
+        }
+        .dl-btn small { display: block; font-size: 0.65rem; font-weight: normal; opacity: 0.8; margin-top: 3px; }
+        .dl-btn.active-fixed { background: #880000; border-color: #ff4444; color: white; }
+        .dl-btn.active-flexible { background: #004400; border-color: #00ff00; color: white; }
+        .dl-btn.active-none { background: #003399; border-color: #ffd700; color: white; }
+
+        .p-btn {
+            background: #222; color: white; border: 3px solid white;
+            font-size: 1.2rem; font-weight: 900; padding: 10px;
+            border-radius: 8px; cursor: pointer;
             display: flex; justify-content: center; align-items: center;
         }
         .p-btn:active, .p-btn.active { background: #ffd700; color: black; border-color: #ffd700; }
-        #month-step .p-btn { padding: 4px; font-size: 0.9rem; }
-        
-        .side-by-side { display: flex; gap: 8px; width: 100%; align-items: flex-end; }
-        .side-by-side > div { flex: 1; }
+        #month-step .p-btn { padding: 6px; font-size: 0.9rem; }
+
+        @media (max-width: 600px) {
+            .dl-type-row { flex-direction: column; }
+            .side-by-side { flex-direction: column; }
+        }
     </style>
     <script src="/static/js/scale.js"></script>
 </head>
 <body>
-    <h1>Edit Deadline</h1>
-    
-    <div class="form-container">
-        <form method="POST" onsubmit="return validateEditForm()" autocomplete="off">
-            <label>TASK NAME (Read Only):</label>
-            <input type="text" value="{{ task.title }}" disabled style="background: #333; color: #888;">
+    <header>
+        <h2>EDIT TASK</h2>
+        <div style="display: flex; gap: 10px;">
+            <button type="button" class="btn-header btn-save" onclick="validateAndSubmit()">SAVE</button>
+            <a href="/edit_list" class="btn-header btn-cancel">CANCEL</a>
+        </div>
+    </header>
 
-            <div class="side-by-side">
-                <div>
-                    <label>DATE (DD/MM/YYYY):</label>
-                    <input type="text" name="deadline_date" class="mask-date" value="{{ task.date }}" readonly>
-                </div>
-                <div>
-                    <label>TIME (HH:MM):</label>
-                    <input type="text" name="deadline_time" class="mask-time" value="{{ task.time }}" readonly>
-                </div>
-            </div>
+    <div id="main-container">
+        <div id="scroll-area">
+            <form id="edit-form" method="POST" autocomplete="off">
+                <input type="hidden" name="deadline_type" id="deadline_type_val" value="{{ task.deadline_type or 'flexible' }}">
 
-            <button type="submit" class="btn-save">💾 Save Changes</button>
-            <a href="/edit_list" class="btn-cancel">❌ Cancel</a>
-        </form>
+                <label>TASK NAME (READ ONLY):</label>
+                <input type="text" value="{{ task.title }}" disabled>
+
+                <label>DEADLINE TYPE:</label>
+                <div class="dl-type-row">
+                    <button type="button" class="dl-btn" id="btn-fixed" onclick="setDeadlineType('fixed', this)">
+                        FIXED<small>Hard deadline</small>
+                    </button>
+                    <button type="button" class="dl-btn" id="btn-flexible" onclick="setDeadlineType('flexible', this)">
+                        FLEXIBLE<small>Casual date</small>
+                    </button>
+                    <button type="button" class="dl-btn" id="btn-none" onclick="setDeadlineType('none', this)">
+                        NO DEADLINE<small>Backlog</small>
+                    </button>
+                </div>
+
+                <div id="date-time-wrapper">
+                    <div class="side-by-side">
+                        <div>
+                            <label>DATE (DD/MM/YYYY):</label>
+                            <input type="text" name="deadline_date" class="mask-date" id="date-field" value="{{ task.date }}" readonly>
+                        </div>
+                        <div>
+                            <label>TIME (HH:MM):</label>
+                            <input type="text" name="deadline_time" class="mask-time" id="time-field" value="{{ task.time }}" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="side-by-side" style="align-items: flex-end; margin-top: 5px;">
+                    <div>
+                        <label>DURATION (MINUTES):</label>
+                        <input type="number" name="duration_minutes" id="duration_minutes" value="{{ task.duration_minutes or '' }}" placeholder="30" min="5" max="960" step="5">
+                    </div>
+                </div>
+            </form>
+        </div>
     </div>
 
-    <!-- --- TOUCH CALENDAR WIZARD --- -->
+    <!-- TOUCH CALENDAR -->
     <div id="touch-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
         <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:95%; max-width:850px; box-sizing:border-box;">
             <h2 id="picker-title" style="text-align:center; color:#ffd700; margin-top:0; font-size:2rem; text-transform:uppercase;">SELECT YEAR</h2>
-            
             <div id="year-step" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;">
+                <button class="p-btn" onclick="selectYear(2025)">2025</button>
                 <button class="p-btn" onclick="selectYear(2026)">2026</button>
                 <button class="p-btn" onclick="selectYear(2027)">2027</button>
                 <button class="p-btn" onclick="selectYear(2028)">2028</button>
+                <button class="p-btn" onclick="selectYear(2029)">2029</button>
+                <button class="p-btn" onclick="selectYear(2030)">2030</button>
             </div>
-            
             <div id="month-step" style="display:none; grid-template-columns: repeat(6, 1fr); gap:10px;">
                 <button class="p-btn" onclick="selectMonth(0)">JAN</button>
                 <button class="p-btn" onclick="selectMonth(1)">FEB</button>
@@ -99,16 +150,12 @@
                 <button class="p-btn" onclick="selectMonth(10)">NOV</button>
                 <button class="p-btn" onclick="selectMonth(11)">DEC</button>
             </div>
-            
             <div id="day-step" style="display:none;">
                 <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:5px; text-align:center; color:#888; font-weight:bold; margin-bottom:10px; font-size:1.2rem;">
                     <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
                 </div>
                 <div id="days-grid" style="display:grid; grid-template-columns: repeat(7, 1fr); gap:10px;"></div>
-                <!-- Numbers generated by JS -->
             </div>
-            
-            
             <div style="display:flex; justify-content:space-between; margin-top:20px; gap:10px;">
                 <button type="button" onclick="document.getElementById('touch-picker').style.display='none'" style="flex:1; padding:20px; font-size:1.5rem; font-weight:900; background:#ff0055; color:white; border-radius:12px; border:3px solid white; cursor:pointer;">CANCEL</button>
                 <button type="button" onclick="resetPicker()" style="flex:1; padding:20px; font-size:1.5rem; font-weight:900; background:#444; color:white; border-radius:12px; border:3px solid #555; cursor:pointer;">RESET</button>
@@ -117,7 +164,7 @@
         </div>
     </div>
 
-    <!-- --- TOUCH CLOCK PICKER --- -->
+    <!-- TOUCH CLOCK -->
     <div id="clock-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
         <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:20px; width:90%; max-width:300px; box-sizing:border-box; text-align:center;">
             <h2 style="color:#ffd700; margin-top:0; font-size:2rem;">SELECT TIME</h2>
@@ -142,15 +189,34 @@
         const isMobile = window.innerWidth <= 600;
 
         if (isMobile) {
-            document.querySelectorAll('.mask-date').forEach(input => { input.type = 'date'; input.readOnly = false; });
-            document.querySelectorAll('.mask-time').forEach(input => { input.type = 'time'; input.readOnly = false; });
+            document.querySelectorAll('.mask-date').forEach(i => { i.type = 'date'; i.readOnly = false; });
+            document.querySelectorAll('.mask-time').forEach(i => { i.type = 'time'; i.readOnly = false; });
         }
 
-        // --- PICKER LOGIC ---
+        // Init deadline type display
+        const currentType = document.getElementById('deadline_type_val').value;
+        window.addEventListener('DOMContentLoaded', () => {
+            applyDeadlineTypeVisual(currentType);
+        });
+
+        function applyDeadlineTypeVisual(type) {
+            document.querySelectorAll('.dl-btn').forEach(b => {
+                b.classList.remove('active-fixed', 'active-flexible', 'active-none');
+            });
+            if (type === 'fixed') document.getElementById('btn-fixed').classList.add('active-fixed');
+            else if (type === 'flexible') document.getElementById('btn-flexible').classList.add('active-flexible');
+            else if (type === 'none') document.getElementById('btn-none').classList.add('active-none');
+            document.getElementById('date-time-wrapper').style.display = (type === 'none') ? 'none' : 'block';
+        }
+
+        function setDeadlineType(type, btn) {
+            document.getElementById('deadline_type_val').value = type;
+            applyDeadlineTypeVisual(type);
+        }
+
+        // --- PICKER ---
         let activePickerInput = null;
-        let selectedYear = null;
-        let selectedMonth = null;
-        let selectedDay = null;
+        let selectedYear = null, selectedMonth = null, selectedDay = null;
 
         function openPicker(inputEl) {
             if (isMobile) return;
@@ -160,9 +226,7 @@
         }
 
         function resetPicker() {
-            selectedYear = null;
-            selectedMonth = null;
-            selectedDay = null;
+            selectedYear = null; selectedMonth = null; selectedDay = null;
             document.getElementById('picker-title').innerText = "SELECT YEAR";
             document.getElementById('year-step').style.display = 'grid';
             document.getElementById('month-step').style.display = 'none';
@@ -191,16 +255,10 @@
             const firstDay = new Date(year, month, 1).getDay();
             const startOffset = (firstDay === 0) ? 6 : firstDay - 1;
             const daysInMonth = new Date(year, month + 1, 0).getDate();
-            
-            for (let i = 0; i < startOffset; i++) {
-                const empty = document.createElement('div');
-                grid.appendChild(empty);
-            }
-            
+            for (let i = 0; i < startOffset; i++) grid.appendChild(document.createElement('div'));
             for (let day = 1; day <= daysInMonth; day++) {
                 const btn = document.createElement('button');
-                btn.innerText = day;
-                btn.className = 'p-btn';
+                btn.innerText = day; btn.className = 'p-btn';
                 btn.onclick = () => selectDay(day, btn);
                 grid.appendChild(btn);
             }
@@ -215,22 +273,18 @@
 
         function confirmDate() {
             if (!activePickerInput) return;
-            const dayStr = String(selectedDay).padStart(2, '0');
-            const monthStr = String(selectedMonth + 1).padStart(2, '0');
-            activePickerInput.value = `${dayStr}/${monthStr}/${selectedYear}`;
+            activePickerInput.value = `${String(selectedDay).padStart(2,'0')}/${String(selectedMonth+1).padStart(2,'0')}/${selectedYear}`;
             document.getElementById('touch-picker').style.display = 'none';
         }
-        
+
         document.querySelectorAll('.mask-date').forEach(input => {
             input.addEventListener('click', e => openPicker(e.target));
         });
 
-        // --- CLOCK PICKER LOGIC ---
+        // --- CLOCK ---
         let activeClockInput = null;
-        let currentHour = 12;
-        let currentMinute = 0;
-        let activeHand = null;
-        let currentAMPM = 'AM';
+        let currentHour = 9, currentMinute = 0;
+        let activeHand = null, currentAMPM = 'AM';
 
         function setAMPM(val) {
             currentAMPM = val;
@@ -242,17 +296,10 @@
         const face = document.getElementById('clock-face');
         for (let i = 1; i <= 12; i++) {
             const num = document.createElement('div');
-            num.innerText = i;
-            num.style.position = 'absolute';
-            num.style.color = 'white';
-            num.style.fontWeight = '900';
-            num.style.fontSize = '1.4rem';
+            num.innerText = i; num.style.cssText = `position:absolute; color:white; font-weight:900; font-size:1.4rem;`;
             const angle = i * 30 * (Math.PI / 180);
-            const radius = 90;
-            const x = 120 + radius * Math.sin(angle) - 10;
-            const y = 120 - radius * Math.cos(angle) - 15;
-            num.style.left = `${x}px`;
-            num.style.top = `${y}px`;
+            num.style.left = `${120 + 90 * Math.sin(angle) - 10}px`;
+            num.style.top = `${120 - 90 * Math.cos(angle) - 15}px`;
             face.appendChild(num);
         }
 
@@ -263,76 +310,45 @@
             updateClockDisplay();
         }
 
-        function closeClock() {
-            document.getElementById('clock-picker').style.display = 'none';
-            activeHand = null;
-        }
+        function closeClock() { document.getElementById('clock-picker').style.display = 'none'; activeHand = null; }
 
         function confirmTime() {
             if (!activeClockInput) return;
-            let displayHour = currentHour;
-            if (currentAMPM === 'PM' && currentHour < 12) {
-                displayHour += 12;
-            } else if (currentAMPM === 'AM' && currentHour === 12) {
-                displayHour = 0;
-            }
-            const hStr = String(displayHour).padStart(2, '0');
-            const mStr = String(currentMinute).padStart(2, '0');
-            activeClockInput.value = `${hStr}:${mStr}`;
+            let h = currentHour;
+            if (currentAMPM === 'PM' && h < 12) h += 12;
+            else if (currentAMPM === 'AM' && h === 12) h = 0;
+            activeClockInput.value = `${String(h).padStart(2,'0')}:${String(currentMinute).padStart(2,'0')}`;
             closeClock();
         }
 
         function updateClockDisplay() {
-            let displayHour = currentHour;
-            if (currentAMPM === 'PM' && currentHour < 12) {
-                displayHour += 12;
-            } else if (currentAMPM === 'AM' && currentHour === 12) {
-                displayHour = 0;
-            }
-            
-            document.getElementById('clock-digital').innerText = `${String(displayHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
-            const hDeg = (currentHour % 12) * 30;
-            const mDeg = currentMinute * 6;
-            document.getElementById('hour-hand').style.transform = `rotate(${hDeg}deg)`;
-            document.getElementById('minute-hand').style.transform = `rotate(${mDeg}deg)`;
+            let h = currentHour;
+            if (currentAMPM === 'PM' && h < 12) h += 12;
+            else if (currentAMPM === 'AM' && h === 12) h = 0;
+            document.getElementById('clock-digital').innerText = `${String(h).padStart(2,'0')}:${String(currentMinute).padStart(2,'0')}`;
+            document.getElementById('hour-hand').style.transform = `rotate(${(currentHour % 12) * 30}deg)`;
+            document.getElementById('minute-hand').style.transform = `rotate(${currentMinute * 6}deg)`;
         }
 
         function handleClockMove(e) {
             if (!activeHand) return;
             const rect = face.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
+            const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const x = clientX - centerX;
-            const y = clientY - centerY;
-            let angle = Math.atan2(y, x) * (180 / Math.PI) + 90;
+            let angle = Math.atan2(clientY - cy, clientX - cx) * (180 / Math.PI) + 90;
             if (angle < 0) angle += 360;
-            
-            if (activeHand === 'hour') {
-                let hour = Math.round(angle / 30);
-                if (hour === 0) hour = 12;
-                if (hour > 12) hour = 12;
-                currentHour = hour;
-            } else if (activeHand === 'minute') {
-                let min = Math.round(angle / 6);
-                min = Math.round(min / 5) * 5;
-                if (min === 60) min = 0;
-                currentMinute = min;
-            }
+            if (activeHand === 'hour') { let h = Math.round(angle / 30); currentHour = (h === 0 || h > 12) ? 12 : h; }
+            else { let m = Math.round(Math.round(angle / 6) / 5) * 5; currentMinute = (m === 60) ? 0 : m; }
             updateClockDisplay();
         }
 
         function startClockDrag(e) {
             const rect = face.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
+            const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-            const x = clientX - centerX;
-            const y = clientY - centerY;
-            const dist = Math.sqrt(x*x + y*y);
-            activeHand = (dist < 75) ? 'hour' : 'minute';
+            activeHand = Math.sqrt((clientX-cx)**2 + (clientY-cy)**2) < 75 ? 'hour' : 'minute';
             handleClockMove(e);
         }
 
@@ -346,14 +362,15 @@
         document.querySelectorAll('.mask-time').forEach(input => {
             input.addEventListener('click', e => openClockPicker(e.target));
         });
-        function validateEditForm() {
-            const date = document.querySelector('[name="deadline_date"]').value;
-            const time = document.querySelector('[name="deadline_time"]').value;
-            if (!date || !time) {
-                showError("Date and Time are compulsory.");
-                return false;
+
+        function validateAndSubmit() {
+            const dlType = document.getElementById('deadline_type_val').value;
+            if (dlType !== 'none') {
+                const date = document.querySelector('[name="deadline_date"]').value;
+                const time = document.querySelector('[name="deadline_time"]').value;
+                if (!date || !time) { showError("Date and Time are required."); return; }
             }
-            return true;
+            document.getElementById('edit-form').submit();
         }
 
         function showError(msg) {
@@ -362,11 +379,11 @@
         }
     </script>
 
-    <!-- --- ERROR POPUP --- -->
+    <!-- ERROR POPUP -->
     <div id="error-popup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
         <div style="background:#111; border:5px solid #ff0055; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box; text-align:center;">
             <h2 style="color:#ff0055; margin-top:0; font-size:2rem; text-transform:uppercase;">ERROR</h2>
-            <div id="error-message" style="font-size:1.5rem; font-weight:900; color:white; margin-bottom:20px;">Please fill in all fields.</div>
+            <div id="error-message" style="font-size:1.5rem; font-weight:900; color:white; margin-bottom:20px;"></div>
             <button onclick="document.getElementById('error-popup').style.display='none'" style="width:100%; padding:15px; font-size:1.5rem; font-weight:900; background:#ff0055; color:white; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
         </div>
     </div>

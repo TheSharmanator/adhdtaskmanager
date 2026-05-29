@@ -1,14 +1,15 @@
 import sqlite3
 import requests
 import random
+import json
+import os
 from flask import Flask, render_template, request, redirect, jsonify, send_from_directory
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+
+import llm_service
 
 app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-
-import json
-import os
 
 # --- CONFIGURATION ---
 config_path = os.path.join(os.path.dirname(__file__), 'config.json')
@@ -28,8 +29,7 @@ VOICES = [
     "Geraint", "Celine", "Lea", "Mathieu"
 ]
 
-
-
+TREE_VARIANTS = ['oak', 'cherry', 'pine', 'willow', 'maple']
 
 MORNING_QUOTES = [
     "The sun is up, and so are the stakes.",
@@ -62,7 +62,6 @@ MORNING_QUOTES = [
     "Don't wait for opportunity. Create it.",
     "It's a beautiful day to disrupt the status quo.",
     "Maximum effort, minimum fluff.",
-    "The only person you should try to be better than is the person you were yesterday.",
     "Make it happen.",
     "You are the architect of your own reality.",
     "Start where you are. Use what you have. Do what you can.",
@@ -114,35 +113,25 @@ PRAISE_MESSAGES = [
 
 LATE_PRAISE_MESSAGES = [
     "Better late than never, {name}, though in this specific case, \"never\" was actually a viable contender.",
-    "If time is a flat circle, {name}, then technically you've smashed it. If it’s linear, we have a problem.",
-    "Incredible stuff, {name}. I’ll notify the history museums that the missing era has finally concluded.",
-    "I’d applaud, {name}, but the kinetic energy required feels a bit redundant at this point in the century.",
-    "Outstanding, {name}. The deadline passed so long ago it’s actually achieved vintage status.",
+    "If time is a flat circle, {name}, then technically you've smashed it. If it's linear, we have a problem.",
+    "Incredible stuff, {name}. I'll notify the history museums that the missing era has finally concluded.",
+    "I'd applaud, {name}, but the kinetic energy required feels a bit redundant at this point in the century.",
+    "Outstanding, {name}. The deadline passed so long ago it's actually achieved vintage status.",
     "Look at you go, {name}. Proof that if you wait long enough, the urgency solves itself anyway.",
-    "Brilliant. I’ll go tell the client to uncancel the funeral, shall I, {name}?",
+    "Brilliant. I'll go tell the client to uncancel the funeral, shall I, {name}?",
     "A masterclass in suspense, {name}. I genuinely didn't think I'd live to see the final act.",
     "Spot on, {name}. Just a few days short of a calendar miracle.",
-    "If we were measuring this in dog years, {name}, you’d be a digital archaeologist right now.",
-    "It’s a masterpiece, {name}. Much like the Sagrada Família, we weren't sure it would happen in our lifetime.",
+    "If we were measuring this in dog years, {name}, you'd be a digital archaeologist right now.",
+    "It's a masterpiece, {name}. Much like the Sagrada Família, we weren't sure it would happen in our lifetime.",
     "Splendid work, {name}. The panic we felt last Tuesday has officially ripened into mild amusement.",
-    "Fast? No. Thorough? Also debatable. But it is here, {name}, and that’s what we'll tell the police.",
-    "Quick, {name}, let’s file this away before the sun burns out and renders the whole thing moot.",
-    "You’ve really captured the essence of \"scenic route\" with this one, {name}.",
+    "Fast? No. Thorough? Also debatable. But it is here, {name}, and that's what we'll tell the police.",
+    "Quick, {name}, let's file this away before the sun burns out and renders the whole thing moot.",
+    "You've really captured the essence of \"scenic route\" with this one, {name}.",
     "Truly, {name}, your commitment to ignoring the space-time continuum is nothing short of heroic.",
-    "I didn't realise we were operating on GMT—Grievously Miscalculated Time, {name}.",
+    "I didn't realise we were operating on GMT — Grievously Miscalculated Time, {name}.",
     "Absolute lightning speed, {name}. Assuming we are tracking the movement of tectonic plates.",
     "Well, {name}, the project has evolved, the client has retired, but your contribution is safely logged.",
     "Huzzah, {name}. The ghost ship has finally drifted into harbor.",
-    "I love how you refuse to be constrained by arbitrary concepts like \"tuesdays,\" {name}.",
-    "Tremendous. I’ll go wake up the stakeholders, {name}, they’ve been in stasis waiting for this.",
-    "Like a fine wine, {name}. Fermented well past the point of legal consumption.",
-    "You've crossed the finish line, {name}! Granted, the stadium lights are off and the cleaners are sweeping up.",
-    "It’s here. I’d pop champagne, {name}, but the bubbles evaporated three days ago.",
-    "If procrastination were an Olympic sport, {name}, this would be your podium moment.",
-    "Magnificent timing, {name}. If the goal was to catch everyone completely off guard by actually finishing.",
-    "And there it is. The digital equivalent of a message in a bottle, {name}.",
-    "I suppose congratulations are in order, {name}. You’ve successfully outlasted the original deadline's relevance.",
-    "Stop the press, {name}. No, seriously, stop it—they've already printed the retraction.",
 ]
 
 NAG_30 = [
@@ -182,19 +171,8 @@ NAG_30 = [
     "Get it done, no excuses.",
     "The bells are about to toll.",
     "It's crunch time.",
-    "The countdown is getting loud.",
-    "End of the line is approaching.",
     "Pull your finger out.",
     "Just half an hour left.",
-    "Do you hear that? It's the sound of failure looming.",
-    "Clocking off soon, finish up.",
-    "Don't leave it to the last second.",
-    "Start the final sprint.",
-    "Time is a luxury you've run out of.",
-    "Last bit of gas in the tank, use it.",
-    "Stop daydreaming and start finishing.",
-    "This is your 1800-second warning.",
-    "You're flirting with disaster.",
     "Wrap it up.",
 ]
 
@@ -215,8 +193,6 @@ NAG_15 = [
     "Every second you waste is a nail in the coffin.",
     "This is a crisis, act like it.",
     "Cut the rubbish and deliver.",
-    "You're staring down the barrel of a failure.",
-    "Engage or evaporate.",
     "Shift it. Now.",
     "The fuse is down to the last inch.",
     "The grace period is dead.",
@@ -224,30 +200,12 @@ NAG_15 = [
     "Don't you dare stop moving.",
     "The pressure is on. Deal with it.",
     "Final sprint. No more talking.",
-    "You're flirting with a total collapse.",
-    "I want results, not sweat.",
-    "It's now or never, and 'now' is nearly gone.",
-    "The guillotine is dropping.",
-    "Blood, sweat, and gears. Go.",
-    "Fifteen minutes. Make them count.",
     "There is no more 'later'.",
-    "You're playing with fire and you're about to get burned.",
-    "Don't look up until it's finished.",
-    "The countdown is deafening.",
-    "Hustle. Fast.",
-    "The cliff edge is under your feet.",
-    "Whatever you're doing, do it twice as fast.",
-    "This is the end of the line.",
-    "No excuses will save you in fifteen minutes.",
-    "Panic later. Work now.",
-    "The sand has practically run out.",
-    "Speed is the only thing that matters.",
-    "You're on the edge of a catastrophe.",
+    "Fifteen minutes. Make them count.",
     "Shut up and finish.",
     "The bells are ringing.",
     "This is your final, final warning.",
     "Put the hammer down.",
-    "The window has slammed shut.",
     "Done. Now.",
 ]
 
@@ -277,28 +235,11 @@ NAG_DEADLINE = [
     "It's over. You missed the boat.",
     "The runway ended and you didn't even take off.",
     "I'm not angry, just profoundly unimpressed.",
-    "You've traded your reputation for a bit of daydreaming.",
     "The time for excuses expired sixty seconds ago.",
-    "Staring at the wreckage of a missed chance.",
     "You've failed the most basic requirement: finishing.",
     "The lights are off and the doors are barred.",
     "A masterclass in how to fail.",
     "The countdown reached zero and you blinked.",
-    "Everything's gone cold.",
-    "You had the tools, the time, and the warnings.",
-    "Total silence on the delivery front.",
-    "The cliff edge is behind you now. You're in freefall.",
-    "The final warning was exactly that, final.",
-    "The moment has passed and you weren't in it.",
-    "The sand has run out, and so has my patience.",
-    "Whatever you've got now is too little, too late.",
-    "A spectacular display of inertia.",
-    "The game was yours to lose, and you lost it.",
-    "You've left it all on the table, and the table's being cleared.",
-    "The clock is mocking you now.",
-    "The deadline didn't fail you; you failed the deadline.",
-    "The end of the line. You didn't make the distance.",
-    "Wrap it up. It's a corpse now.",
 ]
 
 NAG_EXPIRED = [
@@ -315,42 +256,23 @@ NAG_EXPIRED = [
     "Post-deadline faffing is the worst kind of faffing.",
     "It's yesterday's news and you haven't even printed it yet.",
     "This is a masterclass in 'too little, too late'.",
-    "The sand is gone, the glass is smashed, and the table's been sold.",
     "Are we waiting for a miracle or just a pulse?",
     "The silence on this is getting loud.",
-    "We've reached the 'why bother' stage.",
     "You're dragging an anchor through a desert.",
     "The lights went out a long time ago.",
-    "This isn't a struggle; it's a surrender.",
-    "Still at the starting line while the crowd has gone home.",
     "The expiry date wasn't a suggestion.",
-    "Wasting time on a corpse.",
-    "The window of relevance has been boarded up.",
-    "We're digging a hole for a job that's already buried.",
     "Beyond late. Beyond excuses.",
     "The reaper has grown old waiting for this.",
     "Total system failure.",
-    "A complete and utter lack of momentum.",
     "The countdown hit zero and then kept going into the negatives.",
     "It's a ghost ship. No one's at the helm.",
     "You've turned a task into a legend of procrastination.",
     "The world moved on; you didn't.",
-    "Looking at the wreckage of what could have been.",
-    "This is a slow-motion car crash without the motion.",
     "The bells stopped tolling because they gave up.",
-    "We're in the 'afterlife' of this deadline.",
-    "Your reputation is currently in the bin.",
     "A void where effort used to live.",
     "The deadline is ancient history.",
     "Is there anyone actually in there?",
     "You've missed the boat, the train, and the point.",
-    "The smell of failure is getting ripe.",
-    "This is a spectacular display of nothingness.",
-    "The grace period is a prehistoric memory.",
-    "Still fumbling with the keys after the lock's been changed.",
-    "You've managed to turn a 'when' into a 'never'.",
-    "The cliff edge is miles behind us now.",
-    "Pack it in. It's expired.",
 ]
 
 CHIMES = [
@@ -367,13 +289,20 @@ CHIMES = [
     "soundbank://soundlibrary/musical/amzn_sfx_test_tone_01",
 ]
 
+NO_DEADLINE_SENTINEL = '2099-12-31T00:00'
+
+
 def get_db():
     conn = sqlite3.connect('tasks.db')
+    conn.row_factory = sqlite3.Row
     return conn
+
 
 def init_db():
     conn = get_db()
     c = conn.cursor()
+
+    # --- Core tables ---
     c.execute("""
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -383,9 +312,14 @@ def init_db():
             last_alert_type TEXT DEFAULT 'none',
             last_nag_time TEXT,
             percent INTEGER DEFAULT 0,
-            phase TEXT
+            phase TEXT,
+            duration_minutes INTEGER DEFAULT 30,
+            deadline_type TEXT DEFAULT 'flexible',
+            parent_task_id INTEGER,
+            buffer_applied REAL DEFAULT 1.3
         )
     """)
+
     c.execute("""
         CREATE TABLE IF NOT EXISTS recurring_templates (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -395,28 +329,121 @@ def init_db():
             last_generated TEXT
         )
     """)
+
     c.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
             value TEXT NOT NULL
         )
     """)
+
+    # --- New v2 tables ---
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS daily_capacity (
+            id INTEGER PRIMARY KEY,
+            day_of_week INTEGER NOT NULL UNIQUE,
+            available_hours REAL NOT NULL DEFAULT 6.0
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS capacity_overrides (
+            id INTEGER PRIMARY KEY,
+            override_date DATE NOT NULL UNIQUE,
+            available_hours REAL NOT NULL
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS focus_sessions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            task_id INTEGER,
+            task_title TEXT,
+            started_at TEXT NOT NULL,
+            planned_minutes INTEGER NOT NULL,
+            ended_at TEXT,
+            end_reason TEXT
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS message_bank (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            week_start DATE NOT NULL,
+            message_type TEXT NOT NULL,
+            message_text TEXT NOT NULL,
+            used INTEGER DEFAULT 0,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS weekly_tree (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            week_start DATE NOT NULL UNIQUE,
+            tree_variant TEXT NOT NULL,
+            growth_level REAL DEFAULT 0.0,
+            tasks_completed INTEGER DEFAULT 0,
+            is_complete INTEGER DEFAULT 0
+        )
+    """)
+
+    # Migrate existing tasks table to add new columns if needed
+    for col, definition in [
+        ('duration_minutes', 'INTEGER DEFAULT 30'),
+        ('deadline_type', "TEXT DEFAULT 'flexible'"),
+        ('parent_task_id', 'INTEGER'),
+        ('buffer_applied', 'REAL DEFAULT 1.3'),
+    ]:
+        try:
+            c.execute(f'ALTER TABLE tasks ADD COLUMN {col} {definition}')
+        except Exception:
+            pass  # Column already exists
+
     # Default settings
-    c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('briefing_time', '08:00')")
-    c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('dnd_start', '22:00')")
-    c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('dnd_end', '07:00')")
-    c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('nag_interval', '15')")
-    c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES ('port', '5001')")
-    
+    defaults = [
+        ('briefing_time', '08:00'),
+        ('dnd_start', '22:00'),
+        ('dnd_end', '07:00'),
+        ('nag_interval', '15'),
+        ('port', '5001'),
+        ('bar_start_hours', '24'),
+        ('adhd_buffer_pct', '30'),
+        ('cap_mon', '6'),
+        ('cap_tue', '6'),
+        ('cap_wed', '6'),
+        ('cap_thu', '6'),
+        ('cap_fri', '6'),
+        ('cap_sat', '3'),
+        ('cap_sun', '0'),
+        ('briefing_days', 'Mon,Tue,Wed,Thu,Fri'),
+    ]
+    for key, val in defaults:
+        c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
+
+    # Seed daily_capacity from settings if empty
+    c.execute("SELECT COUNT(*) FROM daily_capacity")
+    if c.fetchone()[0] == 0:
+        day_caps = [('cap_mon', 0), ('cap_tue', 1), ('cap_wed', 2),
+                    ('cap_thu', 3), ('cap_fri', 4), ('cap_sat', 5), ('cap_sun', 6)]
+        for key, dow in day_caps:
+            c.execute("SELECT value FROM settings WHERE key=?", (key,))
+            row = c.fetchone()
+            hours = float(row[0]) if row else 6.0
+            c.execute(
+                "INSERT OR IGNORE INTO daily_capacity (day_of_week, available_hours) VALUES (?, ?)",
+                (dow, hours)
+            )
+
     conn.commit()
     conn.close()
 
 
+# --- HELPERS ---
+
 def trigger_voice_monkey(text, device=None, chime=None):
-    """Fire a VM announcement. Skips if VM=false in config or DND is active."""
     if not VM_ENABLED or not VM_TOKEN:
         return
-
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT key, value FROM settings WHERE key IN ('dnd_start', 'dnd_end', 'silence_mode')")
@@ -447,11 +474,11 @@ def trigger_voice_monkey(text, device=None, chime=None):
     }
     if chime:
         params["chime"] = chime
-
     try:
         requests.get(url, params=params, timeout=5)
-    except:
+    except Exception:
         pass
+
 
 def get_setting(key, default=None):
     conn = get_db()
@@ -461,103 +488,253 @@ def get_setting(key, default=None):
     conn.close()
     return res[0] if res else default
 
-@app.route('/settings', methods=['GET', 'POST'])
-def settings():
+
+def get_buffer_pct():
+    try:
+        return float(get_setting('adhd_buffer_pct', '30'))
+    except Exception:
+        return 30.0
+
+
+def format_duration(minutes):
+    if not minutes:
+        return '—'
+    try:
+        m = int(minutes)
+        if m < 60:
+            return f'{m} MIN'
+        h = m // 60
+        rem = m % 60
+        return f'{h}h {rem}m' if rem else f'{h}h'
+    except Exception:
+        return '—'
+
+
+def get_today_capacity():
+    today = date.today()
     conn = get_db()
     c = conn.cursor()
-    
-    if request.method == 'POST':
-        # List of keys to process normally
-        setting_keys = ['briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours', 'nag_interval', 'port']
 
-        for key in setting_keys:
-            val = request.form.get(key)
-            if not val:
-                return f"Error: Field '{key}' is compulsory.", 400
-            c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, val))
-        
-        # Handle the Day Buttons: Get the list and join into "Mon,Tue,Wed"
-        selected_days = request.form.getlist('briefing_days')
-        days_string = ",".join(selected_days)
-        c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('briefing_days', days_string))
-        
+    # Check for a date-specific override first
+    c.execute("SELECT available_hours FROM capacity_overrides WHERE override_date=?", (today.isoformat(),))
+    row = c.fetchone()
+    if row:
+        conn.close()
+        return float(row[0])
+
+    # Fall back to weekday default (0=Mon)
+    dow = today.weekday()
+    c.execute("SELECT available_hours FROM daily_capacity WHERE day_of_week=?", (dow,))
+    row = c.fetchone()
+    conn.close()
+    return float(row[0]) if row else 6.0
+
+
+def get_day_capacity(target_date):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT available_hours FROM capacity_overrides WHERE override_date=?", (target_date.isoformat(),))
+    row = c.fetchone()
+    if row:
+        conn.close()
+        return float(row[0])
+    dow = target_date.weekday()
+    c.execute("SELECT available_hours FROM daily_capacity WHERE day_of_week=?", (dow,))
+    row = c.fetchone()
+    conn.close()
+    return float(row[0]) if row else 6.0
+
+
+def get_today_planned_hours():
+    today = date.today()
+    today_str = today.isoformat()
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "SELECT SUM(duration_minutes) FROM tasks WHERE status='active' AND deadline LIKE ?",
+        (f'{today_str}%',)
+    )
+    row = c.fetchone()
+    conn.close()
+    total_mins = row[0] or 0
+    return total_mins / 60.0
+
+
+def get_or_create_tree():
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    week_str = monday.isoformat()
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT * FROM weekly_tree WHERE week_start=?", (week_str,))
+    row = c.fetchone()
+    if not row:
+        variant = random.choice(TREE_VARIANTS)
+        c.execute(
+            "INSERT INTO weekly_tree (week_start, tree_variant, growth_level, tasks_completed) VALUES (?, ?, 0.0, 0)",
+            (week_str, variant)
+        )
+        conn.commit()
+        c.execute("SELECT * FROM weekly_tree WHERE week_start=?", (week_str,))
+        row = c.fetchone()
+    conn.close()
+    return dict(row)
+
+
+def grow_tree(amount=0.05):
+    tree = get_or_create_tree()
+    week_str = tree['week_start']
+    new_level = min(1.0, tree['growth_level'] + amount)
+    new_count = tree['tasks_completed'] + 1
+    is_complete = 1 if new_level >= 1.0 else 0
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE weekly_tree SET growth_level=?, tasks_completed=?, is_complete=? WHERE week_start=?",
+        (new_level, new_count, is_complete, week_str)
+    )
+    conn.commit()
+    conn.close()
+    return new_level, is_complete
+
+
+def get_message_from_bank(msg_type):
+    """Get a random unused message from the current week's bank. Falls back to built-in lists."""
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    week_str = monday.isoformat()
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "SELECT id, message_text FROM message_bank WHERE week_start=? AND message_type=? AND used=0 ORDER BY RANDOM() LIMIT 1",
+        (week_str, msg_type)
+    )
+    row = c.fetchone()
+    if row:
+        c.execute("UPDATE message_bank SET used=1 WHERE id=?", (row[0],))
         conn.commit()
         conn.close()
-        return redirect('/')
-    
-    c.execute("SELECT key, value FROM settings")
-    rows = c.fetchall()
-    current_settings = {row[0]: row[1] for row in rows}
+        return row[1]
+
     conn.close()
-    return render_template('settings.html', settings=current_settings)
+    # Fallback to built-in
+    if msg_type == 'nag':
+        return random.choice(NAG_EXPIRED)
+    return random.choice(PRAISE_MESSAGES).format(name=USER_NAME)
+
+
+def get_active_focus_session():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "SELECT * FROM focus_sessions WHERE ended_at IS NULL ORDER BY id DESC LIMIT 1"
+    )
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+# --- BACKGROUND THREAD ---
 
 def run_morning_briefing():
     conn = get_db()
     c = conn.cursor()
     c.execute("SELECT key, value FROM settings WHERE key IN ('briefing_time', 'briefing_days')")
     sets = {row[0]: row[1] for row in c.fetchall()}
-
     now = datetime.now()
     current_time = now.strftime('%H:%M')
     current_day_str = now.strftime('%a')
 
     if current_time == sets.get('briefing_time') and current_day_str in sets.get('briefing_days', ''):
-        c.execute("SELECT title, deadline FROM tasks WHERE status='active' ORDER BY deadline ASC LIMIT 5")
+        c.execute(
+            "SELECT title, deadline, duration_minutes FROM tasks WHERE status='active' ORDER BY deadline ASC LIMIT 5"
+        )
         tasks = c.fetchall()
         conn.close()
-
         if not tasks:
             return
-
         quote = random.choice(MORNING_QUOTES)
         message = f"Good morning {USER_NAME}. {quote} Here are your top tasks. "
-
         for i, task in enumerate(tasks, 1):
-            title, deadline_str = task
+            title, deadline_str, duration = task
+            if deadline_str == NO_DEADLINE_SENTINEL:
+                message += f"Task {i}: {title}, no fixed deadline. "
+                continue
             dt = datetime.strptime(deadline_str.replace('T', ' '), '%Y-%m-%d %H:%M')
-            if dt.date() == now.date():
-                day_speak = "today"
-            else:
-                day_speak = dt.strftime('%A the %d of %B')
+            day_speak = "today" if dt.date() == now.date() else dt.strftime('%A the %d of %B')
             time_speak = dt.strftime('%H:%M')
-            if dt < now:
-                message += f"Task {i}: {title}, overdue since {day_speak} at {time_speak}. "
-            else:
-                message += f"Task {i}: {title}, due {day_speak} at {time_speak}. "
-
+            overdue = "overdue since" if dt < now else "due"
+            dur_txt = f", estimated {duration} minutes" if duration else ""
+            message += f"Task {i}: {title}, {overdue} {day_speak} at {time_speak}{dur_txt}. "
         trigger_voice_monkey(message, device=VM_DEVICE_BRIEFINGS)
     else:
         conn.close()
 
+
 def check_recurring():
     conn = get_db()
     c = conn.cursor()
-    
-    # Fetch all master templates
     c.execute("SELECT title, start_time, interval FROM recurring_templates")
     templates = c.fetchall()
-
     for temp in templates:
         title, start_time, interval = temp
-        
-        # We look for ANY instance of this task in the tasks table
-        # If no instance exists at all, we create the first one for 'today' 
-        # (or the next logical occurrence)
         c.execute("SELECT deadline FROM tasks WHERE title=? ORDER BY deadline DESC LIMIT 1", (title,))
         last_instance = c.fetchone()
-        
         if not last_instance:
-            # No instance exists? Create one for today.
             first_deadline = f"{datetime.now().strftime('%Y-%m-%d')}T{start_time}"
-            
-            # Final safety check: matches title and deadline
             c.execute("SELECT id FROM tasks WHERE title=? AND deadline=?", (title, first_deadline))
             if not c.fetchone():
-                c.execute("INSERT INTO tasks (title, deadline, last_alert_type) VALUES (?, ?, 'none')", 
-                          (title, first_deadline))
-    
+                c.execute(
+                    "INSERT INTO tasks (title, deadline, last_alert_type, deadline_type) VALUES (?, ?, 'none', 'fixed')",
+                    (title, first_deadline)
+                )
     conn.commit()
     conn.close()
+
+
+def maybe_generate_message_bank():
+    """Generate weekly message bank if it's Monday around 2am and bank doesn't exist yet."""
+    now = datetime.now()
+    if now.weekday() != 0 or now.hour != 2:
+        return
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    week_str = monday.isoformat()
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM message_bank WHERE week_start=?", (week_str,))
+    count = c.fetchone()[0]
+    conn.close()
+
+    if count > 0:
+        return
+
+    print(f"Generating LLM message bank for week {week_str}...")
+    messages = llm_service.generate_message_bank()
+    if not messages:
+        print("Message bank generation failed — LLM unavailable.")
+        return
+
+    conn = get_db()
+    c = conn.cursor()
+    for msg in messages:
+        c.execute(
+            "INSERT INTO message_bank (week_start, message_type, message_text) VALUES (?, ?, ?)",
+            (week_str, msg['type'], msg['text'])
+        )
+    conn.commit()
+    conn.close()
+    print(f"Message bank generated: {len(messages)} messages.")
+
+
+def maybe_reset_tree():
+    """Ensure the current week's tree exists."""
+    get_or_create_tree()
+
 
 def background_task_checker():
     import time
@@ -565,11 +742,12 @@ def background_task_checker():
         try:
             run_morning_briefing()
             check_recurring()
-            
+            maybe_generate_message_bank()
+            maybe_reset_tree()
+
             conn = sqlite3.connect('tasks.db')
             try:
                 c = conn.cursor()
-                
                 c.execute("SELECT value FROM settings WHERE key='silence_mode'")
                 res_silence = c.fetchone()
                 silence_mode = res_silence[0] if res_silence else 'off'
@@ -577,21 +755,26 @@ def background_task_checker():
                 c.execute("SELECT value FROM settings WHERE key='nag_interval'")
                 res_nag = c.fetchone()
                 nag_interval = int(res_nag[0]) if res_nag else 15
-                
+
                 if silence_mode == 'off':
-                    c.execute("SELECT id, title, deadline, status, last_alert_type, last_nag_time FROM tasks WHERE status='active'")
+                    c.execute(
+                        "SELECT id, title, deadline, status, last_alert_type, last_nag_time, deadline_type "
+                        "FROM tasks WHERE status='active'"
+                    )
                     all_tasks = c.fetchall()
                     now = datetime.now()
-                    
+
                     for task in all_tasks:
-                        t_id, t_title, t_deadline, t_status, t_last_alert, last_nag_val = task
+                        t_id, t_title, t_deadline, t_status, t_last_alert, last_nag_val, dl_type = task
+                        if t_deadline == NO_DEADLINE_SENTINEL or dl_type == 'none':
+                            continue
+
                         deadline_dt = datetime.strptime(t_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
                         time_left_mins = (deadline_dt - now).total_seconds() / 60
-                        
+
                         if time_left_mins <= 0:
                             should_nag = False
-                            if t_last_alert == 'none' or t_last_alert == 'nag_30' or t_last_alert == 'nag_15':
-                                # First time hitting deadline — use NAG_DEADLINE
+                            if t_last_alert in ('none', 'nag_30', 'nag_15'):
                                 should_nag = True
                                 nag_list = NAG_DEADLINE
                                 new_alert_type = 'nag_expired'
@@ -604,12 +787,17 @@ def background_task_checker():
                                     should_nag = True
                                 nag_list = NAG_EXPIRED
                                 new_alert_type = 'nag_expired'
+                            else:
+                                should_nag = False
 
                             if should_nag:
-                                nag_text = f"{USER_NAME}. {t_title}. {random.choice(nag_list)}"
+                                msg = get_message_from_bank('nag')
+                                nag_text = f"{USER_NAME}. {t_title}. {msg}"
                                 trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
-                                c.execute("UPDATE tasks SET last_alert_type=?, last_nag_time=? WHERE id=?",
-                                          (new_alert_type, now.strftime('%Y-%m-%d %H:%M:%S'), t_id))
+                                c.execute(
+                                    "UPDATE tasks SET last_alert_type=?, last_nag_time=? WHERE id=?",
+                                    (new_alert_type, now.strftime('%Y-%m-%d %H:%M:%S'), t_id)
+                                )
 
                         elif 0 < time_left_mins <= 15 and t_last_alert not in ('nag_15', 'nag_expired', 'nag_deadline'):
                             nag_text = f"{USER_NAME}. {t_title}. 15 minutes until deadline. {random.choice(NAG_15)}"
@@ -620,8 +808,8 @@ def background_task_checker():
                             nag_text = f"{USER_NAME}. {t_title}. 30 minutes until deadline. {random.choice(NAG_30)}"
                             trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
                             c.execute("UPDATE tasks SET last_alert_type='nag_30' WHERE id=?", (t_id,))
-                    
-                    conn.commit()
+
+                conn.commit()
             except Exception as e:
                 print(f"DB error in background worker: {e}")
             finally:
@@ -631,21 +819,19 @@ def background_task_checker():
         time.sleep(60)
 
 
+# --- ROUTES ---
+
 @app.route('/')
 def index():
-    # Check for first-run setup
     if not config.get('setup_complete'):
         return redirect('/setup')
-
-    # Detect if the visitor is on a mobile device
 
     ua = request.headers.get('User-Agent', '').lower()
     is_mobile = any(x in ua for x in ['iphone', 'android', 'mobile'])
 
     conn = get_db()
     c = conn.cursor()
-    
-    # 1. Fetch settings
+
     c.execute("SELECT value FROM settings WHERE key='bar_start_hours'")
     res_bar = c.fetchone()
     bar_scale_hours = float(res_bar[0]) if res_bar else 24.0
@@ -655,64 +841,108 @@ def index():
     res_silence = c.fetchone()
     silence_mode = res_silence[0] if res_silence else 'off'
 
-    # 2. Fetch tasks
-    c.execute("SELECT id, title, deadline, status FROM tasks WHERE status='active' ORDER BY deadline ASC")
+    c.execute(
+        "SELECT id, title, deadline, status, duration_minutes, deadline_type "
+        "FROM tasks WHERE status='active' ORDER BY deadline ASC"
+    )
     all_tasks = c.fetchall()
-    
+
     processed_tasks = []
     now = datetime.now()
-    
+
     for task in all_tasks:
-        t_id, t_title, t_deadline, t_status = task
+        t_id, t_title, t_deadline, t_status, dur_mins, dl_type = task
+        dur_mins = dur_mins or 30
+        dl_type = dl_type or 'flexible'
+
+        if t_deadline == NO_DEADLINE_SENTINEL or dl_type == 'none':
+            processed_tasks.append({
+                'id': t_id,
+                'title': t_title,
+                'deadline': 'NO DEADLINE',
+                'percent': 0,
+                'phase': 'phase-none',
+                'duration_display': format_duration(dur_mins),
+                'duration_minutes': dur_mins,
+                'deadline_type': 'none',
+            })
+            continue
+
         deadline_dt = datetime.strptime(t_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
         time_left_mins = (deadline_dt - now).total_seconds() / 60
-        
-        # Visual phase logic
-        if time_left_mins <= 0: phase = "phase-red"
-        elif time_left_mins <= 15: phase = "phase-orange"
-        elif time_left_mins <= 30: phase = "phase-yellow"
-        else: phase = "phase-normal"
+
+        if time_left_mins <= 0:
+            phase = "phase-red"
+        elif time_left_mins <= 15:
+            phase = "phase-orange"
+        elif time_left_mins <= 30:
+            phase = "phase-yellow"
+        else:
+            phase = "phase-normal"
 
         percent = max(0, min(100, 100 - (time_left_mins / bar_scale_mins * 100)))
         readable_deadline = deadline_dt.strftime('%a %d %b %H:%M').upper()
 
         processed_tasks.append({
-            'id': t_id, 
-            'title': t_title, 
+            'id': t_id,
+            'title': t_title,
             'deadline': readable_deadline,
-            'percent': percent, 
-            'phase': phase
+            'percent': percent,
+            'phase': phase,
+            'duration_display': format_duration(dur_mins),
+            'duration_minutes': dur_mins,
+            'deadline_type': dl_type,
         })
-
-
-
 
     conn.commit()
 
-    # 3. DND Visual Check
     c.execute("SELECT value FROM settings WHERE key='dnd_start'")
     d_start_res = c.fetchone()
     d_start = d_start_res[0] if d_start_res else '22:00'
-    
     c.execute("SELECT value FROM settings WHERE key='dnd_end'")
     d_end_res = c.fetchone()
     d_end = d_end_res[0] if d_end_res else '07:00'
-    
+    conn.close()
+
     now_t = datetime.now().strftime('%H:%M')
     is_dnd = False
     if d_start > d_end:
-        if now_t >= d_start or now_t <= d_end: is_dnd = True
+        if now_t >= d_start or now_t <= d_end:
+            is_dnd = True
     else:
-        if d_start <= now_t <= d_end: is_dnd = True
+        if d_start <= now_t <= d_end:
+            is_dnd = True
 
-    conn.close()
+    today_cap = get_today_capacity()
+    today_planned = get_today_planned_hours()
+    cap_pct = (today_planned / today_cap * 100) if today_cap > 0 else 0
 
-    return render_template('index.html', 
-                           main_tasks=processed_tasks[:5], 
-                           queue_tasks=processed_tasks[5:15], 
+    tree = get_or_create_tree()
+    active_focus = get_active_focus_session()
+    if active_focus:
+        active_focus = dict(active_focus)
+        started = datetime.strptime(active_focus['started_at'], '%Y-%m-%d %H:%M:%S')
+        active_focus['elapsed_seconds'] = int((datetime.now() - started).total_seconds())
+        active_focus['session_id'] = active_focus['id']
+
+    # Tomorrow's capacity for the TODAY chip
+    tomorrow = date.today() + timedelta(days=1)
+    tomorrow_cap = get_day_capacity(tomorrow)
+
+    return render_template('index.html',
+                           main_tasks=processed_tasks[:5],
+                           queue_tasks=processed_tasks[5:],
                            silence_mode=silence_mode,
                            dnd_active=is_dnd,
-                           is_mobile=is_mobile) # Pass the flag to the HTML
+                           is_mobile=is_mobile,
+                           today_cap=today_cap,
+                           today_planned=round(today_planned, 1),
+                           cap_pct=round(cap_pct),
+                           tree=tree,
+                           active_focus=active_focus,
+                           tomorrow_cap=tomorrow_cap,
+                           user_name=USER_NAME)
+
 
 @app.route('/api/tasks')
 def tasks_json():
@@ -721,14 +951,426 @@ def tasks_json():
     c.execute("SELECT id, title, deadline, status FROM tasks WHERE status='active' ORDER BY deadline ASC")
     tasks = c.fetchall()
     conn.close()
-    
-    # Minimal transform to keep it lightweight
-    return jsonify([{
-        "id": t[0],
-        "title": t[1],
-        "deadline": t[2],
-        "status": t[3]
-    } for t in tasks])
+    return jsonify([{'id': t[0], 'title': t[1], 'deadline': t[2], 'status': t[3]} for t in tasks])
+
+
+@app.route('/api/tree')
+def tree_api():
+    tree = get_or_create_tree()
+    return jsonify(tree)
+
+
+@app.route('/api/capacity')
+def capacity_api():
+    today_cap = get_today_capacity()
+    today_planned = get_today_planned_hours()
+    cap_pct = (today_planned / today_cap * 100) if today_cap > 0 else 0
+    tomorrow = date.today() + timedelta(days=1)
+    return jsonify({
+        'today_cap': today_cap,
+        'today_planned': round(today_planned, 1),
+        'cap_pct': round(cap_pct),
+        'tomorrow_cap': get_day_capacity(tomorrow),
+        'tomorrow_date': tomorrow.isoformat(),
+    })
+
+
+@app.route('/api/capacity/update', methods=['POST'])
+def capacity_update():
+    data = request.get_json()
+    day = data.get('day', 'today')
+    hours = float(data.get('hours', 6))
+
+    if day == 'today':
+        target = date.today()
+    else:
+        target = date.today() + timedelta(days=1)
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "INSERT OR REPLACE INTO capacity_overrides (override_date, available_hours) VALUES (?, ?)",
+        (target.isoformat(), hours)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'ok', 'date': target.isoformat(), 'hours': hours})
+
+
+@app.route('/api/week_view')
+def week_view_api():
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    week_data = []
+
+    conn = get_db()
+    c = conn.cursor()
+
+    for i in range(7):
+        day = monday + timedelta(days=i)
+        day_str = day.isoformat()
+        cap = get_day_capacity(day)
+        c.execute(
+            "SELECT id, title, duration_minutes, deadline_type FROM tasks "
+            "WHERE status='active' AND deadline LIKE ? AND deadline != ?",
+            (f'{day_str}%', NO_DEADLINE_SENTINEL)
+        )
+        tasks = [dict(t) for t in c.fetchall()]
+        planned_mins = sum(t.get('duration_minutes', 30) for t in tasks)
+        planned_h = planned_mins / 60.0
+        pct = (planned_h / cap * 100) if cap > 0 else 0
+        week_data.append({
+            'day': day.strftime('%a'),
+            'date': day_str,
+            'available_hours': cap,
+            'planned_hours': round(planned_h, 1),
+            'capacity_pct': round(pct),
+            'overloaded': pct > 100,
+            'tasks': tasks,
+        })
+
+    conn.close()
+    return jsonify(week_data)
+
+
+@app.route('/api/rebalance/<day_name>', methods=['POST'])
+def rebalance_api(day_name):
+    conn = get_db()
+    c = conn.cursor()
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+
+    day_abbrevs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    week_tasks = {}
+    daily_cap = {}
+    for i, abbrev in enumerate(day_abbrevs):
+        d = monday + timedelta(days=i)
+        cap = get_day_capacity(d)
+        daily_cap[abbrev] = cap
+        c.execute(
+            "SELECT id, title, duration_minutes, deadline_type FROM tasks "
+            "WHERE status='active' AND deadline LIKE ? AND deadline != ?",
+            (f'{d.isoformat()}%', NO_DEADLINE_SENTINEL)
+        )
+        week_tasks[abbrev] = [dict(t) for t in c.fetchall()]
+    conn.close()
+
+    suggestion = llm_service.rebalance_suggestion(day_name, week_tasks, daily_cap)
+    if not suggestion:
+        return jsonify({'error': 'LLM unavailable'}), 503
+
+    return jsonify(suggestion)
+
+
+@app.route('/api/rebalance/apply', methods=['POST'])
+def rebalance_apply():
+    data = request.get_json()
+    task_id = data.get('task_id')
+    move_to_day = data.get('move_to')
+
+    day_abbrevs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())
+    target_date = None
+    for i, abbrev in enumerate(day_abbrevs):
+        if abbrev == move_to_day:
+            target_date = monday + timedelta(days=i)
+            break
+
+    if not target_date or not task_id:
+        return jsonify({'error': 'Invalid request'}), 400
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT deadline FROM tasks WHERE id=?", (task_id,))
+    row = c.fetchone()
+    if not row:
+        conn.close()
+        return jsonify({'error': 'Task not found'}), 404
+
+    old_deadline = row[0]
+    old_time = old_deadline.split('T')[1] if 'T' in old_deadline else '09:00'
+    new_deadline = f"{target_date.isoformat()}T{old_time}"
+    c.execute(
+        "UPDATE tasks SET deadline=?, last_alert_type='none', last_nag_time=NULL WHERE id=?",
+        (new_deadline, task_id)
+    )
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'ok'})
+
+
+@app.route('/api/focus/start', methods=['POST'])
+def focus_start():
+    data = request.get_json()
+    task_id = data.get('task_id')
+    planned_minutes = int(data.get('planned_minutes', 30))
+
+    # End any existing active session
+    conn = get_db()
+    c = conn.cursor()
+    c.execute(
+        "UPDATE focus_sessions SET ended_at=?, end_reason='superseded' WHERE ended_at IS NULL",
+        (datetime.now().strftime('%Y-%m-%d %H:%M:%S'),)
+    )
+
+    # Get task title
+    c.execute("SELECT title FROM tasks WHERE id=?", (task_id,))
+    row = c.fetchone()
+    task_title = row[0] if row else 'Unknown task'
+
+    c.execute(
+        "INSERT INTO focus_sessions (task_id, task_title, started_at, planned_minutes) VALUES (?, ?, ?, ?)",
+        (task_id, task_title, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), planned_minutes)
+    )
+    session_id = c.lastrowid
+    conn.commit()
+    conn.close()
+
+    # Get LLM first step
+    first_step = llm_service.get_first_step(task_title)
+
+    # Trigger engage Alexa nag
+    trigger_voice_monkey(f"{USER_NAME}. Focus mode started. {task_title}. Let's go.")
+
+    return jsonify({
+        'status': 'ok',
+        'session_id': session_id,
+        'task_title': task_title,
+        'planned_minutes': planned_minutes,
+        'first_step': first_step,
+    })
+
+
+@app.route('/api/focus/end', methods=['POST'])
+def focus_end():
+    data = request.get_json()
+    reason = data.get('reason', 'cancelled')  # 'completed', 'cancelled', 'expired'
+    session_id = data.get('session_id')
+    task_id = data.get('task_id')
+
+    conn = get_db()
+    c = conn.cursor()
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    c.execute(
+        "UPDATE focus_sessions SET ended_at=?, end_reason=? WHERE ended_at IS NULL",
+        (now_str, reason)
+    )
+    conn.commit()
+    conn.close()
+
+    if reason in ('complete', 'completed') and task_id:
+        return complete_task_internal(task_id)
+
+    return jsonify({'status': 'ok', 'reason': reason})
+
+
+@app.route('/api/focus/break_reminder', methods=['POST'])
+def focus_break_reminder():
+    data = request.get_json()
+    task_title = data.get('task_title', 'your task')
+    mins_remaining = data.get('mins_remaining', 0)
+
+    if mins_remaining <= 2:
+        msg = f"{USER_NAME}. Two minutes remaining on {task_title}. Start wrapping up."
+    else:
+        msg = f"{USER_NAME}. Take a quick break. Drink some water, have a stretch, take a moment."
+
+    trigger_voice_monkey(msg)
+    return jsonify({'status': 'ok'})
+
+
+@app.route('/api/focus/expired', methods=['POST'])
+def focus_expired():
+    data = request.get_json()
+    task_title = data.get('task_title', 'your task')
+    escalation = data.get('escalation', 1)
+
+    nag_messages = [
+        f"{USER_NAME}. Time's up on {task_title}. Are you done yet?",
+        f"{USER_NAME}. {task_title}. Still going? The clock says otherwise.",
+        f"{USER_NAME}. {task_title}. {random.choice(NAG_EXPIRED)}",
+        f"{USER_NAME}. {random.choice(NAG_DEADLINE)}",
+    ]
+    idx = min(escalation - 1, len(nag_messages) - 1)
+    trigger_voice_monkey(nag_messages[idx], chime=random.choice(CHIMES))
+    return jsonify({'status': 'ok'})
+
+
+@app.route('/api/estimate_duration', methods=['POST'])
+def estimate_duration_api():
+    data = request.get_json()
+    task_title = data.get('title', '')
+    if not task_title:
+        return jsonify({'error': 'No title provided'}), 400
+
+    buffer_pct = get_buffer_pct()
+    result = llm_service.estimate_duration(task_title, buffer_pct)
+    if not result:
+        return jsonify({'error': 'LLM unavailable'}), 503
+
+    raw, buffered, rationale = result
+    return jsonify({
+        'raw_minutes': raw,
+        'buffered_minutes': buffered,
+        'buffer_pct': buffer_pct,
+        'rationale': rationale,
+        'display': format_duration(buffered),
+    })
+
+
+@app.route('/api/test_llm', methods=['POST'])
+def test_llm_api():
+    success, message = llm_service.test_connection()
+    return jsonify({'success': success, 'message': message})
+
+
+@app.route('/api/quick_add_parse', methods=['POST'])
+def quick_add_parse():
+    data = request.get_json()
+    text = data.get('text', '')
+    if not text:
+        return jsonify({'error': 'No text provided'}), 400
+
+    result = llm_service.parse_natural_language_task(text)
+    if not result:
+        return jsonify({'error': 'LLM unavailable'}), 503
+
+    # Apply buffer to duration if present
+    if result.get('duration_minutes'):
+        buf = get_buffer_pct()
+        raw = result['duration_minutes']
+        result['duration_minutes'] = max(5, round(raw * (1 + buf / 100) / 5) * 5)
+
+    return jsonify(result)
+
+
+@app.route('/api/tonight')
+def tonight_api():
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    today_str = today.isoformat()
+    tomorrow_str = tomorrow.isoformat()
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # Tasks completed today
+    c.execute(
+        "SELECT title FROM tasks WHERE status='done' AND deadline LIKE ?",
+        (f'{today_str}%',)
+    )
+    completed = [r[0] for r in c.fetchall()]
+
+    # Active tasks that were due today but not done (rolled over)
+    c.execute(
+        "SELECT title FROM tasks WHERE status='active' AND deadline LIKE ? AND deadline != ?",
+        (f'{today_str}%', NO_DEADLINE_SENTINEL)
+    )
+    rolled = [r[0] for r in c.fetchall()]
+
+    # Tomorrow's top 5
+    c.execute(
+        "SELECT title, duration_minutes, deadline_type FROM tasks "
+        "WHERE status='active' AND deadline LIKE ? AND deadline != ? "
+        "ORDER BY deadline ASC LIMIT 5",
+        (f'{tomorrow_str}%', NO_DEADLINE_SENTINEL)
+    )
+    tomorrow_tasks = [{'title': r[0], 'duration': format_duration(r[1]), 'type': r[2]} for r in c.fetchall()]
+
+    # Also include no-deadline tasks as potential tomorrow items (up to 3)
+    c.execute(
+        "SELECT title, duration_minutes FROM tasks "
+        "WHERE status='active' AND deadline_type='none' ORDER BY id ASC LIMIT 3"
+    )
+    backlog_tasks = [{'title': r[0], 'duration': format_duration(r[1]), 'type': 'none'} for r in c.fetchall()]
+
+    conn.close()
+
+    tom_cap = get_day_capacity(tomorrow)
+    tom_planned = sum(t.get('duration_minutes', 30) for t in (tomorrow_tasks or [])) / 60
+
+    return jsonify({
+        'completed_today': completed,
+        'rolled_over': rolled,
+        'tomorrow_tasks': tomorrow_tasks,
+        'backlog_preview': backlog_tasks,
+        'tomorrow_available_h': tom_cap,
+        'tomorrow_planned_h': round(tom_planned, 1),
+        'tomorrow_day': tomorrow.strftime('%A'),
+    })
+
+
+@app.route('/api/breakdown/questions', methods=['POST'])
+def breakdown_questions():
+    data = request.get_json()
+    task_title = data.get('title', '')
+    QUESTIONS = [
+        "Does this task require input or approval from anyone else?",
+        "Do you have everything you need to start right now?",
+        "Is this something you've done before?",
+        "Will any parts need to happen in a specific order?",
+        "Are there any parts that depend on each other completing first?",
+    ]
+    return jsonify({'questions': QUESTIONS, 'title': task_title})
+
+
+@app.route('/api/breakdown/complete', methods=['POST'])
+def breakdown_complete():
+    data = request.get_json()
+    task_title = data.get('title', '')
+    deadline = data.get('deadline', '')
+    answers = data.get('answers', {})
+
+    subtasks = llm_service.breakdown_complex_task(task_title, deadline, answers)
+    if not subtasks:
+        return jsonify({'error': 'LLM unavailable or no subtasks generated'}), 503
+
+    buffer_pct = get_buffer_pct()
+    for s in subtasks:
+        raw = s.get('duration_minutes', 30)
+        s['duration_minutes'] = max(5, round(raw * (1 + buffer_pct / 100) / 5) * 5)
+        s['duration_display'] = format_duration(s['duration_minutes'])
+
+    return jsonify({'subtasks': subtasks})
+
+
+@app.route('/api/breakdown/commit', methods=['POST'])
+def breakdown_commit():
+    data = request.get_json()
+    parent_title = data.get('parent_title', '')
+    parent_deadline = data.get('parent_deadline', NO_DEADLINE_SENTINEL)
+    subtasks = data.get('subtasks', [])
+
+    conn = get_db()
+    c = conn.cursor()
+
+    # Create parent task
+    c.execute(
+        "INSERT INTO tasks (title, deadline, last_alert_type, deadline_type, duration_minutes) "
+        "VALUES (?, ?, 'none', 'flexible', ?)",
+        (f"[PARENT] {parent_title}", parent_deadline, 0)
+    )
+    parent_id = c.lastrowid
+
+    for s in subtasks:
+        dl_date = s.get('deadline_date', '')
+        dl_time = s.get('deadline_time', '09:00')
+        if dl_date:
+            deadline = f"{dl_date}T{dl_time}"
+            dl_type = 'flexible'
+        else:
+            deadline = NO_DEADLINE_SENTINEL
+            dl_type = 'none'
+        c.execute(
+            "INSERT INTO tasks (title, deadline, last_alert_type, deadline_type, duration_minutes, parent_task_id) "
+            "VALUES (?, ?, 'none', ?, ?, ?)",
+            (s['title'], deadline, dl_type, s.get('duration_minutes', 30), parent_id)
+        )
+
+    conn.commit()
+    conn.close()
+    return jsonify({'status': 'ok', 'parent_id': parent_id, 'count': len(subtasks)})
 
 
 @app.route('/toggle_silence', methods=['POST'])
@@ -744,200 +1386,227 @@ def toggle_silence():
     conn.close()
     return jsonify({"status": "success", "mode": new_val})
 
+
 @app.route('/add', methods=['GET', 'POST'])
 def add_task():
     if request.method == 'POST':
         task_type = request.form.get('type')
         title = request.form.get('title', '').strip()
-        
         if not title:
             return "Error: Title is compulsory.", 400
-            
+
+        duration_minutes = request.form.get('duration_minutes', '30')
+        try:
+            duration_minutes = int(duration_minutes)
+        except Exception:
+            duration_minutes = 30
+
+        deadline_type = request.form.get('deadline_type', 'flexible')
+
         conn = get_db()
         c = conn.cursor()
-
         try:
             if task_type == 'recurring':
                 interval = request.form.get('interval')
                 recur_time = request.form.get('recur_time')
                 recur_start_date = request.form.get('recur_start_date')
-                
                 if not all([interval, recur_time, recur_start_date]):
                     return "Error: All recurring fields are compulsory.", 400
-                
                 if '-' in recur_start_date:
                     iso_start_date = recur_start_date
                 else:
                     day, month, year = recur_start_date.split('/')
                     iso_start_date = f"{year}-{month}-{day}"
-                
                 now_today = datetime.now().strftime('%Y-%m-%d')
-
-                c.execute("INSERT INTO recurring_templates (title, start_time, interval, last_generated) VALUES (?, ?, ?, ?)",
-                          (title, recur_time, interval, now_today))
+                c.execute(
+                    "INSERT INTO recurring_templates (title, start_time, interval, last_generated) VALUES (?, ?, ?, ?)",
+                    (title, recur_time, interval, now_today)
+                )
                 first_deadline = f"{iso_start_date}T{recur_time}"
-                c.execute("INSERT INTO tasks (title, deadline, last_alert_type) VALUES (?, ?, 'none')", 
-                          (title, first_deadline))
+                c.execute(
+                    "INSERT INTO tasks (title, deadline, last_alert_type, duration_minutes, deadline_type) "
+                    "VALUES (?, ?, 'none', ?, 'fixed')",
+                    (title, first_deadline, duration_minutes)
+                )
             else:
-                uk_date = request.form.get('deadline_date')
-                d_time = request.form.get('deadline_time')
-                
-                if not all([uk_date, d_time]):
-                    return "Error: All date and time fields are compulsory.", 400
-                    
-                if '-' in uk_date:
-                    iso_date = uk_date
+                if deadline_type == 'none':
+                    deadline = NO_DEADLINE_SENTINEL
                 else:
-                    day, month, year = uk_date.split('/')
-                    iso_date = f"{year}-{month}-{day}"
-                
-                deadline = f"{iso_date}T{d_time}"
-                c.execute("INSERT INTO tasks (title, deadline, last_alert_type) VALUES (?, ?, 'none')", 
-                          (title, deadline))
-            
+                    uk_date = request.form.get('deadline_date')
+                    d_time = request.form.get('deadline_time')
+                    if not all([uk_date, d_time]):
+                        return "Error: Date and time are required unless No Deadline is selected.", 400
+                    if '-' in uk_date:
+                        iso_date = uk_date
+                    else:
+                        day, month, year = uk_date.split('/')
+                        iso_date = f"{year}-{month}-{day}"
+                    deadline = f"{iso_date}T{d_time}"
+
+                c.execute(
+                    "INSERT INTO tasks (title, deadline, last_alert_type, duration_minutes, deadline_type) "
+                    "VALUES (?, ?, 'none', ?, ?)",
+                    (title, deadline, duration_minutes, deadline_type)
+                )
+
             conn.commit()
             conn.close()
+
+            # Capacity warning check
+            if deadline_type != 'none':
+                today_planned = get_today_planned_hours()
+                today_cap = get_today_capacity()
+                if today_planned > today_cap:
+                    trigger_voice_monkey(
+                        f"Warning {USER_NAME}. Today is now over capacity. Consider moving a task."
+                    )
+
             return redirect('/')
         except Exception as e:
             conn.close()
             return f"Error: {e}. Go back and check your data format.", 400
-            
+
     ua = request.headers.get('User-Agent', '').lower()
     is_mobile = any(x in ua for x in ['iphone', 'android', 'mobile'])
-    return render_template('add.html', is_mobile=is_mobile)
+    buffer_pct = get_buffer_pct()
+    return render_template('add.html', is_mobile=is_mobile, buffer_pct=int(buffer_pct))
+
+
+def complete_task_internal(task_id):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT title, deadline FROM tasks WHERE id=?", (task_id,))
+    task = c.fetchone()
+    if not task:
+        conn.close()
+        return jsonify({"status": "error"}), 404
+
+    title, current_deadline = task
+    c.execute("UPDATE tasks SET status='done' WHERE id=?", (task_id,))
+
+    # Handle recurring
+    c.execute("SELECT interval FROM recurring_templates WHERE title=?", (title,))
+    template = c.fetchone()
+    if template and current_deadline != NO_DEADLINE_SENTINEL:
+        interval = template[0]
+        old_dt = datetime.strptime(current_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
+        if interval == 'weekly':
+            count, unit = 1, 'W'
+        elif interval == 'daily':
+            count, unit = 1, 'D'
+        elif interval == 'monthly':
+            count, unit = 1, 'M'
+        else:
+            count = int(interval[:-1])
+            unit = interval[-1]
+
+        if unit == 'D':
+            new_dt = old_dt + timedelta(days=count)
+        elif unit == 'W':
+            new_dt = old_dt + timedelta(weeks=count)
+        elif unit == 'M':
+            import calendar
+            new_dt = old_dt
+            for _ in range(count):
+                month = new_dt.month % 12 + 1
+                year = new_dt.year + (new_dt.month // 12)
+                day = min(new_dt.day, calendar.monthrange(year, month)[1])
+                new_dt = new_dt.replace(year=year, month=month, day=day)
+
+        new_deadline = new_dt.strftime('%Y-%m-%dT%H:%M')
+        c.execute("SELECT id FROM tasks WHERE title=? AND deadline=?", (title, new_deadline))
+        if not c.fetchone():
+            c.execute(
+                "INSERT INTO tasks (title, deadline, last_alert_type, deadline_type) VALUES (?, ?, 'none', 'fixed')",
+                (title, new_deadline)
+            )
+
+    conn.commit()
+    conn.close()
+
+    # Grow tree
+    new_level, tree_complete = grow_tree(amount=0.08)
+
+    # Celebration
+    if current_deadline != NO_DEADLINE_SENTINEL:
+        deadline_dt = datetime.strptime(current_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
+        is_late = datetime.now() > deadline_dt
+    else:
+        is_late = False
+
+    msg = get_message_from_bank('praise')
+    if is_late:
+        vm_msg = random.choice(LATE_PRAISE_MESSAGES).format(name=USER_NAME)
+    else:
+        vm_msg = msg if '{name}' not in msg else msg.format(name=USER_NAME)
+
+    selected_theme = random.choice(['matrix', 'glitch', 'gold-rush', 'fireworks', 'confetti'])
+    trigger_voice_monkey(vm_msg)
+
+    applause_num = random.randint(1, 8)
+    audio_url = f"/soundfx/applause{applause_num}.mp3"
+
+    return jsonify({
+        "status": "success",
+        "message": vm_msg,
+        "theme": selected_theme,
+        "audio": audio_url,
+        "tree_level": new_level,
+        "tree_complete": tree_complete,
+    })
+
 
 @app.route('/complete/<int:task_id>', methods=['POST'])
 def complete_task(task_id):
-    conn = get_db()
-    c = conn.cursor()
-    
-    # 1. Get the details of the task being completed
-    c.execute("SELECT title, deadline FROM tasks WHERE id=?", (task_id,))
-    task = c.fetchone()
-    
-    if task:
-        title, current_deadline = task
-        # Mark current as done
-        c.execute("UPDATE tasks SET status='done' WHERE id=?", (task_id,))
-        
-        # 2. Check if this task belongs to a recurring template
-        c.execute("SELECT interval FROM recurring_templates WHERE title=?", (title,))
-        template = c.fetchone()
-        
-        if template:
-            interval = template[0]
-            old_dt = datetime.strptime(current_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
-            
-            # Calculate next date based on interval
-            # Parse new interval format (e.g., "1D", "2W")
-            if interval == 'weekly':
-                count, unit = 1, 'W'
-            elif interval == 'daily':
-                count, unit = 1, 'D'
-            elif interval == 'monthly':
-                count, unit = 1, 'M'
-            else:
-                count = int(interval[:-1])
-                unit = interval[-1]
-            
-            if unit == 'D':
-                new_dt = old_dt + timedelta(days=count)
-            elif unit == 'W':
-                new_dt = old_dt + timedelta(weeks=count)
-            elif unit == 'M':
-                import calendar
-                new_dt = old_dt
-                for _ in range(count):
-                    month = new_dt.month % 12 + 1
-                    year = new_dt.year + (new_dt.month // 12)
-                    day = min(new_dt.day, calendar.monthrange(year, month)[1])
-                    new_dt = new_dt.replace(year=year, month=month, day=day)
-            
-            new_deadline = new_dt.strftime('%Y-%m-%dT%H:%M')
+    return complete_task_internal(task_id)
 
-
-            # 3. DUPLICATE CHECK: Only add if not already in tasks (active OR done)
-            c.execute("SELECT id FROM tasks WHERE title=? AND deadline=?", (title, new_deadline))
-            if not c.fetchone():
-                c.execute("INSERT INTO tasks (title, deadline, last_alert_type) VALUES (?, ?, 'none')", 
-                          (title, new_deadline))
-        
-        conn.commit()
-        conn.close()
-
-        # Celebration Data
-        deadline_dt = datetime.strptime(current_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
-        if datetime.now() > deadline_dt:
-            msg = random.choice(LATE_PRAISE_MESSAGES).format(name=USER_NAME)
-        else:
-            msg = random.choice(PRAISE_MESSAGES).format(name=USER_NAME)
-        selected_theme = random.choice(['matrix', 'glitch', 'gold-rush', 'fireworks', 'confetti'])
-        trigger_voice_monkey(msg)
-        
-        applause_num = random.randint(1, 8)
-        audio_url = f"/soundfx/applause{applause_num}.mp3"
-
-        return jsonify({"status": "success", "message": msg, "theme": selected_theme, "audio": audio_url})
-    
-    conn.close()
-    return jsonify({"status": "error"}), 404
 
 @app.route('/recovery')
 def recovery():
     conn = get_db()
     c = conn.cursor()
-    # Fetch newest first
     c.execute("SELECT id, title, deadline FROM tasks WHERE status='done' ORDER BY id DESC LIMIT 20")
     rows = c.fetchall()
-    
-
     processed_recovery = []
     for r in rows:
         t_id, title, deadline_str = r
-        # UK Format: Weekday, Date, Month, Year, Time
-        dt = datetime.strptime(deadline_str.replace('T', ' '), '%Y-%m-%d %H:%M')
-        uk_format = dt.strftime('%A, %d %b %Y %H:%M').upper()
-        
-        processed_recovery.append({
-            'id': t_id,
-            'title': title,
-            'was_due': uk_format
-        })
-        
+        if deadline_str == NO_DEADLINE_SENTINEL:
+            uk_format = 'NO DEADLINE'
+        else:
+            dt = datetime.strptime(deadline_str.replace('T', ' '), '%Y-%m-%d %H:%M')
+            uk_format = dt.strftime('%A, %d %b %Y %H:%M').upper()
+        processed_recovery.append({'id': t_id, 'title': title, 'was_due': uk_format})
     conn.close()
     return render_template('recovery.html', tasks=processed_recovery)
+
 
 @app.route('/restore/<int:task_id>', methods=['POST'])
 def restore_task(task_id):
     conn = get_db()
     c = conn.cursor()
-    # Reset status to active and clear the alert type to re-trigger notifications
-    c.execute("UPDATE tasks SET status='active', last_alert_type='none', last_nag_time=NULL WHERE id=?", (task_id,))
+    c.execute(
+        "UPDATE tasks SET status='active', last_alert_type='none', last_nag_time=NULL WHERE id=?",
+        (task_id,)
+    )
     conn.commit()
     conn.close()
     return redirect('/')
+
 
 @app.route('/manage_recurring')
 def manage_recurring():
     conn = get_db()
     c = conn.cursor()
-    # Fetch templates
     c.execute("SELECT id, title, start_time, interval FROM recurring_templates")
     rows = c.fetchall()
-    
     processed_templates = []
     for r in rows:
         t_id, title, s_time, interval = r
-        
-        # Look up the first task created for this title to get the original date
         c.execute("SELECT deadline FROM tasks WHERE title=? ORDER BY id ASC LIMIT 1", (title,))
         task_res = c.fetchone()
-        
         display_str = ""
         if task_res:
-            # Parse the deadline (Format: YYYY-MM-DDTHH:MM)
             dt = datetime.strptime(task_res[0].replace('T', ' '), '%Y-%m-%d %H:%M')
-            
             if interval == 'weekly':
                 count, unit = 1, 'W'
             elif interval == 'daily':
@@ -947,7 +1616,6 @@ def manage_recurring():
             else:
                 count = int(interval[:-1])
                 unit = interval[-1]
-            
             if unit == 'D':
                 display_str = f"EVERY {count} DAYS @ {s_time}" if count > 1 else f"DAILY @ {s_time}"
             elif unit == 'W':
@@ -955,36 +1623,151 @@ def manage_recurring():
                 display_str = f"EVERY {count} WEEKS ({day_name}) @ {s_time}" if count > 1 else f"EVERY {day_name} @ {s_time}"
             elif unit == 'M':
                 day_num = dt.day
-                if 11 <= day_num <= 13: suffix = 'TH'
-                else: suffix = {1: 'ST', 2: 'ND', 3: 'RD'}.get(day_num % 10, 'TH')
+                suffix = {1: 'ST', 2: 'ND', 3: 'RD'}.get(day_num % 10, 'TH')
+                if 11 <= day_num <= 13:
+                    suffix = 'TH'
                 display_str = f"EVERY {count} MONTHS (ON THE {day_num}{suffix}) @ {s_time}" if count > 1 else f"EVERY {day_num}{suffix} OF THE MONTH @ {s_time}"
-            
-            processed_templates.append({
-
-            'id': t_id,
-            'title': title,
-            'display': display_str
-        })
-        
+            processed_templates.append({'id': t_id, 'title': title, 'display': display_str})
     conn.close()
     return render_template('manage_recurring.html', templates=processed_templates)
+
 
 @app.route('/delete_template/<int:t_id>', methods=['POST'])
 def delete_template(t_id):
     conn = get_db()
     c = conn.cursor()
-    # 1. Delete the template from the recurring table
     c.execute("DELETE FROM recurring_templates WHERE id=?", (t_id,))
     conn.commit()
     conn.close()
-    # 2. Bounce back to the list so you can delete the next one
     return redirect('/manage_recurring')
+
+
+@app.route('/settings', methods=['GET', 'POST'])
+def settings():
+    conn = get_db()
+    c = conn.cursor()
+
+    if request.method == 'POST':
+        setting_keys = [
+            'briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours',
+            'nag_interval', 'port', 'adhd_buffer_pct',
+            'cap_mon', 'cap_tue', 'cap_wed', 'cap_thu', 'cap_fri', 'cap_sat', 'cap_sun',
+            'llm_provider', 'llm_quick_model', 'llm_deep_model', 'llm_api_key',
+            'llm_ollama_host', 'user_name',
+        ]
+        for key in setting_keys:
+            val = request.form.get(key)
+            if val is not None:
+                c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, val))
+
+        selected_days = request.form.getlist('briefing_days')
+        days_string = ",".join(selected_days)
+        c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('briefing_days', days_string))
+
+        # Sync daily_capacity table from cap_* settings
+        day_map = [('cap_mon', 0), ('cap_tue', 1), ('cap_wed', 2), ('cap_thu', 3),
+                   ('cap_fri', 4), ('cap_sat', 5), ('cap_sun', 6)]
+        for key, dow in day_map:
+            val = request.form.get(key)
+            if val:
+                try:
+                    c.execute(
+                        "INSERT OR REPLACE INTO daily_capacity (day_of_week, available_hours) VALUES (?, ?)",
+                        (dow, float(val))
+                    )
+                except Exception:
+                    pass
+
+        conn.commit()
+        conn.close()
+        return redirect('/')
+
+    c.execute("SELECT key, value FROM settings")
+    rows = c.fetchall()
+    current_settings = {row[0]: row[1] for row in rows}
+    conn.close()
+    return render_template('settings.html', settings=current_settings)
+
+
+@app.route('/edit_list')
+def edit_list():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT id, title, deadline FROM tasks WHERE status='active' ORDER BY deadline ASC")
+    tasks = c.fetchall()
+    conn.close()
+    processed = [{'id': t[0], 'title': t[1], 'deadline': t[2]} for t in tasks]
+    return render_template('edit_list.html', tasks=processed)
+
+
+@app.route('/edit/<int:task_id>', methods=['GET', 'POST'])
+def edit_task(task_id):
+    conn = get_db()
+    c = conn.cursor()
+
+    if request.method == 'POST':
+        uk_date = request.form.get('deadline_date')
+        d_time = request.form.get('deadline_time')
+        deadline_type = request.form.get('deadline_type', 'flexible')
+        duration_minutes = request.form.get('duration_minutes', '30')
+        try:
+            duration_minutes = int(duration_minutes)
+        except Exception:
+            duration_minutes = 30
+
+        if deadline_type == 'none':
+            deadline = NO_DEADLINE_SENTINEL
+        else:
+            if not all([uk_date, d_time]):
+                return "Error: All fields are compulsory.", 400
+            if '-' in uk_date:
+                iso_date = uk_date
+            else:
+                day, month, year = uk_date.split('/')
+                iso_date = f"{year}-{month}-{day}"
+            deadline = f"{iso_date}T{d_time}"
+
+        c.execute(
+            "UPDATE tasks SET deadline=?, last_alert_type='none', last_nag_time=NULL, "
+            "duration_minutes=?, deadline_type=? WHERE id=?",
+            (deadline, duration_minutes, deadline_type, task_id)
+        )
+        conn.commit()
+        conn.close()
+        return redirect('/')
+
+    c.execute("SELECT id, title, deadline, duration_minutes, deadline_type FROM tasks WHERE id=?", (task_id,))
+    task = c.fetchone()
+    conn.close()
+
+    if not task:
+        return "Task not found", 404
+
+    t_id, title, deadline_str, dur, dl_type = task
+    if deadline_str == NO_DEADLINE_SENTINEL or dl_type == 'none':
+        date_val = ''
+        time_val = ''
+        dl_type = 'none'
+    else:
+        dt = datetime.strptime(deadline_str.replace('T', ' '), '%Y-%m-%d %H:%M')
+        date_val = dt.strftime('%d/%m/%Y')
+        time_val = dt.strftime('%H:%M')
+
+    return render_template('edit_task.html', task={
+        'id': t_id,
+        'title': title,
+        'date': date_val,
+        'time': time_val,
+        'duration_minutes': dur or 30,
+        'deadline_type': dl_type or 'flexible',
+    })
+
 
 @app.route('/media/<path:filename>')
 def serve_media(filename):
     media_path = os.path.join(os.path.dirname(__file__), 'media')
-
     return send_from_directory(media_path, filename)
+
 
 @app.route('/soundfx/<path:filename>')
 def serve_soundfx(filename):
@@ -1007,16 +1790,14 @@ def setup():
             return redirect('/setup_oauth')
     return render_template('setup_backup.html')
 
+
 @app.route('/setup_oauth', methods=['GET', 'POST'])
 def setup_oauth():
     if request.method == 'POST':
         client_id = request.form.get('client_id')
         client_secret = request.form.get('client_secret')
-        
         if not all([client_id, client_secret]):
             return "Error: All fields are compulsory.", 400
-            
-        # Save credentials here (mocking for now or saving to config)
         config['setup_complete'] = True
         config['gdrive_client_id'] = client_id
         config['gdrive_client_secret'] = client_secret
@@ -1026,73 +1807,9 @@ def setup_oauth():
     return render_template('setup_oauth.html')
 
 
-@app.route('/edit_list')
-def edit_list():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("SELECT id, title, deadline FROM tasks WHERE status='active' ORDER BY deadline ASC")
-    tasks = c.fetchall()
-    conn.close()
-    
-    # Process deadlines for readable format
-    processed = []
-    for t in tasks:
-        processed.append({
-            'id': t[0],
-            'title': t[1],
-            'deadline': t[2]
-        })
-    return render_template('edit_list.html', tasks=processed)
-
-@app.route('/edit/<int:task_id>', methods=['GET', 'POST'])
-def edit_task(task_id):
-    conn = get_db()
-    c = conn.cursor()
-    
-    if request.method == 'POST':
-        uk_date = request.form.get('deadline_date')
-        d_time = request.form.get('deadline_time')
-        
-        if not all([uk_date, d_time]):
-            return "Error: All fields are compulsory.", 400
-            
-        if '-' in uk_date:
-            iso_date = uk_date
-        else:
-            day, month, year = uk_date.split('/')
-            iso_date = f"{year}-{month}-{day}"
-            
-        deadline = f"{iso_date}T{d_time}"
-        
-        c.execute("UPDATE tasks SET deadline=?, last_alert_type='none', last_nag_time=NULL WHERE id=?", (deadline, task_id))
-        conn.commit()
-        conn.close()
-        return redirect('/')
-        
-    c.execute("SELECT id, title, deadline FROM tasks WHERE id=?", (task_id,))
-    task = c.fetchone()
-    conn.close()
-    
-    if not task:
-        return "Task not found", 404
-        
-    # Split deadline for the view
-    dt_str = task[2].replace('T', ' ')
-    from datetime import datetime
-    dt = datetime.strptime(dt_str, '%Y-%m-%d %H:%M')
-    
-    return render_template('edit_task.html', task={
-        'id': task[0],
-        'title': task[1],
-        'date': dt.strftime('%d/%m/%Y'),
-        'time': dt.strftime('%H:%M')
-    })
-
-
 if __name__ == '__main__':
     init_db()
 
-    # Get port from DB
     conn = sqlite3.connect('tasks.db')
     c = conn.cursor()
     c.execute("SELECT value FROM settings WHERE key='port'")
@@ -1103,10 +1820,7 @@ if __name__ == '__main__':
     import threading
     t = threading.Thread(target=background_task_checker, daemon=True)
     t.start()
-    
+
     import logging
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
-    
     app.run(host='0.0.0.0', port=app_port, debug=True)
-
-
