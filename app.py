@@ -1284,7 +1284,15 @@ def estimate_duration_api():
 
 @app.route('/api/test_llm', methods=['POST'])
 def test_llm_api():
-    success, message = llm_service.test_connection()
+    data = request.get_json(silent=True) or {}
+    overrides = {
+        'provider': data.get('provider', ''),
+        'quick_model': data.get('quick_model', ''),
+        'deep_model': data.get('deep_model', ''),
+        'api_key': data.get('api_key', ''),
+        'ollama_host': data.get('ollama_host', ''),
+    }
+    success, message = llm_service.test_connection(overrides=overrides)
     return jsonify({'success': success, 'message': message})
 
 

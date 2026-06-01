@@ -50,11 +50,28 @@ def _get_cfg():
     return cfg
 
 
-def call_llm(prompt, model_type='quick', system_prompt=None):
+def call_llm(prompt, model_type='quick', system_prompt=None, overrides=None):
     cfg = _get_cfg()
+    # Live overrides (e.g. from the settings form Test button) take top precedence
+    if overrides:
+        if overrides.get('provider'):
+            cfg['provider'] = overrides['provider'].lower()
+        if overrides.get('quick_model'):
+            cfg['quick_model'] = overrides['quick_model']
+        if overrides.get('deep_model'):
+            cfg['deep_model'] = overrides['deep_model']
+        if overrides.get('api_key'):
+            cfg['api_key'] = overrides['api_key']
+        if overrides.get('ollama_host'):
+            cfg['ollama_host'] = overrides['ollama_host']
+
     provider = cfg.get('provider', '')
     model = cfg.get('quick_model') if model_type == 'quick' else cfg.get('deep_model')
     api_key = cfg.get('api_key', '')
+
+    # Local providers can run without an explicit model name (server picks the loaded model)
+    if provider in ('llamacpp', 'ollama') and not model:
+        model = 'local'
 
     if not provider or not model:
         return None
@@ -149,11 +166,14 @@ def _clean_json(raw):
     return s
 
 
-def test_connection():
-    result = call_llm("Reply with the single word OK.", model_type='quick')
+def test_connection(overrides=None):
+    result = call_llm("Reply with the single word OK.", model_type='quick', overrides=overrides)
     if result and 'ok' in result.lower():
         return True, "Connection successful."
-    return False, "Connection failed — check provider, model name, and API key in settings."
+    if result:
+        # Got a response but not the expected word — still a working connection
+        return True, "Connection successful (model replied)."
+    return False, "Connection failed — check provider, model name, host/API key."
 
 
 def estimate_duration(task_title, buffer_pct=30):

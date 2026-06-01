@@ -410,6 +410,16 @@
             if (keyLbl) keyLbl.innerText = KEY_LABELS[provider] || 'API KEY:';
             const hostLbl = document.getElementById('local-host-label');
             if (hostLbl) hostLbl.innerText = HOST_LABELS[provider] || 'LOCAL HOST:';
+            // Default host port to match the selected local server, unless user set a custom host
+            const hostEl = document.querySelector('[name="llm_ollama_host"]');
+            if (hostEl) {
+                const h = hostEl.value.trim();
+                if (provider === 'llamacpp' && (h === '' || /:11434\/?$/.test(h))) {
+                    hostEl.value = 'http://localhost:8080';
+                } else if (provider === 'ollama' && (h === '' || /:8080\/?$/.test(h))) {
+                    hostEl.value = 'http://localhost:11434';
+                }
+            }
             if (isCloud && MODEL_LISTS[provider]) {
                 populateModelSelect('quick', provider);
                 populateModelSelect('deep', provider);
@@ -502,11 +512,27 @@
             collectModelValues();
             const btn = document.getElementById('test-btn');
             const result = document.getElementById('test-result');
+            const payload = {
+                provider:    document.getElementById('llm_provider_val').value,
+                quick_model: document.getElementById('llm_quick_model_final').value,
+                deep_model:  document.getElementById('llm_deep_model_final').value,
+                api_key:     (document.querySelector('[name="llm_api_key"]') || {}).value || '',
+                ollama_host: (document.querySelector('[name="llm_ollama_host"]') || {}).value || ''
+            };
+            if (!payload.provider) {
+                result.innerText = 'Select a provider first.';
+                result.style.color = '#ff0055';
+                return;
+            }
             btn.innerText = 'TESTING...';
             btn.disabled = true;
             result.innerText = '...';
             result.style.color = '#888';
-            fetch('/api/test_llm', { method: 'POST' })
+            fetch('/api/test_llm', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
             .then(r => r.json())
             .then(d => {
                 result.innerText = d.message;
