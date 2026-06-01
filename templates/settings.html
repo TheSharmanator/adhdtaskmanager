@@ -42,11 +42,17 @@
         label { font-size: 0.9rem; font-weight: bold; color: #ffd700; display: block; margin-top: 8px; text-transform: uppercase; }
         small { font-size: 0.7rem; font-weight: normal; color: #888; }
 
-        input[type="text"], input[type="number"], input[type="password"] {
+        input[type="text"], input[type="number"], input[type="password"], select {
             width: 100%; padding: 10px; margin: 3px 0; background: #222;
             color: white; border: 2px solid white; font-size: 1.2rem;
             font-weight: 900; border-radius: 8px; box-sizing: border-box;
         }
+        select option { background: #222; color: white; }
+
+        /* Hide number spinner arrows — use numpad instead */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
         .side-by-side { display: flex; gap: 10px; width: 100%; }
         .side-by-side > div { flex: 1; }
@@ -127,8 +133,16 @@
                 </div>
 
                 <!-- BRIEFING -->
-                <label>MORNING BRIEFING TIME (HH:MM):</label>
-                <input type="text" name="briefing_time" class="input mask-time" placeholder="08:00" value="{{ settings.briefing_time }}" maxlength="5">
+                <div class="side-by-side">
+                    <div>
+                        <label>MORNING BRIEFING (HH:MM):</label>
+                        <input type="text" name="briefing_time" class="input mask-time" placeholder="08:00" value="{{ settings.briefing_time }}" maxlength="5">
+                    </div>
+                    <div>
+                        <label>EVENING BRIEFING (HH:MM):</label>
+                        <input type="text" name="evening_briefing_time" class="input mask-time" placeholder="21:00" value="{{ settings.evening_briefing_time or '21:00' }}" maxlength="5">
+                    </div>
+                </div>
 
                 <label>BRIEFING DAYS:</label>
                 <div class="day-selector">
@@ -173,31 +187,56 @@
                 </div>
 
                 <label>PROVIDER:</label>
-                <div style="display: flex; gap: 10px; margin: 6px 0;">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0;">
                     <button type="button" class="p-btn provider-btn" id="prov-openai" onclick="setProvider('openai', this)">OPENAI</button>
                     <button type="button" class="p-btn provider-btn" id="prov-anthropic" onclick="setProvider('anthropic', this)">ANTHROPIC</button>
-                    <button type="button" class="p-btn provider-btn" id="prov-ollama" onclick="setProvider('ollama', this)">OLLAMA (LOCAL)</button>
+                    <button type="button" class="p-btn provider-btn" id="prov-google" onclick="setProvider('google', this)">GOOGLE</button>
+                    <button type="button" class="p-btn provider-btn" id="prov-ollama" onclick="setProvider('ollama', this)">OLLAMA</button>
+                    <button type="button" class="p-btn provider-btn" id="prov-llamacpp" onclick="setProvider('llamacpp', this)">LLAMACPP</button>
                 </div>
                 <input type="hidden" name="llm_provider" id="llm_provider_val" value="{{ settings.llm_provider or '' }}">
+                <input type="hidden" name="llm_quick_model" id="llm_quick_model_final" value="{{ settings.llm_quick_model or '' }}">
+                <input type="hidden" name="llm_deep_model" id="llm_deep_model_final" value="{{ settings.llm_deep_model or '' }}">
 
-                <div class="side-by-side">
-                    <div>
-                        <label>QUICK MODEL <small>(estimates, messages)</small>:</label>
-                        <input type="text" name="llm_quick_model" class="input" value="{{ settings.llm_quick_model or '' }}" placeholder="gpt-4o-mini">
-                    </div>
-                    <div>
-                        <label>DEEP MODEL <small>(breakdown, scheduling)</small>:</label>
-                        <input type="text" name="llm_deep_model" class="input" value="{{ settings.llm_deep_model or '' }}" placeholder="gpt-4o">
+                <!-- Cloud provider model dropdowns -->
+                <div id="cloud-model-section" style="display:none;">
+                    <div class="side-by-side">
+                        <div>
+                            <label>QUICK MODEL <small>(estimates, messages)</small>:</label>
+                            <select id="quick_model_select" onchange="onModelSelectChange('quick')"></select>
+                            <input type="text" id="quick_custom_input" placeholder="Enter model name" style="display:none; margin-top:5px;" oninput="onCustomModelInput('quick')">
+                        </div>
+                        <div>
+                            <label>DEEP MODEL <small>(breakdown, scheduling)</small>:</label>
+                            <select id="deep_model_select" onchange="onModelSelectChange('deep')"></select>
+                            <input type="text" id="deep_custom_input" placeholder="Enter model name" style="display:none; margin-top:5px;" oninput="onCustomModelInput('deep')">
+                        </div>
                     </div>
                 </div>
 
-                <div id="api-key-section">
-                    <label>API KEY:</label>
-                    <input type="password" name="llm_api_key" class="input" value="{{ settings.llm_api_key or '' }}" placeholder="sk-...">
+                <!-- Local provider model text inputs -->
+                <div id="local-model-section" style="display:none;">
+                    <div class="side-by-side">
+                        <div>
+                            <label>QUICK MODEL <small>(estimates, messages)</small>:</label>
+                            <input type="text" id="quick_text_input" value="{{ settings.llm_quick_model or '' }}" placeholder="e.g. llama3.2">
+                        </div>
+                        <div>
+                            <label>DEEP MODEL <small>(breakdown, scheduling)</small>:</label>
+                            <input type="text" id="deep_text_input" value="{{ settings.llm_deep_model or '' }}" placeholder="e.g. llama3.2">
+                        </div>
+                    </div>
                 </div>
 
-                <div id="ollama-section" style="display:none;">
-                    <label>OLLAMA HOST:</label>
+                <!-- API key for cloud providers -->
+                <div id="api-key-section" style="display:none;">
+                    <label id="api-key-label">API KEY:</label>
+                    <input type="password" name="llm_api_key" class="input" value="{{ settings.llm_api_key or '' }}" placeholder="Paste your API key here">
+                </div>
+
+                <!-- Host for local providers -->
+                <div id="local-host-section" style="display:none;">
+                    <label id="local-host-label">LOCAL HOST:</label>
                     <input type="text" name="llm_ollama_host" class="input" value="{{ settings.llm_ollama_host or 'http://localhost:11434' }}" placeholder="http://192.168.x.x:11434">
                 </div>
 
@@ -253,7 +292,7 @@
                 <button class="p-btn" onclick="pType('7')">7</button>
                 <button class="p-btn" onclick="pType('8')">8</button>
                 <button class="p-btn" onclick="pType('9')">9</button>
-                <button class="p-btn" onclick="pClear()" style="background:#ff0055; color:white; border-color:#ff0055;">CLR</button>
+                <button class="p-btn" onclick="pBackspace()" style="background:#ff0055; color:white; border-color:#ff0055;">⌫</button>
                 <button class="p-btn" onclick="pType('0')">0</button>
                 <button class="p-btn" onclick="pType('.')">.</button>
                 <button class="p-btn" onclick="pClose()" style="background:#00ff00; color:black; border-color:#00ff00; grid-column: span 3; margin-top:10px; height: 70px; font-size: 2rem;">OK</button>
@@ -287,9 +326,11 @@
         <div style="background:#111; border:5px solid #0066ff; border-radius:20px; padding:30px; width:90%; max-width:600px; box-sizing:border-box;">
             <h2 style="color:#0066ff; margin-top:0; text-transform:uppercase;">AI SETUP HELP</h2>
             <p style="color:#ccc; line-height:1.6; font-size:1.0rem;">
-                <strong style="color:#ffd700;">OPENAI:</strong> Get your API key from platform.openai.com. Quick model: <code>gpt-4o-mini</code>, Deep model: <code>gpt-4o</code>.<br><br>
-                <strong style="color:#ffd700;">ANTHROPIC:</strong> Get your key from console.anthropic.com. Quick: <code>claude-haiku-4-5-20251001</code>, Deep: <code>claude-sonnet-4-6</code>.<br><br>
-                <strong style="color:#ffd700;">OLLAMA (LOCAL):</strong> Run Ollama on any machine on your network. Set the host to <code>http://192.168.x.x:11434</code>. Model name must match exactly what Ollama has pulled (e.g. <code>llama3.2</code>).
+                <strong style="color:#ffd700;">OPENAI:</strong> Key from platform.openai.com. Quick: <code>gpt-4o-mini</code>, Deep: <code>gpt-4o</code>.<br><br>
+                <strong style="color:#ffd700;">ANTHROPIC:</strong> Key from console.anthropic.com. Quick: <code>claude-haiku-4-5-20251001</code>, Deep: <code>claude-sonnet-4-6</code>.<br><br>
+                <strong style="color:#ffd700;">GOOGLE:</strong> Key from aistudio.google.com. Quick: <code>gemini-2.0-flash</code>, Deep: <code>gemini-1.5-pro</code>.<br><br>
+                <strong style="color:#ffd700;">OLLAMA:</strong> Run Ollama on any networked machine. Host: <code>http://192.168.x.x:11434</code>. Model name must match what Ollama has pulled (e.g. <code>llama3.2</code>).<br><br>
+                <strong style="color:#ffd700;">LLAMACPP:</strong> Run llama-server with <code>--port 8080</code>. Set host to <code>http://192.168.x.x:8080</code>. Model field can be left as <code>local</code>.
             </p>
             <button onclick="document.getElementById('llm-help-popup').style.display='none'" style="width:100%; padding:15px; font-size:1.2rem; font-weight:900; background:#0066ff; color:white; border-radius:10px; border:2px solid white; cursor:pointer; margin-top:10px;">GOT IT</button>
         </div>
@@ -342,21 +383,15 @@
             document.documentElement.style.zoom = scales[size] || '1.0';
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            const savedSize = localStorage.getItem('ui_scale_pref') || 'small';
-            const btn = document.querySelector(`.screen-btn[onclick*="'${savedSize}'"]`);
-            if (btn) { document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+        // ─── AI PROVIDER + MODEL ───
+        const MODEL_LISTS = {
+            openai:    ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+            anthropic: ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-8'],
+            google:    ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-lite'],
+        };
+        const KEY_LABELS = { openai: 'OPENAI API KEY:', anthropic: 'ANTHROPIC API KEY:', google: 'GOOGLE API KEY:' };
+        const HOST_LABELS = { ollama: 'OLLAMA HOST:', llamacpp: 'LLAMACPP HOST:' };
 
-            // Init provider UI
-            const prov = document.getElementById('llm_provider_val').value;
-            if (prov) {
-                const provBtn = document.getElementById('prov-' + prov);
-                if (provBtn) provBtn.classList.add('active');
-                updateProviderUI(prov);
-            }
-        });
-
-        // Provider selector
         function setProvider(provider, btn) {
             document.getElementById('llm_provider_val').value = provider;
             document.querySelectorAll('.provider-btn').forEach(b => b.classList.remove('active'));
@@ -365,19 +400,112 @@
         }
 
         function updateProviderUI(provider) {
-            document.getElementById('api-key-section').style.display = (provider === 'ollama') ? 'none' : 'block';
-            document.getElementById('ollama-section').style.display = (provider === 'ollama') ? 'block' : 'none';
+            const isCloud = ['openai', 'anthropic', 'google'].includes(provider);
+            const isLocal = ['ollama', 'llamacpp'].includes(provider);
+            document.getElementById('cloud-model-section').style.display = isCloud ? 'block' : 'none';
+            document.getElementById('local-model-section').style.display = isLocal ? 'block' : 'none';
+            document.getElementById('api-key-section').style.display = isCloud ? 'block' : 'none';
+            document.getElementById('local-host-section').style.display = isLocal ? 'block' : 'none';
+            const keyLbl = document.getElementById('api-key-label');
+            if (keyLbl) keyLbl.innerText = KEY_LABELS[provider] || 'API KEY:';
+            const hostLbl = document.getElementById('local-host-label');
+            if (hostLbl) hostLbl.innerText = HOST_LABELS[provider] || 'LOCAL HOST:';
+            if (isCloud && MODEL_LISTS[provider]) {
+                populateModelSelect('quick', provider);
+                populateModelSelect('deep', provider);
+            }
         }
+
+        function populateModelSelect(slot, provider) {
+            const sel = document.getElementById(`${slot}_model_select`);
+            const hidden = document.getElementById(`llm_${slot}_model_final`);
+            const customIn = document.getElementById(`${slot}_custom_input`);
+            const currentVal = hidden.value;
+            const models = MODEL_LISTS[provider] || [];
+            sel.innerHTML = '';
+            models.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m; opt.text = m;
+                if (m === currentVal) opt.selected = true;
+                sel.appendChild(opt);
+            });
+            const customOpt = document.createElement('option');
+            customOpt.value = '__custom__'; customOpt.text = 'Custom...';
+            sel.appendChild(customOpt);
+            const isCustom = currentVal && !models.includes(currentVal);
+            if (isCustom) {
+                sel.value = '__custom__';
+                customIn.value = currentVal;
+                customIn.style.display = 'block';
+            } else {
+                customIn.style.display = 'none';
+                if (!currentVal || !models.includes(currentVal)) {
+                    sel.value = models[0] || '';
+                    hidden.value = models[0] || '';
+                } else {
+                    hidden.value = currentVal;
+                }
+            }
+        }
+
+        function onModelSelectChange(slot) {
+            const sel = document.getElementById(`${slot}_model_select`);
+            const customIn = document.getElementById(`${slot}_custom_input`);
+            const hidden = document.getElementById(`llm_${slot}_model_final`);
+            if (sel.value === '__custom__') {
+                customIn.style.display = 'block';
+                hidden.value = customIn.value;
+            } else {
+                customIn.style.display = 'none';
+                hidden.value = sel.value;
+            }
+        }
+
+        function onCustomModelInput(slot) {
+            document.getElementById(`llm_${slot}_model_final`).value =
+                document.getElementById(`${slot}_custom_input`).value;
+        }
+
+        function collectModelValues() {
+            const prov = document.getElementById('llm_provider_val').value;
+            if (['openai','anthropic','google'].includes(prov)) {
+                ['quick','deep'].forEach(slot => {
+                    const sel = document.getElementById(`${slot}_model_select`);
+                    const customIn = document.getElementById(`${slot}_custom_input`);
+                    const hidden = document.getElementById(`llm_${slot}_model_final`);
+                    if (sel && sel.value === '__custom__') hidden.value = customIn.value;
+                    else if (sel) hidden.value = sel.value;
+                });
+            } else {
+                const qEl = document.getElementById('quick_text_input');
+                const dEl = document.getElementById('deep_text_input');
+                if (qEl) document.getElementById('llm_quick_model_final').value = qEl.value;
+                if (dEl) document.getElementById('llm_deep_model_final').value = dEl.value;
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedSize = localStorage.getItem('ui_scale_pref') || 'small';
+            const btn = document.querySelector(`.screen-btn[onclick*="'${savedSize}'"]`);
+            if (btn) { document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); }
+
+            const prov = document.getElementById('llm_provider_val').value;
+            if (prov) {
+                const provBtn = document.getElementById('prov-' + prov);
+                if (provBtn) provBtn.classList.add('active');
+                updateProviderUI(prov);
+            }
+        });
 
         // Test LLM connection
         function testLLM() {
+            collectModelValues();
             const btn = document.getElementById('test-btn');
             const result = document.getElementById('test-result');
             btn.innerText = 'TESTING...';
             btn.disabled = true;
             result.innerText = '...';
             result.style.color = '#888';
-
             fetch('/api/test_llm', { method: 'POST' })
             .then(r => r.json())
             .then(d => {
@@ -398,32 +526,37 @@
             document.getElementById('llm-help-popup').style.display = 'flex';
         }
 
-        // Numpad picker
+        // ─── NUMPAD (buffer-based to handle decimals correctly) ───
         let activeNumpadInput = null;
+        let numpadBuffer = '';
 
         function openNumpad(inputEl) {
             activeNumpadInput = inputEl;
-            document.getElementById('picker-display').innerText = inputEl.value || "--";
+            numpadBuffer = String(inputEl.value || '');
+            document.getElementById('picker-display').innerText = numpadBuffer || '--';
             document.getElementById('touch-picker').style.display = 'flex';
         }
 
         function pType(val) {
-            if (!activeNumpadInput) return;
-            if (activeNumpadInput.value === '--') activeNumpadInput.value = '';
-            activeNumpadInput.value += val;
-            activeNumpadInput.dispatchEvent(new Event('input', { bubbles: true }));
-            document.getElementById('picker-display').innerText = activeNumpadInput.value;
+            if (val === '.' && numpadBuffer.includes('.')) return;
+            if (val === '.' && numpadBuffer === '') numpadBuffer = '0';
+            numpadBuffer += val;
+            document.getElementById('picker-display').innerText = numpadBuffer;
         }
 
-        function pClear() {
-            if (!activeNumpadInput) return;
-            activeNumpadInput.value = "";
-            document.getElementById('picker-display').innerText = "--";
+        function pBackspace() {
+            numpadBuffer = numpadBuffer.slice(0, -1);
+            document.getElementById('picker-display').innerText = numpadBuffer || '--';
         }
 
         function pClose() {
+            if (activeNumpadInput && numpadBuffer !== '') {
+                const num = parseFloat(numpadBuffer);
+                if (!isNaN(num)) activeNumpadInput.value = num;
+            }
             document.getElementById('touch-picker').style.display = 'none';
             activeNumpadInput = null;
+            numpadBuffer = '';
         }
 
         document.querySelectorAll('input[type="number"]').forEach(input => {
@@ -515,6 +648,7 @@
 
         // Validation + submit
         function validateAndSubmitSettings() {
+            collectModelValues();
             const fields = ['briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours', 'nag_interval', 'port'];
             for (const field of fields) {
                 const el = document.querySelector(`[name="${field}"]`);

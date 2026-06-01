@@ -95,6 +95,19 @@ def call_llm(prompt, model_type='quick', system_prompt=None):
             r.raise_for_status()
             return r.json()['content'][0]['text'].strip()
 
+        elif provider == 'google':
+            payload = {'contents': [{'role': 'user', 'parts': [{'text': prompt}]}]}
+            if system_prompt:
+                payload['system_instruction'] = {'parts': [{'text': system_prompt}]}
+            r = requests.post(
+                f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}',
+                headers={'Content-Type': 'application/json'},
+                json=payload,
+                timeout=20
+            )
+            r.raise_for_status()
+            return r.json()['candidates'][0]['content']['parts'][0]['text'].strip()
+
         elif provider == 'ollama':
             msgs = []
             if system_prompt:
@@ -107,6 +120,20 @@ def call_llm(prompt, model_type='quick', system_prompt=None):
             )
             r.raise_for_status()
             return r.json()['message']['content'].strip()
+
+        elif provider == 'llamacpp':
+            msgs = []
+            if system_prompt:
+                msgs.append({'role': 'system', 'content': system_prompt})
+            msgs.append({'role': 'user', 'content': prompt})
+            host = cfg.get('ollama_host', 'http://localhost:8080')
+            r = requests.post(
+                f"{host}/v1/chat/completions",
+                json={'model': model or 'local', 'messages': msgs, 'max_tokens': 600},
+                timeout=60
+            )
+            r.raise_for_status()
+            return r.json()['choices'][0]['message']['content'].strip()
 
     except Exception as e:
         print(f"LLM call failed ({provider}/{model}): {e}")

@@ -417,6 +417,7 @@ def init_db():
         ('cap_sat', '3'),
         ('cap_sun', '0'),
         ('briefing_days', 'Mon,Tue,Wed,Thu,Fri'),
+        ('evening_briefing_time', '21:00'),
     ]
     for key, val in defaults:
         c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
@@ -487,6 +488,10 @@ def get_setting(key, default=None):
     res = c.fetchone()
     conn.close()
     return res[0] if res else default
+
+
+def get_user_name():
+    return get_setting('user_name', None) or USER_NAME
 
 
 def get_buffer_pct():
@@ -639,6 +644,60 @@ def get_active_focus_session():
 
 # --- BACKGROUND THREAD ---
 
+def _send_tonight_vm():
+    today = date.today()
+    tomorrow = today + timedelta(days=1)
+    today_str = today.isoformat()
+    tomorrow_str = tomorrow.isoformat()
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT title FROM tasks WHERE status='done' AND deadline LIKE ?", (f'{today_str}%',))
+    completed = [r[0] for r in c.fetchall()]
+    c.execute(
+        "SELECT title FROM tasks WHERE status='active' AND deadline LIKE ? AND deadline != ?",
+        (f'{today_str}%', NO_DEADLINE_SENTINEL)
+    )
+    rolled = [r[0] for r in c.fetchall()]
+    c.execute(
+        "SELECT title, duration_minutes FROM tasks "
+        "WHERE status='active' AND deadline LIKE ? AND deadline != ? "
+        "ORDER BY deadline ASC LIMIT 3",
+        (f'{tomorrow_str}%', NO_DEADLINE_SENTINEL)
+    )
+    tomorrow_tasks = c.fetchall()
+    conn.close()
+
+    user = get_user_name()
+    msg = f"Evening briefing, {user}. "
+    if completed:
+        msg += f"Today you completed {len(completed)} task{'s' if len(completed) != 1 else ''}. "
+        for t in completed[:3]:
+            msg += f"{t}. "
+    else:
+        msg += "No tasks were completed today. "
+    if rolled:
+        msg += f"{len(rolled)} task{'s' if len(rolled) != 1 else ''} still outstanding today. "
+    if tomorrow_tasks:
+        msg += "Tomorrow: "
+        for title, dur in tomorrow_tasks:
+            msg += f"{title}"
+            if dur:
+                msg += f", {dur} minutes"
+            msg += ". "
+    trigger_voice_monkey(msg, device=VM_DEVICE_BRIEFINGS)
+
+
+def run_evening_briefing():
+    evening_time = get_setting('evening_briefing_time', '21:00')
+    now = datetime.now()
+    current_time = now.strftime('%H:%M')
+    current_day_str = now.strftime('%a')
+    briefing_days = get_setting('briefing_days', 'Mon,Tue,Wed,Thu,Fri')
+    if current_time == evening_time and current_day_str in briefing_days:
+        _send_tonight_vm()
+
+
 def run_morning_briefing():
     conn = get_db()
     c = conn.cursor()
@@ -656,8 +715,9 @@ def run_morning_briefing():
         conn.close()
         if not tasks:
             return
+        user = get_user_name()
         quote = random.choice(MORNING_QUOTES)
-        message = f"Good morning {USER_NAME}. {quote} Here are your top tasks. "
+        message = f"Good morning {user}. {quote} Here are your top tasks. "
         for i, task in enumerate(tasks, 1):
             title, deadline_str, duration = task
             if deadline_str == NO_DEADLINE_SENTINEL:
@@ -741,6 +801,7 @@ def background_task_checker():
     while True:
         try:
             run_morning_briefing()
+            run_evening_briefing()
             check_recurring()
             maybe_generate_message_bank()
             maybe_reset_tree()
@@ -792,7 +853,7 @@ def background_task_checker():
 
                             if should_nag:
                                 msg = get_message_from_bank('nag')
-                                nag_text = f"{USER_NAME}. {t_title}. {msg}"
+                                nag_text = f"{get_user_name()}. {t_title}. {msg}"
                                 trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
                                 c.execute(
                                     "UPDATE tasks SET last_alert_type=?, last_nag_time=? WHERE id=?",
@@ -800,12 +861,12 @@ def background_task_checker():
                                 )
 
                         elif 0 < time_left_mins <= 15 and t_last_alert not in ('nag_15', 'nag_expired', 'nag_deadline'):
-                            nag_text = f"{USER_NAME}. {t_title}. 15 minutes until deadline. {random.choice(NAG_15)}"
+                            nag_text = f"{get_user_name()}. {t_title}. 15 minutes until deadline. {random.choice(NAG_15)}"
                             trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
                             c.execute("UPDATE tasks SET last_alert_type='nag_15' WHERE id=?", (t_id,))
 
                         elif 15 < time_left_mins <= 30 and t_last_alert not in ('nag_30', 'nag_15', 'nag_expired', 'nag_deadline'):
-                            nag_text = f"{USER_NAME}. {t_title}. 30 minutes until deadline. {random.choice(NAG_30)}"
+                            nag_text = f"{get_user_name()}. {t_title}. 30 minutes until deadline. {random.choice(NAG_30)}"
                             trigger_voice_monkey(nag_text, chime=random.choice(CHIMES))
                             c.execute("UPDATE tasks SET last_alert_type='nag_30' WHERE id=?", (t_id,))
 
@@ -1131,7 +1192,7 @@ def focus_start():
     first_step = llm_service.get_first_step(task_title)
 
     # Trigger engage Alexa nag
-    trigger_voice_monkey(f"{USER_NAME}. Focus mode started. {task_title}. Let's go.")
+    trigger_voice_monkey(f"{get_user_name()}. Focus mode started. {task_title}. Let's go.")
 
     return jsonify({
         'status': 'ok',
@@ -1171,10 +1232,11 @@ def focus_break_reminder():
     task_title = data.get('task_title', 'your task')
     mins_remaining = data.get('mins_remaining', 0)
 
+    user = get_user_name()
     if mins_remaining <= 2:
-        msg = f"{USER_NAME}. Two minutes remaining on {task_title}. Start wrapping up."
+        msg = f"{user}. Two minutes remaining on {task_title}. Start wrapping up."
     else:
-        msg = f"{USER_NAME}. Take a quick break. Drink some water, have a stretch, take a moment."
+        msg = f"{user}. Take a quick break. Drink some water, have a stretch, take a moment."
 
     trigger_voice_monkey(msg)
     return jsonify({'status': 'ok'})
@@ -1186,11 +1248,12 @@ def focus_expired():
     task_title = data.get('task_title', 'your task')
     escalation = data.get('escalation', 1)
 
+    user = get_user_name()
     nag_messages = [
-        f"{USER_NAME}. Time's up on {task_title}. Are you done yet?",
-        f"{USER_NAME}. {task_title}. Still going? The clock says otherwise.",
-        f"{USER_NAME}. {task_title}. {random.choice(NAG_EXPIRED)}",
-        f"{USER_NAME}. {random.choice(NAG_DEADLINE)}",
+        f"{user}. Time's up on {task_title}. Are you done yet?",
+        f"{user}. {task_title}. Still going? The clock says otherwise.",
+        f"{user}. {task_title}. {random.choice(NAG_EXPIRED)}",
+        f"{user}. {random.choice(NAG_DEADLINE)}",
     ]
     idx = min(escalation - 1, len(nag_messages) - 1)
     trigger_voice_monkey(nag_messages[idx], chime=random.choice(CHIMES))
@@ -1289,6 +1352,8 @@ def tonight_api():
 
     tom_cap = get_day_capacity(tomorrow)
     tom_planned = sum(t.get('duration_minutes', 30) for t in (tomorrow_tasks or [])) / 60
+
+    _send_tonight_vm()
 
     return jsonify({
         'completed_today': completed,
@@ -1535,10 +1600,11 @@ def complete_task_internal(task_id):
         is_late = False
 
     msg = get_message_from_bank('praise')
+    user = get_user_name()
     if is_late:
-        vm_msg = random.choice(LATE_PRAISE_MESSAGES).format(name=USER_NAME)
+        vm_msg = random.choice(LATE_PRAISE_MESSAGES).format(name=user)
     else:
-        vm_msg = msg if '{name}' not in msg else msg.format(name=USER_NAME)
+        vm_msg = msg if '{name}' not in msg else msg.format(name=user)
 
     selected_theme = random.choice(['matrix', 'glitch', 'gold-rush', 'fireworks', 'confetti'])
     trigger_voice_monkey(vm_msg)
@@ -1649,7 +1715,7 @@ def settings():
 
     if request.method == 'POST':
         setting_keys = [
-            'briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours',
+            'briefing_time', 'evening_briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours',
             'nag_interval', 'port', 'adhd_buffer_pct',
             'cap_mon', 'cap_tue', 'cap_wed', 'cap_thu', 'cap_fri', 'cap_sat', 'cap_sun',
             'llm_provider', 'llm_quick_model', 'llm_deep_model', 'llm_api_key',

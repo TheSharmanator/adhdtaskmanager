@@ -258,4 +258,59 @@ Removed dead medium-specific font override injection from scale.js (was overridi
 
 ---
 
+---
+
+## Session 005 — 2026-06-01
+
+**Type:** Bug fixes / Feature additions from first test  
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`  
+**Status:** Complete — ready for re-pull and test
+
+### What Was Done
+
+Five issues raised after first Windows dev test. All fixed.
+
+**Issue 1 — TONIGHT button now triggers Alexa briefing**
+
+Tapping TONIGHT does two things: shows the overlay (unchanged) AND sends an evening VM briefing to `VM_DEVICE_BRIEFINGS`. Briefing speaks: how many tasks completed today (with names), how many still outstanding, and tomorrow's top-3 tasks with durations.
+
+New `_send_tonight_vm()` helper handles the content. It is also called automatically by a new `run_evening_briefing()` background function which fires at the new `evening_briefing_time` setting (default 21:00) on configured briefing days.
+
+**Issue 2 — Evening briefing time added to settings; both briefing times use clock picker**
+
+`evening_briefing_time` field added to settings page, side-by-side with morning briefing time. Both have class `mask-time` so they open the clock picker when tapped (same as DND fields). Added to DB defaults (21:00) and to settings POST handler.
+
+**Issue 3 — LLM and name removed from config.json.example**
+
+`config.json.example` now contains only VM credentials, `setup_complete`, and gdrive fields. LLM setup and user name are settings-only. `get_user_name()` helper added to `app.py` — reads live from DB settings, falls back to `config.json USER_NAME` then `'Joe'`. All VM messages now use `get_user_name()` so name changes in settings take effect without restart.
+
+**Issue 4 — AI Assistant expanded: Google + LlamaCPP, model dropdowns**
+
+Providers: OPENAI, ANTHROPIC, GOOGLE, OLLAMA, LLAMACPP (5 buttons).
+
+Cloud providers (OpenAI/Anthropic/Google): show model dropdowns pre-populated with common models, plus "Custom..." option that reveals a text input. Two hidden inputs (`llm_quick_model`, `llm_deep_model`) hold the actual submitted values, updated by JS before form submit.
+
+Local providers (Ollama/LlamaCPP): show plain text inputs for model names, and a host field (reuses `llm_ollama_host` DB key). API key section hidden for local, host section hidden for cloud. Label dynamically changes ("OPENAI API KEY" / "GOOGLE API KEY" etc.).
+
+`llm_service.py` extended with Google Gemini (REST API, system_instruction support) and LlamaCPP (OpenAI-compatible `/v1/chat/completions` endpoint). LLM help popup updated with Google and LlamaCPP instructions.
+
+**Issue 5 — Numpad decimal fix + spinner arrows removed**
+
+Numpad now uses a string buffer (`numpadBuffer`) instead of writing directly to `input.value` on every keypress. This fixes the decimal point resetting (browsers reject incomplete `type=number` values like `"5."`). Value is only written to the input on OK. `CLR` button replaced with `⌫` (backspace, deletes last character). Double-decimal prevented.
+
+Number input spinner arrows hidden globally with CSS (`-webkit-appearance: none` + `appearance: textfield`) so tapping near the arrows no longer accidentally opens the numpad.
+
+### Files Changed This Session
+- `app.py` — get_user_name(), _send_tonight_vm(), run_evening_briefing(), evening_briefing_time default, settings POST, background loop, all VM messages use get_user_name()
+- `llm_service.py` — Google Gemini + LlamaCPP providers
+- `config.json.example` — removed LLM and USER_NAME fields
+- `templates/settings.html` — evening briefing field, 5-provider AI section with model dropdowns, numpad buffer fix, spinner CSS, LLM help updated
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All changes pushed, ready for user re-pull and test
+- Next session: runtime bugs from second test round
+
+---
+
 *Future sessions appended below*

@@ -5,16 +5,7 @@
     "VM_DEVICE_BRIEFINGS": "your-briefing-device-name",
     "VM_LANGUAGE": "en-GB",
     "_VM_LANGUAGE_OPTIONS": "de-DE | en-AU | en-CA | en-GB | en-IN | en-US | es-ES | es-MX | es-US | fr-CA | fr-FR | hi-IN | it-IT | ja-JP | pt-BR",
-    "USER_NAME": "YourName",
     "setup_complete": false,
     "gdrive_client_id": "your_gdrive_client_id_here",
-    "gdrive_client_secret": "your_gdrive_client_secret_here",
-
-    "_comment_llm": "AI provider: openai | anthropic | ollama",
-    "llm_provider": "openai",
-    "llm_quick_model": "gpt-4o-mini",
-    "llm_deep_model": "gpt-4o",
-    "llm_api_key": "your_api_key_here",
-    "llm_ollama_host": "http://localhost:11434",
-    "adhd_buffer_pct": 30
+    "gdrive_client_secret": "your_gdrive_client_secret_here"
 }
