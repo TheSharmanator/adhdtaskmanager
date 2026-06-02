@@ -313,4 +313,84 @@ Number input spinner arrows hidden globally with CSS (`-webkit-appearance: none`
 
 ---
 
+## Session 006 — 2026-06-02
+
+**Type:** Bug fixes / LLM connectivity / Quick Add redesign  
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`  
+**Status:** Complete — ready for re-pull and test
+
+### What Was Done
+
+**Fix 1 — LLM connection: TEST CONNECTION tested stale DB not live form**
+
+Root cause: `fetch('/api/test_llm', { method: 'POST' })` sent no body. The endpoint read from the DB, so first-time users always tested empty/stale settings.
+
+Fixed: `testLLM()` JS now sends all current form values (provider, quick_model, deep_model, api_key, ollama_host) as JSON. `/api/test_llm` endpoint accepts these as live overrides. `call_llm()` updated with `overrides` param that takes top precedence over DB and config.json.
+
+**Fix 2 — LLM error messages now show the actual API error**
+
+Previously all failures returned the same generic "Connection failed — check provider, model name, host/API key." The actual HTTP error (wrong key, bad model name, network error) was swallowed.
+
+Fixed: `call_llm()` now catches `requests.exceptions.HTTPError` separately, extracts the error message from the JSON response body (works for OpenAI, Anthropic, Google formats), and stores it in module-level `_last_error`. `test_connection()` returns `_last_error` when set. `ConnectionError` (server unreachable) returns a distinct "Cannot reach provider" message.
+
+Example: now returns "HTTP 401: invalid x-api-key" instead of generic failure.
+
+**Fix 3 — API key whitespace stripping**
+
+API keys and model names now stripped of leading/trailing whitespace in `call_llm()` before use. Paste-with-trailing-space was a likely silent failure cause.
+
+**Fix 4 — LlamaCPP host auto-defaults to :8080**
+
+When user selects LLAMACPP provider button in settings, the host field auto-changes from `:11434` to `http://localhost:8080` (and back to `:11434` when switching to OLLAMA). Only applies if the field contains the other provider's default port.
+
+LlamaCPP blank model now defaults to `'local'` (server picks the loaded model) instead of bailing out with "no model" error.
+
+**Fix 5 — Google and Anthropic model lists updated**
+
+Google: gemini-3.5-flash, gemini-3.1-pro-preview, gemini-3-flash-preview, gemini-3.1-flash-lite, gemini-2.5-flash, gemini-2.5-flash-lite, gemini-2.5-pro  
+Anthropic: claude-opus-4-8, claude-sonnet-4-6, claude-haiku-4-5-20251001 (fixed ordering/typo)
+
+**Fix 6 — Complex task breakdown flow wired up (was completely missing)**
+
+The three backend endpoints (`/api/breakdown/questions`, `/api/breakdown/complete`, `/api/breakdown/commit`) existed but were never called — `validateAndSubmit()` in add.html did a plain form submit regardless of the COMPLEX TASK toggle.
+
+Fixed: `validateAndSubmit()` now intercepts when `is_complex` = 1 and runs a multi-step flow:
+1. Fetches 5 yes/no questions from `/api/breakdown/questions`
+2. Shows each question full-screen with YES/NO buttons (one at a time)
+3. Calls `/api/breakdown/complete` with answers → LLM generates 3-7 subtasks
+4. Shows subtasks preview with titles, durations, deadlines
+5. SAVE THESE TASKS calls `/api/breakdown/commit` → creates parent task + all subtasks → redirects home
+
+Three new modals added to add.html: loading spinner, question prompt, subtasks preview.
+
+**Fix 7 — Quick Add redesigned for touchscreen (replaces textarea + PARSE WITH AI)**
+
+Old approach: type a natural language paragraph, hit PARSE WITH AI, AI extracts fields. Impractical on a touchscreen without a keyboard.
+
+New approach — touchscreen-first form:
+- **TASK NAME**: text input
+- **DEADLINE**: three toggle buttons (FIXED / FLEXIBLE / NO DATE) — same colour coding as rest of app
+- **BY DATE**: date field using the same full-screen touch calendar (year → month → day) as the add task page. Hidden when NO DATE selected.
+- **AT TIME**: time field using the same analog clock picker. Hidden when NO DATE selected.
+- **DURATION**: six quick-tap buttons (15 / 30 / 45 / 60 / 90 / 120 min) + custom number input. AI ESTIMATE button fills in duration with LLM estimate + buffer.
+- **SAVE TASK**: validates fields and posts directly to `/add` — no AI parsing required.
+
+Date picker (year/month/day calendar) and clock picker (analog) added to index.html as `qa-touch-picker` and `qa-clock-picker` (prefixed to avoid collision with any future pickers on the page). Full JS for both pickers included. Click listeners attached at DOM load directly to the two input elements.
+
+### Files Changed This Session
+- `llm_service.py` — `_last_error` global, improved exception handling, `call_llm()` overrides + whitespace stripping, `test_connection()` returns real errors
+- `app.py` — `/api/test_llm` accepts live JSON overrides, `force=True` on JSON parse
+- `templates/settings.html` — `testLLM()` sends live form values, LlamaCPP auto-port-swap, updated model lists
+- `templates/add.html` — complex task breakdown flow: `startBreakdownFlow()`, question modal, subtasks preview modal, `confirmBreakdown()`, `cancelBreakdown()`
+- `templates/index.html` — Quick Add redesigned: form-based UI, date/clock pickers added (`qa-touch-picker`, `qa-clock-picker`), full picker JS, new CSS classes
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All changes pushed to branch
+- User confirmed LlamaCPP connection worked
+- Cloud providers (Google/Anthropic) need testing with live API keys
+- Complex task breakdown and new Quick Add awaiting runtime test
+
+---
+
 *Future sessions appended below*

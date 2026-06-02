@@ -261,27 +261,39 @@ header {
 /* QUICK ADD */
 #quickadd-overlay { z-index: 600; }
 #quickadd-overlay .overlay-card { border: 5px solid #cccc00; }
-#quickadd-input {
-    width: 100%; padding: 16px; background: #1a1a00; color: white;
-    border: 3px solid #ffd700; font-size: 1.3rem; font-weight: 900;
-    border-radius: 10px; box-sizing: border-box; margin: 10px 0;
-    resize: none; height: 100px; font-family: sans-serif;
+.qa-label { color: #ffd700; font-weight: 900; font-size: 0.85rem; text-transform: uppercase; margin: 14px 0 5px 0; display: block; }
+.qa-input {
+    width: 100%; padding: 14px; background: #1a1a00; color: white;
+    border: 3px solid #ffd700; font-size: 1.2rem; font-weight: 900;
+    border-radius: 10px; box-sizing: border-box;
 }
-#quickadd-parsed { display: none; margin-top: 15px; }
-.parsed-field { margin: 6px 0; padding: 8px; background: #1a1a1a; border-radius: 6px; font-size: 0.9rem; }
-.parsed-label { color: #ffd700; font-weight: 900; font-size: 0.75rem; text-transform: uppercase; }
-.parsed-value { color: white; font-size: 1.0rem; font-weight: 900; }
-.qa-parse-btn {
-    width: 100%; padding: 16px; background: #555500; color: #ffff00;
-    border: 3px solid #cccc00; border-radius: 10px; font-size: 1.2rem;
-    font-weight: 900; cursor: pointer; text-transform: uppercase; margin: 8px 0;
+.qa-dl-btn {
+    flex: 1; padding: 14px 6px; background: #222; color: #aaa;
+    border: 2px solid #555; border-radius: 8px; font-size: 0.9rem;
+    font-weight: 900; cursor: pointer; text-transform: uppercase;
 }
+.qa-dl-btn.active-fixed   { background: #440000; color: #ff4444; border-color: #ff4444; }
+.qa-dl-btn.active-flexible { background: #004400; color: #44ff44; border-color: #44ff44; }
+.qa-dl-btn.active-none    { background: #222255; color: #8888ff; border-color: #8888ff; }
+.qa-dur-btn {
+    padding: 14px 0; background: #222; color: white; border: 2px solid #555;
+    border-radius: 8px; font-size: 1rem; font-weight: 900; cursor: pointer;
+    flex: 1;
+}
+.qa-dur-btn.active { background: #004488; border-color: #0088ff; color: #66ccff; }
 .qa-save-btn {
     width: 100%; padding: 18px; background: #00aa00; color: black;
     border: 3px solid white; border-radius: 10px; font-size: 1.3rem;
-    font-weight: 900; cursor: pointer; text-transform: uppercase; margin: 8px 0;
-    display: none;
+    font-weight: 900; cursor: pointer; text-transform: uppercase; margin-top: 16px;
 }
+/* Picker buttons (date/time) */
+.qap-btn {
+    background: #222; color: white; border: 2px solid white;
+    font-size: 1rem; font-weight: 900; padding: 14px 8px;
+    border-radius: 8px; cursor: pointer;
+    display: flex; justify-content: center; align-items: center; text-align: center;
+}
+.qap-btn.active { background: #004488; border-color: #0088ff; color: #66ccff; }
 
 /* TONIGHT */
 #tonight-overlay { z-index: 600; }
@@ -453,22 +465,116 @@ header {
 <!-- QUICK ADD -->
 <div id="quickadd-overlay" class="overlay-bg">
     <div class="overlay-card" style="border:5px solid #cccc00;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
             <h2 style="color:#ffff00; margin:0; text-transform:uppercase;">QUICK ADD</h2>
             <button onclick="closeQuickAdd()" style="padding:8px 14px; background:#333; color:white; border:2px solid #555; border-radius:8px; font-weight:900; cursor:pointer;">CLOSE</button>
         </div>
-        <p style="color:#888; font-size:0.9rem; margin:5px 0;">Type your task in plain English and AI will parse it.</p>
-        <textarea id="quickadd-input" placeholder="e.g. Submit tax return by Friday 5pm, about 2 hours work"></textarea>
-        <button class="qa-parse-btn" onclick="parseQuickAdd()">PARSE WITH AI</button>
-        <div id="quickadd-parsed">
-            <div class="parsed-field"><div class="parsed-label">Title</div><div class="parsed-value" id="qa-title">—</div></div>
-            <div class="parsed-field"><div class="parsed-label">Date</div><div class="parsed-value" id="qa-date">—</div></div>
-            <div class="parsed-field"><div class="parsed-label">Time</div><div class="parsed-value" id="qa-time">—</div></div>
-            <div class="parsed-field"><div class="parsed-label">Type</div><div class="parsed-value" id="qa-type">—</div></div>
-            <div class="parsed-field"><div class="parsed-label">Duration</div><div class="parsed-value" id="qa-duration">—</div></div>
-            <button class="qa-save-btn" id="qa-save-btn" onclick="saveQuickAdd()">SAVE TASK</button>
+
+        <!-- Task name -->
+        <span class="qa-label">TASK NAME:</span>
+        <input type="text" id="qa-task-name" class="qa-input" placeholder="What needs doing?">
+
+        <!-- Deadline type -->
+        <span class="qa-label">DEADLINE:</span>
+        <div style="display:flex; gap:8px;">
+            <button class="qa-dl-btn" id="qa-dl-fixed"    onclick="setQADeadline('fixed')">FIXED<br><small>hard deadline</small></button>
+            <button class="qa-dl-btn" id="qa-dl-flexible" onclick="setQADeadline('flexible')">FLEXIBLE<br><small>casual date</small></button>
+            <button class="qa-dl-btn" id="qa-dl-none"     onclick="setQADeadline('none')">NO DATE<br><small>backlog</small></button>
         </div>
-        <div id="quickadd-status" style="margin-top:8px; font-size:0.9rem; color:#888;"></div>
+
+        <!-- Date + Time (hidden when NO DATE) -->
+        <div id="qa-datetime-row" style="display:none; gap:10px; margin-top:12px;">
+            <div style="flex:1;">
+                <span class="qa-label" style="margin-top:0;">BY DATE:</span>
+                <input type="text" id="qa-date-input" class="qa-input mask-date" placeholder="DD/MM/YYYY" maxlength="10" readonly>
+            </div>
+            <div style="flex:1;">
+                <span class="qa-label" style="margin-top:0;">AT TIME:</span>
+                <input type="text" id="qa-time-input" class="qa-input mask-time" placeholder="09:00" maxlength="5" readonly>
+            </div>
+        </div>
+
+        <!-- Duration quick-select -->
+        <span class="qa-label">DURATION (MINUTES):</span>
+        <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:8px;">
+            <button class="qa-dur-btn" onclick="setQADuration(15,this)">15</button>
+            <button class="qa-dur-btn" onclick="setQADuration(30,this)">30</button>
+            <button class="qa-dur-btn" onclick="setQADuration(45,this)">45</button>
+            <button class="qa-dur-btn" onclick="setQADuration(60,this)">60</button>
+            <button class="qa-dur-btn" onclick="setQADuration(90,this)">90</button>
+            <button class="qa-dur-btn" onclick="setQADuration(120,this)">120</button>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <input type="number" id="qa-dur-custom" class="qa-input" placeholder="or type minutes" min="1" max="999"
+                   style="flex:1;" oninput="onQADurCustom(this.value)">
+            <button id="qa-estimate-btn" onclick="estimateQADuration()"
+                    style="flex:1; padding:14px; background:#003366; color:#66aaff; border:2px solid #0066cc; border-radius:8px; font-size:0.85rem; font-weight:900; cursor:pointer; text-transform:uppercase;">AI ESTIMATE</button>
+        </div>
+        <div id="qa-estimate-info" style="display:none; font-size:0.8rem; color:#888; margin-top:5px; padding:6px; background:#111; border-radius:6px;"></div>
+
+        <button class="qa-save-btn" onclick="saveQuickAdd()">SAVE TASK</button>
+        <div id="quickadd-status" style="margin-top:8px; font-size:0.9rem; color:#ff4444;"></div>
+    </div>
+</div>
+
+<!-- DATE PICKER (for Quick Add) -->
+<div id="qa-touch-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
+    <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:95%; max-width:850px; box-sizing:border-box;">
+        <h2 id="qa-picker-title" style="text-align:center; color:#ffd700; margin-top:0; font-size:2rem; text-transform:uppercase;">SELECT YEAR</h2>
+        <div id="qa-year-step" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;">
+            <button class="qap-btn" onclick="qaSelectYear(2025)">2025</button>
+            <button class="qap-btn" onclick="qaSelectYear(2026)">2026</button>
+            <button class="qap-btn" onclick="qaSelectYear(2027)">2027</button>
+            <button class="qap-btn" onclick="qaSelectYear(2028)">2028</button>
+            <button class="qap-btn" onclick="qaSelectYear(2029)">2029</button>
+            <button class="qap-btn" onclick="qaSelectYear(2030)">2030</button>
+        </div>
+        <div id="qa-month-step" style="display:none; grid-template-columns: repeat(6, 1fr); gap:10px;">
+            <button class="qap-btn" onclick="qaSelectMonth(0)">JAN</button>
+            <button class="qap-btn" onclick="qaSelectMonth(1)">FEB</button>
+            <button class="qap-btn" onclick="qaSelectMonth(2)">MAR</button>
+            <button class="qap-btn" onclick="qaSelectMonth(3)">APR</button>
+            <button class="qap-btn" onclick="qaSelectMonth(4)">MAY</button>
+            <button class="qap-btn" onclick="qaSelectMonth(5)">JUN</button>
+            <button class="qap-btn" onclick="qaSelectMonth(6)">JUL</button>
+            <button class="qap-btn" onclick="qaSelectMonth(7)">AUG</button>
+            <button class="qap-btn" onclick="qaSelectMonth(8)">SEP</button>
+            <button class="qap-btn" onclick="qaSelectMonth(9)">OCT</button>
+            <button class="qap-btn" onclick="qaSelectMonth(10)">NOV</button>
+            <button class="qap-btn" onclick="qaSelectMonth(11)">DEC</button>
+        </div>
+        <div id="qa-day-step" style="display:none;">
+            <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:5px; text-align:center; color:#888; font-weight:bold; margin-bottom:10px; font-size:1.2rem;">
+                <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+            </div>
+            <div id="qa-days-grid" style="display:grid; grid-template-columns: repeat(7, 1fr); gap:10px;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:20px; gap:10px;">
+            <button onclick="document.getElementById('qa-touch-picker').style.display='none'" style="flex:1; padding:20px; font-size:1.5rem; font-weight:900; background:#ff0055; color:white; border-radius:12px; border:3px solid white; cursor:pointer;">CANCEL</button>
+            <button onclick="qaResetPicker()" style="flex:1; padding:20px; font-size:1.5rem; font-weight:900; background:#444; color:white; border-radius:12px; border:3px solid #555; cursor:pointer;">RESET</button>
+            <button id="qa-picker-ok" onclick="qaConfirmDate()" style="flex:1; display:none; padding:20px; font-size:1.5rem; font-weight:900; background:#00ff00; color:black; border-radius:12px; border:3px solid white; cursor:pointer;">OK</button>
+        </div>
+    </div>
+</div>
+
+<!-- CLOCK PICKER (for Quick Add) -->
+<div id="qa-clock-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
+    <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:20px; width:90%; max-width:300px; box-sizing:border-box; text-align:center;">
+        <h2 style="color:#ffd700; margin-top:0; font-size:2rem;">SELECT TIME</h2>
+        <div id="qa-clock-digital" style="background:#222; border:3px solid white; padding:10px; font-size:1.8rem; font-weight:900; margin-bottom:15px; border-radius:10px; color:white; display:inline-block; width:120px;">12:00</div>
+        <div id="qa-clock-face" style="width:240px; height:240px; border:6px solid white; border-radius:50%; margin:0 auto; position:relative; background:#1a1a1a; touch-action:none;">
+            <div style="width:16px; height:16px; background:white; border-radius:50%; position:absolute; top:112px; left:112px; z-index:10;"></div>
+            <div id="qa-hour-hand" style="width:18px; height:60px; background:#ffd700; position:absolute; top:52px; left:111px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 8px; z-index: 5;"></div>
+            <div id="qa-minute-hand" style="width:16px; height:90px; background:#00ff00; position:absolute; top:22px; left:112px; transform-origin: bottom center; transform: rotate(0deg); border-radius: 4px; z-index: 4;"></div>
+        </div>
+        <div style="display:flex; justify-content:center; gap:20px; margin-top:15px;">
+            <button id="qa-toggle-am" class="qap-btn active" onclick="qaSetAMPM('AM')">AM</button>
+            <button id="qa-toggle-pm" class="qap-btn" onclick="qaSetAMPM('PM')">PM</button>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-top:20px; gap:10px;">
+            <button onclick="document.getElementById('qa-clock-picker').style.display='none'" style="flex:1; padding:15px; font-size:1.2rem; font-weight:900; background:#444; color:white; border-radius:10px; border:2px solid #555; cursor:pointer;">CANCEL</button>
+            <button onclick="qaConfirmTime()" style="flex:1; padding:15px; font-size:1.2rem; font-weight:900; background:#00ff00; color:black; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
+        </div>
     </div>
 </div>
 
@@ -524,7 +630,6 @@ let focusTimerInterval = null;
 let focusNagCount = 0;
 let focusBreakTimeouts = [];
 let pendingRebalance = null;
-let parsedQuickAdd = null;
 
 const todayCap = {{ today_cap }};
 const todayPlanned = {{ today_planned }};
@@ -943,73 +1048,241 @@ function applyRebalance() {
 }
 
 // ─── QUICK ADD ───
+let qaDeadlineType = '';
+let qaDurationMinutes = 0;
+
 function openQuickAdd() {
-    document.getElementById('quickadd-input').value = '';
-    document.getElementById('quickadd-parsed').style.display = 'none';
-    document.getElementById('qa-save-btn').style.display = 'none';
+    document.getElementById('qa-task-name').value = '';
+    document.getElementById('qa-date-input').value = '';
+    document.getElementById('qa-time-input').value = '09:00';
+    document.getElementById('qa-dur-custom').value = '';
+    document.getElementById('qa-estimate-info').style.display = 'none';
     document.getElementById('quickadd-status').innerText = '';
-    parsedQuickAdd = null;
+    document.getElementById('qa-datetime-row').style.display = 'none';
+    document.querySelectorAll('.qa-dl-btn').forEach(b => b.className = 'qa-dl-btn');
+    document.querySelectorAll('.qa-dur-btn').forEach(b => b.classList.remove('active'));
+    qaDeadlineType = '';
+    qaDurationMinutes = 0;
     document.getElementById('quickadd-overlay').style.display = 'flex';
-    setTimeout(() => document.getElementById('quickadd-input').focus(), 200);
+    setTimeout(() => document.getElementById('qa-task-name').focus(), 200);
 }
 
 function closeQuickAdd() {
     document.getElementById('quickadd-overlay').style.display = 'none';
 }
 
-function parseQuickAdd() {
-    const text = document.getElementById('quickadd-input').value.trim();
-    if (!text) return;
-    const status = document.getElementById('quickadd-status');
-    status.innerText = 'Parsing...';
-    document.getElementById('quickadd-parsed').style.display = 'none';
+function setQADeadline(type) {
+    qaDeadlineType = type;
+    document.querySelectorAll('.qa-dl-btn').forEach(b => b.className = 'qa-dl-btn');
+    document.getElementById('qa-dl-' + type).classList.add('active-' + type);
+    const row = document.getElementById('qa-datetime-row');
+    row.style.display = (type === 'none') ? 'none' : 'flex';
+}
 
-    fetch('/api/quick_add_parse', {
+function setQADuration(mins, btn) {
+    qaDurationMinutes = mins;
+    document.querySelectorAll('.qa-dur-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('qa-dur-custom').value = '';
+}
+
+function onQADurCustom(val) {
+    qaDurationMinutes = parseInt(val) || 0;
+    document.querySelectorAll('.qa-dur-btn').forEach(b => b.classList.remove('active'));
+}
+
+function estimateQADuration() {
+    const title = document.getElementById('qa-task-name').value.trim();
+    if (!title) { document.getElementById('quickadd-status').innerText = 'Enter a task name first.'; return; }
+    document.getElementById('quickadd-status').innerText = '';
+    const btn = document.getElementById('qa-estimate-btn');
+    const info = document.getElementById('qa-estimate-info');
+    btn.innerText = 'THINKING...';
+    btn.disabled = true;
+    fetch('/api/estimate_duration', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({text})
+        body: JSON.stringify({title})
     })
     .then(r => r.json())
     .then(d => {
-        if (d.error || !d.title) { status.innerText = d.error || 'Could not parse — try again or add manually.'; return; }
-        parsedQuickAdd = d;
-        document.getElementById('qa-title').innerText = d.title || '—';
-        document.getElementById('qa-date').innerText = d.deadline_date || 'No date';
-        document.getElementById('qa-time').innerText = d.deadline_time || '—';
-        document.getElementById('qa-type').innerText = (d.deadline_type || 'none').toUpperCase();
-        document.getElementById('qa-duration').innerText = d.duration_minutes ? `${d.duration_minutes} minutes` : 'Not specified';
-        document.getElementById('quickadd-parsed').style.display = 'block';
-        document.getElementById('qa-save-btn').style.display = 'block';
-        status.innerText = '';
+        if (d.buffered_minutes) {
+            qaDurationMinutes = d.buffered_minutes;
+            document.getElementById('qa-dur-custom').value = d.buffered_minutes;
+            document.querySelectorAll('.qa-dur-btn').forEach(b => b.classList.remove('active'));
+            info.innerText = `AI: ${d.raw_minutes}min + buffer = ${d.buffered_minutes}min — ${d.rationale}`;
+            info.style.display = 'block';
+        } else {
+            info.innerText = d.error || 'AI estimate unavailable.';
+            info.style.display = 'block';
+        }
     })
-    .catch(() => { status.innerText = 'AI unavailable — add task manually.'; });
+    .catch(() => { info.innerText = 'AI unavailable.'; info.style.display = 'block'; })
+    .finally(() => { btn.innerText = 'AI ESTIMATE'; btn.disabled = false; });
 }
 
 function saveQuickAdd() {
-    if (!parsedQuickAdd) return;
-    const btn = document.getElementById('qa-save-btn');
+    const title = document.getElementById('qa-task-name').value.trim();
+    const status = document.getElementById('quickadd-status');
+    status.innerText = '';
+
+    if (!title) { status.innerText = 'Task name is required.'; return; }
+    if (!qaDeadlineType) { status.innerText = 'Select a deadline type.'; return; }
+    if (qaDeadlineType !== 'none') {
+        const d = document.getElementById('qa-date-input').value.trim();
+        const t = document.getElementById('qa-time-input').value.trim();
+        if (!d) { status.innerText = 'Enter a date.'; return; }
+        if (!t) { status.innerText = 'Enter a time.'; return; }
+    }
+
+    const btn = document.querySelector('.qa-save-btn');
     btn.innerText = 'SAVING...';
     btn.disabled = true;
 
     const form = new FormData();
     form.append('type', 'one-off');
-    form.append('title', parsedQuickAdd.title || '');
-    form.append('deadline_type', parsedQuickAdd.deadline_type || 'none');
-    form.append('duration_minutes', parsedQuickAdd.duration_minutes || '');
+    form.append('title', title);
+    form.append('deadline_type', qaDeadlineType);
+    form.append('duration_minutes', qaDurationMinutes || 30);
 
-    if (parsedQuickAdd.deadline_date) {
-        // Convert YYYY-MM-DD to DD/MM/YYYY
-        const parts = parsedQuickAdd.deadline_date.split('-');
-        if (parts.length === 3) form.append('deadline_date', `${parts[2]}/${parts[1]}/${parts[0]}`);
+    if (qaDeadlineType !== 'none') {
+        form.append('deadline_date', document.getElementById('qa-date-input').value.trim());
+        form.append('deadline_time', document.getElementById('qa-time-input').value.trim() || '09:00');
     }
-    if (parsedQuickAdd.deadline_time) form.append('deadline_time', parsedQuickAdd.deadline_time);
 
     fetch('/add', { method: 'POST', body: form })
     .then(r => {
         if (r.ok || r.redirected) { closeQuickAdd(); location.reload(); }
-        else { btn.innerText = 'SAVE TASK'; btn.disabled = false; document.getElementById('quickadd-status').innerText = 'Save failed.'; }
+        else { btn.innerText = 'SAVE TASK'; btn.disabled = false; status.innerText = 'Save failed — check all fields.'; }
     })
-    .catch(() => { btn.innerText = 'SAVE TASK'; btn.disabled = false; });
+    .catch(() => { btn.innerText = 'SAVE TASK'; btn.disabled = false; status.innerText = 'Network error.'; });
+}
+
+// ─── DATE/CLOCK PICKERS (Quick Add) ───
+let qaActivePickerInput = null;
+let qaSelectedYear = null, qaSelectedMonth = null, qaSelectedDay = null;
+let qaActiveClockInput = null;
+let qaCurrentHour = 9, qaCurrentMinute = 0, qaActiveHand = null, qaCurrentAMPM = 'AM';
+
+// Wire up click listeners for the Quick Add date/time inputs
+document.getElementById('qa-date-input').addEventListener('click', function() {
+    qaActivePickerInput = this;
+    qaResetPicker();
+    document.getElementById('qa-touch-picker').style.display = 'flex';
+});
+document.getElementById('qa-time-input').addEventListener('click', function() {
+    qaActiveClockInput = this;
+    document.getElementById('qa-clock-picker').style.display = 'flex';
+    qaUpdateClockDisplay();
+});
+
+// Build clock face numbers
+(function() {
+    const face = document.getElementById('qa-clock-face');
+    for (let i = 1; i <= 12; i++) {
+        const num = document.createElement('div');
+        num.innerText = i;
+        num.style.cssText = 'position:absolute; color:white; font-weight:900; font-size:1.4rem;';
+        const angle = i * 30 * (Math.PI / 180);
+        num.style.left = (120 + 90 * Math.sin(angle) - 10) + 'px';
+        num.style.top  = (120 - 90 * Math.cos(angle) - 15) + 'px';
+        face.appendChild(num);
+    }
+    face.addEventListener('mousedown', qaStartClockDrag);
+    face.addEventListener('touchstart', function(e) { e.preventDefault(); qaStartClockDrag(e); }, { passive: false });
+})();
+window.addEventListener('mousemove', qaHandleClockMove);
+window.addEventListener('touchmove', qaHandleClockMove, { passive: false });
+window.addEventListener('mouseup', () => qaActiveHand = null);
+window.addEventListener('touchend', () => qaActiveHand = null);
+
+function qaResetPicker() {
+    qaSelectedYear = null; qaSelectedMonth = null; qaSelectedDay = null;
+    document.getElementById('qa-picker-title').innerText = 'SELECT YEAR';
+    document.getElementById('qa-year-step').style.display = 'grid';
+    document.getElementById('qa-month-step').style.display = 'none';
+    document.getElementById('qa-day-step').style.display = 'none';
+    document.getElementById('qa-picker-ok').style.display = 'none';
+}
+function qaSelectYear(y) {
+    qaSelectedYear = y;
+    document.getElementById('qa-picker-title').innerText = 'SELECT MONTH';
+    document.getElementById('qa-year-step').style.display = 'none';
+    document.getElementById('qa-month-step').style.display = 'grid';
+}
+function qaSelectMonth(m) {
+    qaSelectedMonth = m;
+    document.getElementById('qa-picker-title').innerText = 'SELECT DAY';
+    document.getElementById('qa-month-step').style.display = 'none';
+    document.getElementById('qa-day-step').style.display = 'block';
+    const grid = document.getElementById('qa-days-grid');
+    grid.innerHTML = '';
+    const firstDay = new Date(qaSelectedYear, m, 1).getDay();
+    const offset = (firstDay === 0) ? 6 : firstDay - 1;
+    const days = new Date(qaSelectedYear, m + 1, 0).getDate();
+    for (let i = 0; i < offset; i++) grid.appendChild(document.createElement('div'));
+    for (let d = 1; d <= days; d++) {
+        const btn = document.createElement('button');
+        btn.innerText = d; btn.className = 'qap-btn';
+        btn.onclick = () => qaSelectDay(d, btn);
+        grid.appendChild(btn);
+    }
+}
+function qaSelectDay(d, btn) {
+    qaSelectedDay = d;
+    document.querySelectorAll('#qa-days-grid .qap-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('qa-picker-ok').style.display = 'block';
+}
+function qaConfirmDate() {
+    if (!qaActivePickerInput) return;
+    qaActivePickerInput.value = String(qaSelectedDay).padStart(2,'0') + '/' + String(qaSelectedMonth+1).padStart(2,'0') + '/' + qaSelectedYear;
+    document.getElementById('qa-touch-picker').style.display = 'none';
+}
+function qaSetAMPM(val) {
+    qaCurrentAMPM = val;
+    document.getElementById('qa-toggle-am').classList.toggle('active', val === 'AM');
+    document.getElementById('qa-toggle-pm').classList.toggle('active', val === 'PM');
+    qaUpdateClockDisplay();
+}
+function qaUpdateClockDisplay() {
+    let h = qaCurrentHour;
+    if (qaCurrentAMPM === 'PM' && h < 12) h += 12;
+    else if (qaCurrentAMPM === 'AM' && h === 12) h = 0;
+    document.getElementById('qa-clock-digital').innerText = String(h).padStart(2,'0') + ':' + String(qaCurrentMinute).padStart(2,'0');
+    document.getElementById('qa-hour-hand').style.transform = 'rotate(' + ((qaCurrentHour % 12) * 30) + 'deg)';
+    document.getElementById('qa-minute-hand').style.transform = 'rotate(' + (qaCurrentMinute * 6) + 'deg)';
+}
+function qaConfirmTime() {
+    if (!qaActiveClockInput) return;
+    let h = qaCurrentHour;
+    if (qaCurrentAMPM === 'PM' && h < 12) h += 12;
+    else if (qaCurrentAMPM === 'AM' && h === 12) h = 0;
+    qaActiveClockInput.value = String(h).padStart(2,'0') + ':' + String(qaCurrentMinute).padStart(2,'0');
+    document.getElementById('qa-clock-picker').style.display = 'none';
+    qaActiveHand = null;
+}
+function qaHandleClockMove(e) {
+    if (!qaActiveHand) return;
+    const face = document.getElementById('qa-clock-face');
+    const rect = face.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    let angle = Math.atan2(clientY - cy, clientX - cx) * (180 / Math.PI) + 90;
+    if (angle < 0) angle += 360;
+    if (qaActiveHand === 'hour') { let h = Math.round(angle / 30); qaCurrentHour = (h === 0 || h > 12) ? 12 : h; }
+    else { let m = Math.round(Math.round(angle / 6) / 5) * 5; qaCurrentMinute = (m === 60) ? 0 : m; }
+    qaUpdateClockDisplay();
+}
+function qaStartClockDrag(e) {
+    const face = document.getElementById('qa-clock-face');
+    const rect = face.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    qaActiveHand = (Math.sqrt((clientX-cx)**2 + (clientY-cy)**2) < 75) ? 'hour' : 'minute';
+    qaHandleClockMove(e);
 }
 
 // ─── TONIGHT ───
