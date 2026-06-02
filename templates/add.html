@@ -693,7 +693,142 @@
                 }
             }
 
+            // Intercept for complex task breakdown
+            if (document.getElementById('is_complex_val').value === '1' && taskType !== 'recurring') {
+                startBreakdownFlow();
+                return;
+            }
+
             document.getElementById('task-form').submit();
+        }
+
+        // ── COMPLEX TASK BREAKDOWN FLOW ──────────────────────────────────────
+        let _breakdownQuestions = [];
+        let _breakdownAnswers = {};
+        let _breakdownCurrentQ = 0;
+        let _breakdownSubtasks = [];
+
+        function startBreakdownFlow() {
+            const title = document.querySelector('[name="title"]').value.trim();
+            showBreakdownLoading('Getting questions...');
+            fetch('/api/breakdown/questions', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title})
+            })
+            .then(r => r.json())
+            .then(d => {
+                _breakdownQuestions = d.questions || [];
+                _breakdownAnswers = {};
+                _breakdownCurrentQ = 0;
+                hideBreakdownLoading();
+                showNextQuestion();
+            })
+            .catch(() => { hideBreakdownLoading(); showError('Could not reach server. Check connection.'); });
+        }
+
+        function showNextQuestion() {
+            if (_breakdownCurrentQ >= _breakdownQuestions.length) {
+                submitBreakdownAnswers();
+                return;
+            }
+            const q = _breakdownQuestions[_breakdownCurrentQ];
+            const total = _breakdownQuestions.length;
+            const num = _breakdownCurrentQ + 1;
+            document.getElementById('bd-question-text').innerText = q;
+            document.getElementById('bd-progress').innerText = `Question ${num} of ${total}`;
+            document.getElementById('breakdown-question-modal').style.display = 'flex';
+        }
+
+        function answerQuestion(answer) {
+            _breakdownAnswers[_breakdownCurrentQ] = answer;
+            _breakdownCurrentQ++;
+            document.getElementById('breakdown-question-modal').style.display = 'none';
+            showNextQuestion();
+        }
+
+        function submitBreakdownAnswers() {
+            const title = document.querySelector('[name="title"]').value.trim();
+            const dlType = document.getElementById('deadline_type_val').value;
+            let deadline = '';
+            if (dlType !== 'none') {
+                const date = document.querySelector('[name="deadline_date"]').value;
+                const time = document.querySelector('[name="deadline_time"]').value;
+                if (date && time) {
+                    if (date.includes('/')) {
+                        const [d, m, y] = date.split('/');
+                        deadline = `${y}-${m}-${d}T${time}`;
+                    } else {
+                        deadline = `${date}T${time}`;
+                    }
+                }
+            }
+            showBreakdownLoading('AI is breaking down your task...');
+            fetch('/api/breakdown/complete', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title, deadline, answers: _breakdownAnswers})
+            })
+            .then(r => r.json())
+            .then(d => {
+                hideBreakdownLoading();
+                if (d.error) { showError('AI breakdown failed: ' + d.error); return; }
+                _breakdownSubtasks = d.subtasks || [];
+                showSubtasksPreview(_breakdownSubtasks, title, deadline);
+            })
+            .catch(() => { hideBreakdownLoading(); showError('Breakdown failed. Check AI connection in Settings.'); });
+        }
+
+        function showSubtasksPreview(subtasks, parentTitle, parentDeadline) {
+            const list = document.getElementById('bd-subtasks-list');
+            list.innerHTML = '';
+            subtasks.forEach((s, i) => {
+                const row = document.createElement('div');
+                row.style.cssText = 'background:#1a1a1a; border:2px solid #444; border-radius:8px; padding:12px; margin-bottom:10px;';
+                const dl = s.deadline_date ? `${s.deadline_date} ${s.deadline_time || '09:00'}` : 'No deadline';
+                row.innerHTML = `<div style="font-weight:900; color:white; font-size:1rem;">${i+1}. ${s.title}</div>
+                    <div style="color:#aaa; font-size:0.85rem; margin-top:4px;">${s.duration_display || s.duration_minutes + ' min'} &nbsp;·&nbsp; ${dl}</div>`;
+                list.appendChild(row);
+            });
+            document.getElementById('bd-parent-title').innerText = parentTitle;
+            document.getElementById('breakdown-preview-modal').style.display = 'flex';
+            // Store for commit
+            document.getElementById('breakdown-preview-modal').dataset.parentTitle = parentTitle;
+            document.getElementById('breakdown-preview-modal').dataset.parentDeadline = parentDeadline;
+        }
+
+        function confirmBreakdown() {
+            const modal = document.getElementById('breakdown-preview-modal');
+            const parentTitle = modal.dataset.parentTitle;
+            const parentDeadline = modal.dataset.parentDeadline;
+            modal.style.display = 'none';
+            showBreakdownLoading('Saving tasks...');
+            fetch('/api/breakdown/commit', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({parent_title: parentTitle, parent_deadline: parentDeadline, subtasks: _breakdownSubtasks})
+            })
+            .then(r => r.json())
+            .then(d => {
+                hideBreakdownLoading();
+                if (d.status === 'ok') { window.location.href = '/'; }
+                else { showError('Failed to save tasks.'); }
+            })
+            .catch(() => { hideBreakdownLoading(); showError('Save failed. Check connection.'); });
+        }
+
+        function cancelBreakdown() {
+            document.getElementById('breakdown-question-modal').style.display = 'none';
+            document.getElementById('breakdown-preview-modal').style.display = 'none';
+            hideBreakdownLoading();
+        }
+
+        function showBreakdownLoading(msg) {
+            document.getElementById('bd-loading-msg').innerText = msg || 'Working...';
+            document.getElementById('breakdown-loading-modal').style.display = 'flex';
+        }
+        function hideBreakdownLoading() {
+            document.getElementById('breakdown-loading-modal').style.display = 'none';
         }
 
         function showError(msg) {
@@ -708,6 +843,39 @@
             <h2 style="color:#ff0055; margin-top:0; font-size:2rem; text-transform:uppercase;">ERROR</h2>
             <div id="error-message" style="font-size:1.5rem; font-weight:900; color:white; margin-bottom:20px;">Please fill in all fields.</div>
             <button onclick="document.getElementById('error-popup').style.display='none'" style="width:100%; padding:15px; font-size:1.5rem; font-weight:900; background:#ff0055; color:white; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
+        </div>
+    </div>
+
+    <!-- BREAKDOWN: LOADING -->
+    <div id="breakdown-loading-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="font-size:3rem; margin-bottom:20px;">🤖</div>
+        <div id="bd-loading-msg" style="color:#ffd700; font-size:1.4rem; font-weight:900; text-align:center;">Working...</div>
+    </div>
+
+    <!-- BREAKDOWN: QUESTION -->
+    <div id="breakdown-question-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #ff8800; border-radius:20px; padding:30px; width:92%; max-width:500px; box-sizing:border-box;">
+            <div id="bd-progress" style="color:#ff8800; font-size:0.9rem; font-weight:900; margin-bottom:12px; text-transform:uppercase; letter-spacing:1px;">Question 1 of 5</div>
+            <h2 style="color:#ffd700; margin:0 0 24px 0; font-size:1.3rem; line-height:1.4;">AI TASK BREAKDOWN</h2>
+            <div id="bd-question-text" style="color:white; font-size:1.2rem; font-weight:700; margin-bottom:30px; line-height:1.5;"></div>
+            <div style="display:flex; gap:12px; margin-bottom:16px;">
+                <button onclick="answerQuestion('yes')" style="flex:1; padding:18px; font-size:1.3rem; font-weight:900; background:#005500; color:#00ff00; border:3px solid #00ff00; border-radius:10px; cursor:pointer;">YES</button>
+                <button onclick="answerQuestion('no')" style="flex:1; padding:18px; font-size:1.3rem; font-weight:900; background:#550000; color:#ff4444; border:3px solid #ff4444; border-radius:10px; cursor:pointer;">NO</button>
+            </div>
+            <button onclick="cancelBreakdown()" style="width:100%; padding:12px; font-size:1rem; font-weight:900; background:#333; color:#aaa; border:2px solid #555; border-radius:10px; cursor:pointer;">CANCEL BREAKDOWN</button>
+        </div>
+    </div>
+
+    <!-- BREAKDOWN: SUBTASKS PREVIEW -->
+    <div id="breakdown-preview-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; justify-content:center; align-items:center; flex-direction:column; overflow-y:auto;">
+        <div style="background:#111; border:5px solid #00ff00; border-radius:20px; padding:24px; width:92%; max-width:560px; box-sizing:border-box; margin:20px auto;">
+            <h2 style="color:#00ff00; margin:0 0 6px 0; font-size:1.4rem; text-transform:uppercase;">AI BREAKDOWN READY</h2>
+            <div id="bd-parent-title" style="color:#aaa; font-size:0.9rem; margin-bottom:18px; font-style:italic;"></div>
+            <div id="bd-subtasks-list"></div>
+            <div style="display:flex; gap:12px; margin-top:16px;">
+                <button onclick="confirmBreakdown()" style="flex:2; padding:18px; font-size:1.2rem; font-weight:900; background:#005500; color:#00ff00; border:3px solid #00ff00; border-radius:10px; cursor:pointer;">SAVE THESE TASKS</button>
+                <button onclick="cancelBreakdown()" style="flex:1; padding:18px; font-size:1rem; font-weight:900; background:#333; color:#aaa; border:2px solid #555; border-radius:10px; cursor:pointer;">CANCEL</button>
+            </div>
         </div>
     </div>
 </body>
