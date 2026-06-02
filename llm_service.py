@@ -7,6 +7,8 @@ from datetime import datetime
 _CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
 _DB_PATH = os.path.join(os.path.dirname(__file__), 'tasks.db')
 
+_last_error = ''
+
 
 def _get_cfg():
     cfg = {}
@@ -51,23 +53,25 @@ def _get_cfg():
 
 
 def call_llm(prompt, model_type='quick', system_prompt=None, overrides=None):
+    global _last_error
+    _last_error = ''
     cfg = _get_cfg()
     # Live overrides (e.g. from the settings form Test button) take top precedence
     if overrides:
         if overrides.get('provider'):
             cfg['provider'] = overrides['provider'].lower()
         if overrides.get('quick_model'):
-            cfg['quick_model'] = overrides['quick_model']
+            cfg['quick_model'] = overrides['quick_model'].strip()
         if overrides.get('deep_model'):
-            cfg['deep_model'] = overrides['deep_model']
+            cfg['deep_model'] = overrides['deep_model'].strip()
         if overrides.get('api_key'):
-            cfg['api_key'] = overrides['api_key']
+            cfg['api_key'] = overrides['api_key'].strip()
         if overrides.get('ollama_host'):
-            cfg['ollama_host'] = overrides['ollama_host']
+            cfg['ollama_host'] = overrides['ollama_host'].strip()
 
     provider = cfg.get('provider', '')
     model = cfg.get('quick_model') if model_type == 'quick' else cfg.get('deep_model')
-    api_key = cfg.get('api_key', '')
+    api_key = cfg.get('api_key', '').strip()
 
     # Local providers can run without an explicit model name (server picks the loaded model)
     if provider in ('llamacpp', 'ollama') and not model:
@@ -152,7 +156,27 @@ def call_llm(prompt, model_type='quick', system_prompt=None, overrides=None):
             r.raise_for_status()
             return r.json()['choices'][0]['message']['content'].strip()
 
+    except requests.exceptions.HTTPError as e:
+        # Extract the real error message from the API response body
+        err_detail = str(e)
+        try:
+            body = e.response.json()
+            err_obj = body.get('error') or body
+            if isinstance(err_obj, dict):
+                err_detail = err_obj.get('message') or err_obj.get('type') or err_detail
+            # HTTP status for context
+            err_detail = f"HTTP {e.response.status_code}: {err_detail}"
+        except Exception:
+            pass
+        _last_error = err_detail
+        print(f"LLM call failed ({provider}/{model}): {err_detail}")
+        return None
+    except requests.exceptions.ConnectionError:
+        _last_error = f"Cannot reach {provider} — check host/network connection."
+        print(f"LLM call failed ({provider}/{model}): {_last_error}")
+        return None
     except Exception as e:
+        _last_error = str(e)
         print(f"LLM call failed ({provider}/{model}): {e}")
         return None
 
@@ -171,9 +195,10 @@ def test_connection(overrides=None):
     if result and 'ok' in result.lower():
         return True, "Connection successful."
     if result:
-        # Got a response but not the expected word — still a working connection
         return True, "Connection successful (model replied)."
-    return False, "Connection failed — check provider, model name, host/API key."
+    if _last_error:
+        return False, _last_error
+    return False, "No response — check provider and model name."
 
 
 def estimate_duration(task_title, buffer_pct=30):

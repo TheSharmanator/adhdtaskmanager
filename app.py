@@ -1284,7 +1284,7 @@ def estimate_duration_api():
 
 @app.route('/api/test_llm', methods=['POST'])
 def test_llm_api():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True, force=True) or {}
     overrides = {
         'provider': data.get('provider', ''),
         'quick_model': data.get('quick_model', ''),
