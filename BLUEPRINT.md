@@ -1,7 +1,7 @@
 # ADHD Task Manager — Master Blueprint
-**Version:** 2.0 Specification  
-**Status:** Agreed — Ready for Implementation  
-**Last Updated:** 2026-05-28  
+**Version:** 2.0 (In Development)  
+**Status:** Actively being built — see PROGRESS.md for session-by-session implementation log  
+**Last Updated:** 2026-06-07  
 **Purpose:** Complete reference document for any engineer or AI agent implementing this system. Contains full project context, design philosophy, agreed feature specifications, data model, architecture, and v2 ideas. Do not begin implementation without reading this document in full.
 
 ---
@@ -27,7 +27,8 @@
    - 6.11 [Auto-Scheduling Engine](#611-auto-scheduling-engine)
    - 6.12 [Week View Screen](#612-week-view-screen)
    - 6.13 [Complex Task Breakdown](#613-complex-task-breakdown)
-   - 6.14 [Quick Add (Natural Language Input)](#614-quick-add-natural-language-input)
+   - 6.14 [Quick Add (Touchscreen Form)](#614-quick-add-touchscreen-form)
+   - 6.20 [Google Calendar Integration](#620-google-calendar-integration)
    - 6.15 [LLM Message Bank](#615-llm-message-bank)
    - 6.16 [Evening Briefing](#616-evening-briefing)
    - 6.17 [Backlog (No-Deadline Tasks)](#617-backlog-no-deadline-tasks)
@@ -68,8 +69,10 @@ The app runs as a Python/Flask web server. It is displayed permanently on a touc
 - **Audio:** Alexa speaker via Voice Monkey API integration
 - **Network:** Local network. Tailscale used for remote access (simple add/complete tasks interface available remotely)
 - **Backend:** Python/Flask, SQLite database (`tasks.db`)
-- **LLM connectivity:** Remote API calls to OpenAI/Anthropic, OR local Ollama instance running on a separate powerful desktop machine (NOT on the Pi — it cannot run models locally). Ollama is accessed over the local network.
+- **LLM connectivity:** Remote API calls to OpenAI/Anthropic/Google, OR local Ollama/LlamaCPP instance running on a separate powerful desktop machine (NOT on the Pi — it cannot run models locally). Local models are accessed over the local network.
 - **No internet dependency for core function:** The app must remain functional if the LLM is unavailable. LLM is an enhancement, not a dependency for basic task management.
+- **Remote access:** Tailscale used for remote access. A mobile-friendly simplified interface is the next planned phase after the kiosk v2 is stable.
+- **Google Calendar:** Primary calendar (read) used to find busy slots for scheduling. Google Tasks (write) receives scheduled tasks with times in their titles. Can run under a different Google account than Google Drive backup.
 
 ---
 
@@ -196,20 +199,21 @@ The scheduling engine must respect daily capacity — not just total tasks. Over
 **How it works:**
 
 **Settings UI — AI Provider Section:**
-- Provider dropdown: OpenAI / Anthropic / Local (Ollama)
-- API Key field: masked text input, stored in `config.json` (never in DB, never committed to git)
+- Provider: OPENAI / ANTHROPIC / GOOGLE / OLLAMA / LLAMACPP (5 toggle buttons)
+- Cloud providers (OpenAI/Anthropic/Google): API key field + model dropdowns with common models, "Custom..." option for manual entry
+- Local providers (Ollama/LlamaCPP): model text inputs + host field (IP:port)
 - Two model slots:
-  - **QUICK MODEL:** Used for fast, cheap operations — duration estimates, weekly message bank generation. Example: `gpt-4o-mini`, `claude-haiku-4-5`
-  - **DEEP MODEL:** Used for complex operations — task breakdown, rescheduling analysis. Example: `gpt-4o`, `claude-opus-4-8`
-- Test Connection button: fires a minimal API call and reports success/failure with a clear status message
-- "?" help button: links to the relevant provider's API key documentation page
+  - **QUICK MODEL:** Fast, cheap operations — duration estimates, weekly message bank generation
+  - **DEEP MODEL:** Complex operations — task breakdown, scheduling analysis
+- TEST CONNECTION button: fires a live API call using current form values (not stale DB values) and returns the actual API error message if it fails
+- "?" help button: instructions for each provider
 
-**Ollama (Local) configuration:**
-- Ollama runs on a separate desktop machine, not on the Pi
-- The Pi connects to it over the local network
-- Config requires the desktop's local IP address and port (default: `11434`)
-- Model name must be specified (e.g., `llama3`, `mistral`)
-- Note: Ollama on a Raspberry Pi 4B is not feasible — the Pi lacks the RAM and compute. Local model must run on a capable separate machine.
+**Provider specifics:**
+- **OpenAI:** API key from platform.openai.com. Models: `gpt-4o-mini`, `gpt-4o`, etc.
+- **Anthropic:** API key from console.anthropic.com. Models: `claude-haiku-4-5-20251001`, `claude-sonnet-4-6`, `claude-opus-4-8`
+- **Google Gemini:** API key from aistudio.google.com. Models: `gemini-2.5-flash`, `gemini-2.5-pro`, etc.
+- **Ollama:** Runs on separate desktop machine. Host: `http://192.168.x.x:11434`. Model name must match what Ollama has pulled.
+- **LlamaCPP:** Run llama-server with `--port 8080`. Host: `http://192.168.x.x:8080`. Model field defaults to `local` (server picks the loaded model).
 
 **Graceful degradation:**
 - If LLM is unavailable (no key, offline, API error), all LLM-dependent features fall back silently:
@@ -461,9 +465,11 @@ The scheduling engine must respect daily capacity — not just total tasks. Over
 
 ---
 
-### 6.10 Day Capacity System
+### 6.10 Day Capacity System *(REMOVED)*
 
-**What it is:** A system that tracks how many hours of tasks are planned for each day versus how many hours the user has available, and alerts the user when they are over-committing.
+> **This system was removed.** Per-weekday hour tracking, the capacity bar, the TODAY chip, and the REBALANCE feature have all been removed. Google Calendar integration provides real scheduling data, making the manual capacity estimation layer redundant. The GCal scheduler uses a simple work window (work_start_hour to work_end_hour) and fills gaps between real calendar appointments.
+
+**What it was:** A system that tracked how many hours of tasks were planned for each day versus how many hours were available, alerting the user when over-committing.
 
 **Why it exists:** ADHD brains are susceptible to optimistic scheduling — adding too many tasks to a day because each individual task feels doable. The capacity system makes the aggregate visible and audible before it becomes a crisis.
 
@@ -498,7 +504,9 @@ The scheduling engine must respect daily capacity — not just total tasks. Over
 
 ### 6.11 Auto-Scheduling Engine
 
-**What it is:** A background engine that automatically recalculates the schedule when tasks are added, completed, or capacity changes — and proposes changes to the user before making them.
+> **Implementation note:** This engine (`scheduler.py`) is now Google Calendar-aware. See section 6.20 for the full GCal integration spec. The scheduler places tasks into gaps between real calendar appointments, not hypothetical capacity hours.
+
+**What it is:** A background engine that automatically recalculates the schedule by fitting tasks into gaps between real Google Calendar appointments — and writes scheduled tasks to Google Tasks with times in their titles.
 
 **Why it exists:** Manual rescheduling is a cognitive load that ADHD brains avoid. An invisible engine that handles the logistics reduces the mental overhead of maintaining a realistic schedule.
 
@@ -629,38 +637,35 @@ Each card is tappable to edit the title, date, or duration.
 
 ---
 
-### 6.14 Quick Add (Natural Language Input)
+### 6.14 Quick Add (Touchscreen Form)
 
-**What it is:** A shortcut button on the dashboard that allows the user to type a free-text task description and have the LLM parse it into the structured task form.
+**What it is:** A touchscreen-optimised task capture overlay with structured form fields. Tapping QUICK ADD on the dashboard opens it.
 
-**Why it exists:** The current add task form requires multiple fields. Natural language input reduces friction from 5 taps to 1, making it faster to capture tasks in the moment — critical for ADHD brains that lose thoughts instantly.
+**Why it exists:** The original NLP text-area approach ("describe your task, hit PARSE WITH AI") was impractical on a touchscreen without a keyboard. The form-based approach reduces friction to taps — no typing required for most tasks.
 
 **How it works:**
 
-**Access:** [QUICK ADD] button on the main dashboard — prominent, easy to reach
+**Access:** [QUICK ADD] button on the main dashboard header
 
-**Flow:**
-1. Tap [QUICK ADD]
-2. Single text input opens with the internal keyboard (no OS keyboard disruption): "Describe your task..."
-3. User types anything — examples:
-   - "Call the accountant on Friday about tax, around 30 minutes"
-   - "Submit expense report by end of month"
-   - "Buy birthday present for mum, no rush"
-4. Tap [PARSE IT]
-5. QUICK MODEL processes the input and returns:
-   - Task title (extracted/cleaned)
-   - Deadline date (interpreted from natural language)
-   - Deadline type (inferred: "by Friday" = flexible, "must be done by 9am Monday" = fixed, "no rush" = no deadline)
-   - Duration in minutes (extracted or estimated)
-6. The normal Add Task form opens, pre-filled with these values
-7. User reviews, adjusts if needed, and saves
+**Form fields (all touchscreen-native):**
 
-**If LLM is unavailable:**
-- [QUICK ADD] still opens but the parse step is skipped
-- Form opens blank — user fills manually
-- No error message, silent fallback
+1. **TASK NAME** — text input (keyboard opens only for this field)
 
-**The normal Add Task form is unchanged** — Quick Add is a shortcut to it, not a replacement.
+2. **DEADLINE** — three toggle buttons:
+   - **FIXED** (red) — hard, non-moveable deadline
+   - **FLEXIBLE** (green) — target date, can shift
+   - **NO DATE** (blue) — backlog, no deadline
+
+3. **BY DATE / AT TIME** — hidden when NO DATE selected. Uses:
+   - Full-screen year → month → day calendar picker (tap to select)
+   - Analog clock picker (drag hands to set time)
+   Both pickers are touch-native, no OS keyboard.
+
+4. **DURATION** — six quick-tap buttons: 15 / 30 / 45 / 60 / 90 / 120 min + custom number input. **AI ESTIMATE** button sends the task name to the QUICK MODEL and fills in the estimated + buffered duration.
+
+5. **SAVE TASK** — validates fields and posts directly to `/add`. No AI parsing step.
+
+**The LLM is optional:** if AI ESTIMATE is not tapped, or if the LLM is unavailable, the user enters duration manually. The form always works without AI.
 
 ---
 
@@ -822,6 +827,73 @@ Each card is tappable to edit the title, date, or duration.
 
 ---
 
+### 6.20 Google Calendar Integration
+
+**What it is:** Read the user's primary Google Calendar to find busy slots, then schedule app tasks into the gaps between real appointments. Scheduled tasks are written to Google Tasks ("ADHD Tasks" tasklist) with times embedded in the title.
+
+**Why it exists:** The original scheduling engine estimated capacity from manual weekday-hour settings. This was a poor approximation. GCal integration gives the scheduler real data — actual appointments — so scheduled task times are accurate and avoid real conflicts.
+
+**Architecture:**
+
+- `gcal_service.py` — all Google API interactions: OAuth2 token exchange/refresh, calendar reading, Google Tasks CRUD
+- `scheduler.py` — pure scheduling algorithm: inserts tasks into gaps between GCal appointments, tightest deadline first
+
+**OAuth flow:**
+
+- Scopes: `calendar.readonly` + `tasks` (read/write)
+- Redirect URI: `http://localhost:{port}/gcal_callback` — works in Pi kiosk Chromium
+- Tokens stored in settings DB (`gcal_access_token`, `gcal_refresh_token`, `gcal_token_expiry`)
+- Auto-refreshes when within 5 minutes of expiry
+- `prompt=consent` ensures refresh_token is always returned
+- Supports separate Google accounts for Calendar vs GDrive: if `gcal_client_id` / `gcal_client_secret` are set in DB, they take priority over `gdrive_client_id` / `gdrive_client_secret` from config.json
+
+**Calendar reading:**
+
+- Reads primary calendar events for next 21 days
+- All-day events ignored (no time slot to conflict with)
+- Returns: `{date_str: [(start_naive_local, end_naive_local), ...]}`
+
+**Scheduling algorithm (`scheduler.py`):**
+
+- Sorts tasks by deadline ascending (tightest deadline = highest priority)
+- For each task: iterates days from today to deadline
+- Per day: work window = `work_start_hour` to `work_end_hour` (configurable, defaults 09:00–17:00)
+- Subtracts GCal busy slots + already-allocated slots from this run
+- Assigns first gap ≥ task duration
+- Backlog / no-deadline tasks skipped (status: `'skipped'`)
+- Result statuses: `'scheduled'` | `'unschedulable'` | `'skipped'`
+
+**Google Tasks integration:**
+
+- Creates/updates tasks in "ADHD Tasks" tasklist (created automatically if absent)
+- Title format: `"Task Name [Mon 14:00-15:30]"` — time embedded in title for mobile/GCal display
+- Updates title + due date if rescheduled (when slot changes on next sync)
+- Marks as `status='completed'` when task is done in app — kept for dopamine history
+- `gcal_task_id` stored in tasks DB to link app tasks to Google Tasks
+
+**Background sync:**
+
+- `run_gcal_sync()` called from background thread every `gcal_sync_interval_hours` (default 24)
+- SYNC NOW button in settings forces immediate sync
+- Conflict resolution: on conflict (appointment moved into task slot), scheduler reassigns on next sync automatically
+- Unschedulable tasks (no gap before deadline): `scheduled_start` / `scheduled_end` set to NULL
+
+**Settings (GCal section):**
+
+- Status dot: green = connected + active, orange = connected + paused, grey = not connected
+- CONNECT / DISCONNECT buttons + last sync time display
+- Configurable: sync interval (hours), work day start hour, work day end hour
+- Optional: separate `gcal_client_id` / `gcal_client_secret` if Calendar is in a different Google account to GDrive
+
+**Prerequisites for user:**
+
+1. Google Cloud Console: enable Calendar API + Tasks API
+2. Create OAuth 2.0 credentials (Web application type)
+3. Add `http://localhost:{port}/gcal_callback` as Authorised Redirect URI
+4. Connect in Settings → Google Calendar Sync → CONNECT GOOGLE CALENDAR
+
+---
+
 ## 7. Data Model
 
 Changes required to the existing SQLite database.
@@ -837,33 +909,36 @@ ALTER TABLE tasks ADD COLUMN buffer_applied REAL DEFAULT 1.3;
 ALTER TABLE tasks ADD COLUMN is_subtask INTEGER DEFAULT 0;
 ALTER TABLE tasks ADD COLUMN energy_type TEXT;
   -- reserved for v2: 'deep', 'admin', 'social'
+ALTER TABLE tasks ADD COLUMN gcal_task_id TEXT;       -- Google Tasks ID (null if not synced)
+ALTER TABLE tasks ADD COLUMN scheduled_start TEXT;    -- ISO datetime from GCal scheduler
+ALTER TABLE tasks ADD COLUMN scheduled_end TEXT;      -- ISO datetime from GCal scheduler
 ```
 
-### 7.2 Daily Capacity Table (new)
+### 7.2 Daily Capacity Tables *(REMOVED)*
 
-```sql
-CREATE TABLE daily_capacity (
-  id INTEGER PRIMARY KEY,
-  day_of_week INTEGER NOT NULL, -- 0=Monday, 6=Sunday
-  available_hours REAL NOT NULL DEFAULT 6.0
-);
+> These tables (`daily_capacity`, `capacity_overrides`) have been removed. Capacity tracking is superseded by real Google Calendar data.
 
-CREATE TABLE capacity_overrides (
-  id INTEGER PRIMARY KEY,
-  override_date DATE NOT NULL UNIQUE,
-  available_hours REAL NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### 7.3 LLM Config (settings table — new keys)
+### 7.3 Settings Table Keys (additions)
 
 ```
-llm_provider         TEXT    -- 'openai', 'anthropic', 'ollama'
-llm_quick_model      TEXT    -- e.g. 'gpt-4o-mini'
-llm_deep_model       TEXT    -- e.g. 'gpt-4o'
-llm_ollama_host      TEXT    -- e.g. '192.168.1.50:11434'
+llm_provider         TEXT    -- 'openai', 'anthropic', 'google', 'ollama', 'llamacpp'
+llm_quick_model      TEXT    -- e.g. 'gpt-4o-mini', 'gemini-2.5-flash'
+llm_deep_model       TEXT    -- e.g. 'gpt-4o', 'claude-opus-4-8'
+llm_ollama_host      TEXT    -- e.g. 'http://192.168.1.50:11434'
+llm_api_key          TEXT    -- API key (cloud providers)
 adhd_buffer_pct      REAL    -- default 30.0
+
+gcal_enabled         TEXT    -- '0' or '1'
+gcal_access_token    TEXT    -- OAuth2 access token (managed by gcal_service)
+gcal_refresh_token   TEXT    -- OAuth2 refresh token (managed by gcal_service)
+gcal_token_expiry    TEXT    -- ISO datetime of access token expiry
+gcal_tasklist_id     TEXT    -- "ADHD Tasks" tasklist ID (cached)
+gcal_sync_interval_hours TEXT -- default '24'
+gcal_work_start_hour TEXT    -- default '9' (9 = 09:00)
+gcal_work_end_hour   TEXT    -- default '17' (17 = 17:00)
+gcal_last_sync       TEXT    -- datetime of last successful sync
+gcal_client_id       TEXT    -- optional: Calendar-specific OAuth client ID
+gcal_client_secret   TEXT    -- optional: Calendar-specific OAuth client secret
 ```
 
 ### 7.4 Message Bank Table (new)
@@ -912,13 +987,16 @@ CREATE TABLE focus_sessions (
 
 ### 8.1 Backend (Python/Flask)
 
-**New modules to add:**
+**Modules implemented:**
 
-- `llm_service.py` — LLM API wrapper. Handles all LLM calls. Abstracts over provider (OpenAI, Anthropic, Ollama). Includes retry logic, timeout handling, and graceful fallback. Never called directly from routes — always via service methods.
-- `scheduler.py` — Auto-scheduling engine. Contains the cascade logic, capacity calculations, and rebalancing suggestions. Called from relevant routes and the background thread.
-- `focus_session.py` — Focus Mode state management. Tracks active sessions, fires break reminders, handles transition warnings, and triggers the hard-stop nag.
-- `tree_service.py` — Weekly tree state management. Handles growth, decay, and weekly reset logic.
-- `message_service.py` — Message bank management. Handles weekly LLM generation (Monday 2am), random selection, and fallback logic.
+- `llm_service.py` — LLM API wrapper. 5 providers: OpenAI, Anthropic, Google Gemini, Ollama, LlamaCPP. Handles API key management, live form value overrides for TEST CONNECTION, real error message extraction, graceful fallback. `call_llm(prompt, model_type, overrides)` is the main entry point.
+- `scheduler.py` — Pure scheduling algorithm. `schedule_tasks(tasks, busy_slots_by_date, work_start_float, work_end_float)` — tightest-deadline-first, fills gaps in the work window between GCal busy slots. No dependency on capacity settings.
+- `gcal_service.py` — Google Calendar + Tasks API wrapper. OAuth2 flow (auth URL, code exchange, token refresh), `fetch_busy_slots()`, `get_or_create_tasklist()`, `create_task()`, `update_task()`, `complete_task()`, `delete_task()`. Separate credential support for Calendar vs GDrive accounts.
+
+**Modules not yet separated (still in app.py):**
+- Focus Mode state management (focus_sessions table, break reminder logic)
+- Weekly tree state management (weekly_tree table, grow/decay logic)
+- Message bank management (message_bank table, weekly generation)
 
 **Existing background thread (`background_task_checker`):**
 - Extended to include: tree decay calculation, Monday 2am message bank generation, Focus Mode break reminder scheduling, capacity monitoring
@@ -1006,8 +1084,20 @@ Subtly rotate the dashboard background colour scheme daily within a defined dark
 ### 11.7 Micro-Wins Jackpot
 Occasionally, at random, trigger an unexpected over-the-top celebration when completing a small task. Ultra rare — like a slot machine jackpot. The unpredictability is itself dopaminergic. The rarity makes it feel genuinely surprising every time.
 
-### 11.8 Mobile Ambition
-A proper mobile interface for adding complex tasks, running Focus Mode on a phone, and getting push notification versions of the nag system. Currently mobile is a stripped-down remote add/complete interface only. A full mobile experience would make the system useful away from the kiosk.
+### 11.8 Mobile Interface *(NEXT PLANNED PHASE)*
+
+> **Actively planned** — the next development phase after kiosk v2 is stable.
+
+A mobile-friendly simplified interface accessible over Tailscale from anywhere. The kiosk app runs on the Pi; the mobile interface connects to it remotely. Google Calendar integration means the schedule is already synced — the mobile view just needs to show it and allow quick task management.
+
+**Planned scope:**
+- Responsive/touch-friendly layout optimised for phone screens
+- View today's tasks with scheduled times (from GCal sync)
+- Quick complete, quick add (minimal form)
+- Focus Mode timer on phone
+- Push notification equivalents of deadline nags (via Tailscale-accessible API)
+
+The existing `/mobile` route is a stripped-down add/complete interface — this would be a significant upgrade to a full mobile experience.
 
 ### 11.9 Natural Language Voice Input
 "Hey, add a task: call the accountant on Friday, about 30 minutes." Voice-to-text piped through the Quick Add LLM parser. Removes the keyboard entirely for task capture moments.
@@ -1020,4 +1110,4 @@ The app is currently single-user. A multi-user mode would allow a household (e.g
 
 ---
 
-*End of Blueprint. This document reflects decisions made in design sessions up to 2026-05-28. No implementation should begin without confirming this document is the current agreed version. Any changes to the spec should be reflected here before coding begins.*
+*End of Blueprint. Last updated 2026-06-07 to reflect Sessions 001–008. For session-by-session implementation details, see PROGRESS.md. Any spec changes should be reflected here before coding begins.*

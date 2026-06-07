@@ -483,4 +483,54 @@ Full Google Calendar + Google Tasks integration. Additive — the app works exac
 
 ---
 
+## Session 008 — 2026-06-07 (continued same day)
+
+**Type:** Documentation update / Feature removal  
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`  
+**Status:** Complete
+
+### What Was Done
+
+**1. Separate Calendar OAuth credentials (addendum to Session 007)**
+
+A user scenario was identified: the GDrive account and Google Calendar account may belong to different Google accounts. The `gcal_service._get_client_credentials()` function was updated to check the DB for `gcal_client_id` / `gcal_client_secret` first, then fall back to `gdrive_client_id` / `gdrive_client_secret` from config.json. The settings UI has corresponding optional fields with a note explaining this.
+
+**2. Daily capacity system removed**
+
+The per-weekday capacity tracking system (Mon–Sun hours, capacity bar, TODAY chip, REBALANCE, week view capacity bars) was removed from all code per user decision. The system was over-engineered for the use case; Google Calendar integration provides real scheduling data, making the capacity estimation layer redundant.
+
+Removed from app.py:
+- `get_today_capacity()`, `get_day_capacity()`, `get_today_planned_hours()` functions
+- `daily_capacity` and `capacity_overrides` table creation
+- `cap_mon` through `cap_sun` defaults and seeding logic
+- Capacity over-limit check in `add_task()`
+- `today_cap`, `today_planned`, `cap_pct`, `tomorrow_cap` from `index()` route
+- `/api/capacity`, `/api/capacity/update`, `/api/week_view`, `/api/rebalance/<day>`, `/api/rebalance/apply` routes
+- `cap_*` keys from settings POST handler + daily_capacity sync block
+
+Updated:
+- `scheduler.py` — `daily_caps` dict replaced with `work_end_float` (default 17.0) parameter; scheduler now uses work_start to work_end window every day (GCal appointments carve out busy time)
+- `run_gcal_sync()` — reads `gcal_work_end_hour` setting (default 17) instead of querying daily_capacity
+- `tonight_api()` — removed `tomorrow_available_h` / `tomorrow_planned_h` from response
+- `settings.html` — removed DAILY CAPACITY section; added WORK DAY ENDS field to GCal settings row
+- `index.html` — removed cap-chip, WEEK VIEW button, capacity edit popup, rebalance confirm, all related CSS and JS
+
+**3. BLUEPRINT.md and PROGRESS.md updated**
+
+Both documents updated to reflect: 5 LLM providers, new Google Calendar integration section, updated Quick Add spec (form-based, not NLP), updated data model (GCal columns), updated architecture (gcal_service.py + scheduler.py), daily capacity marked as removed, mobile as next planned phase.
+
+### Files Changed This Session
+- `app.py` — daily capacity functions/routes/settings removed, scheduler call updated
+- `scheduler.py` — `daily_caps` replaced with `work_end_float`
+- `templates/settings.html` — DAILY CAPACITY section removed, work_end_hour added
+- `templates/index.html` — capacity chip, week view, rebalance removed
+- `BLUEPRINT.md` — major update to reflect all sessions 006–008 changes
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All changes pushed to branch
+- Next session: Google Cloud Console OAuth setup by user + first GCal connect + sync test
+
+---
+
 *Future sessions appended below*

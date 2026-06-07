@@ -86,12 +86,6 @@
 
         .screen-btn.active { background: #ffd700 !important; color: black !important; border-color: white !important; }
 
-        /* Daily capacity grid */
-        .cap-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; margin-top: 10px; }
-        .cap-grid > div { text-align: center; }
-        .cap-grid label { font-size: 0.75rem; text-align: center; margin-top: 0; }
-        .cap-grid input { text-align: center; font-size: 1.1rem; padding: 8px 4px; }
-
         /* AI test result */
         #test-result {
             flex: 2; padding: 10px 14px; font-size: 0.9rem; font-weight: 900;
@@ -288,6 +282,10 @@
                             <label>WORK DAY STARTS (HOUR):</label>
                             <input type="number" name="gcal_work_start_hour" class="input" value="{{ settings.gcal_work_start_hour or 9 }}" min="0" max="23" step="1">
                         </div>
+                        <div>
+                            <label>WORK DAY ENDS (HOUR):</label>
+                            <input type="number" name="gcal_work_end_hour" class="input" value="{{ settings.gcal_work_end_hour or 17 }}" min="0" max="23" step="1">
+                        </div>
                     </div>
                     <input type="hidden" name="gcal_enabled" value="1">
                     <div id="gcal-sync-result" style="font-size:0.85rem; margin-top:6px; color:#888;"></div>
@@ -308,20 +306,6 @@
                 <label>BUFFER % <small>(added to AI time estimates — beat the clock!)</small>:</label>
                 <input type="number" name="adhd_buffer_pct" class="input" value="{{ settings.adhd_buffer_pct or 30 }}" min="0" max="100" step="5">
 
-                <!-- DAILY CAPACITY -->
-                <div class="section-header" style="border-color: #555;">
-                    <h3 style="color: #aaa;">DAILY CAPACITY (HOURS)</h3>
-                </div>
-                <p style="font-size: 0.8rem; color: #666; margin: 4px 0 8px 0;">How many working hours are available each weekday. Used for scheduling and the capacity bar.</p>
-
-                <div class="cap-grid">
-                    {% for day_key, day_label in [('cap_mon','MON'),('cap_tue','TUE'),('cap_wed','WED'),('cap_thu','THU'),('cap_fri','FRI'),('cap_sat','SAT'),('cap_sun','SUN')] %}
-                    <div>
-                        <label>{{ day_label }}</label>
-                        <input type="number" name="{{ day_key }}" class="input" value="{{ settings.get(day_key, 6.0) }}" min="0" max="16" step="0.5">
-                    </div>
-                    {% endfor %}
-                </div>
 
             </form>
         </div>

@@ -339,22 +339,6 @@ def init_db():
 
     # --- New v2 tables ---
     c.execute("""
-        CREATE TABLE IF NOT EXISTS daily_capacity (
-            id INTEGER PRIMARY KEY,
-            day_of_week INTEGER NOT NULL UNIQUE,
-            available_hours REAL NOT NULL DEFAULT 6.0
-        )
-    """)
-
-    c.execute("""
-        CREATE TABLE IF NOT EXISTS capacity_overrides (
-            id INTEGER PRIMARY KEY,
-            override_date DATE NOT NULL UNIQUE,
-            available_hours REAL NOT NULL
-        )
-    """)
-
-    c.execute("""
         CREATE TABLE IF NOT EXISTS focus_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             task_id INTEGER,
@@ -412,35 +396,15 @@ def init_db():
         ('port', '5001'),
         ('bar_start_hours', '24'),
         ('adhd_buffer_pct', '30'),
-        ('cap_mon', '6'),
-        ('cap_tue', '6'),
-        ('cap_wed', '6'),
-        ('cap_thu', '6'),
-        ('cap_fri', '6'),
-        ('cap_sat', '3'),
-        ('cap_sun', '0'),
         ('briefing_days', 'Mon,Tue,Wed,Thu,Fri'),
         ('evening_briefing_time', '21:00'),
         ('gcal_enabled', '0'),
         ('gcal_sync_interval_hours', '24'),
         ('gcal_work_start_hour', '9'),
+        ('gcal_work_end_hour', '17'),
     ]
     for key, val in defaults:
         c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
-
-    # Seed daily_capacity from settings if empty
-    c.execute("SELECT COUNT(*) FROM daily_capacity")
-    if c.fetchone()[0] == 0:
-        day_caps = [('cap_mon', 0), ('cap_tue', 1), ('cap_wed', 2),
-                    ('cap_thu', 3), ('cap_fri', 4), ('cap_sat', 5), ('cap_sun', 6)]
-        for key, dow in day_caps:
-            c.execute("SELECT value FROM settings WHERE key=?", (key,))
-            row = c.fetchone()
-            hours = float(row[0]) if row else 6.0
-            c.execute(
-                "INSERT OR IGNORE INTO daily_capacity (day_of_week, available_hours) VALUES (?, ?)",
-                (dow, hours)
-            )
 
     conn.commit()
     conn.close()
@@ -527,56 +491,6 @@ def format_duration(minutes):
         return f'{h}h {rem}m' if rem else f'{h}h'
     except Exception:
         return '—'
-
-
-def get_today_capacity():
-    today = date.today()
-    conn = get_db()
-    c = conn.cursor()
-
-    # Check for a date-specific override first
-    c.execute("SELECT available_hours FROM capacity_overrides WHERE override_date=?", (today.isoformat(),))
-    row = c.fetchone()
-    if row:
-        conn.close()
-        return float(row[0])
-
-    # Fall back to weekday default (0=Mon)
-    dow = today.weekday()
-    c.execute("SELECT available_hours FROM daily_capacity WHERE day_of_week=?", (dow,))
-    row = c.fetchone()
-    conn.close()
-    return float(row[0]) if row else 6.0
-
-
-def get_day_capacity(target_date):
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("SELECT available_hours FROM capacity_overrides WHERE override_date=?", (target_date.isoformat(),))
-    row = c.fetchone()
-    if row:
-        conn.close()
-        return float(row[0])
-    dow = target_date.weekday()
-    c.execute("SELECT available_hours FROM daily_capacity WHERE day_of_week=?", (dow,))
-    row = c.fetchone()
-    conn.close()
-    return float(row[0]) if row else 6.0
-
-
-def get_today_planned_hours():
-    today = date.today()
-    today_str = today.isoformat()
-    conn = get_db()
-    c = conn.cursor()
-    c.execute(
-        "SELECT SUM(duration_minutes) FROM tasks WHERE status='active' AND deadline LIKE ?",
-        (f'{today_str}%',)
-    )
-    row = c.fetchone()
-    conn.close()
-    total_mins = row[0] or 0
-    return total_mins / 60.0
 
 
 def get_or_create_tree():
@@ -850,11 +764,10 @@ def run_gcal_sync():
             for r in c.fetchall()
         ]
 
-        c.execute("SELECT day_of_week, available_hours FROM daily_capacity")
-        daily_caps = {r[0]: r[1] for r in c.fetchall()}
         work_start = float(get_setting('gcal_work_start_hour', '9'))
+        work_end   = float(get_setting('gcal_work_end_hour', '17'))
 
-        results = sched_mod.schedule_tasks(tasks, busy_slots, daily_caps, work_start)
+        results = sched_mod.schedule_tasks(tasks, busy_slots, work_start, work_end)
 
         task_map = {t['id']: t for t in tasks}
 
@@ -1085,10 +998,6 @@ def index():
         if d_start <= now_t <= d_end:
             is_dnd = True
 
-    today_cap = get_today_capacity()
-    today_planned = get_today_planned_hours()
-    cap_pct = (today_planned / today_cap * 100) if today_cap > 0 else 0
-
     tree = get_or_create_tree()
     active_focus = get_active_focus_session()
     if active_focus:
@@ -1097,22 +1006,14 @@ def index():
         active_focus['elapsed_seconds'] = int((datetime.now() - started).total_seconds())
         active_focus['session_id'] = active_focus['id']
 
-    # Tomorrow's capacity for the TODAY chip
-    tomorrow = date.today() + timedelta(days=1)
-    tomorrow_cap = get_day_capacity(tomorrow)
-
     return render_template('index.html',
                            main_tasks=processed_tasks[:5],
                            queue_tasks=processed_tasks[5:],
                            silence_mode=silence_mode,
                            dnd_active=is_dnd,
                            is_mobile=is_mobile,
-                           today_cap=today_cap,
-                           today_planned=round(today_planned, 1),
-                           cap_pct=round(cap_pct),
                            tree=tree,
                            active_focus=active_focus,
-                           tomorrow_cap=tomorrow_cap,
                            user_name=USER_NAME)
 
 
@@ -1130,146 +1031,6 @@ def tasks_json():
 def tree_api():
     tree = get_or_create_tree()
     return jsonify(tree)
-
-
-@app.route('/api/capacity')
-def capacity_api():
-    today_cap = get_today_capacity()
-    today_planned = get_today_planned_hours()
-    cap_pct = (today_planned / today_cap * 100) if today_cap > 0 else 0
-    tomorrow = date.today() + timedelta(days=1)
-    return jsonify({
-        'today_cap': today_cap,
-        'today_planned': round(today_planned, 1),
-        'cap_pct': round(cap_pct),
-        'tomorrow_cap': get_day_capacity(tomorrow),
-        'tomorrow_date': tomorrow.isoformat(),
-    })
-
-
-@app.route('/api/capacity/update', methods=['POST'])
-def capacity_update():
-    data = request.get_json()
-    day = data.get('day', 'today')
-    hours = float(data.get('hours', 6))
-
-    if day == 'today':
-        target = date.today()
-    else:
-        target = date.today() + timedelta(days=1)
-
-    conn = get_db()
-    c = conn.cursor()
-    c.execute(
-        "INSERT OR REPLACE INTO capacity_overrides (override_date, available_hours) VALUES (?, ?)",
-        (target.isoformat(), hours)
-    )
-    conn.commit()
-    conn.close()
-    return jsonify({'status': 'ok', 'date': target.isoformat(), 'hours': hours})
-
-
-@app.route('/api/week_view')
-def week_view_api():
-    today = date.today()
-    monday = today - timedelta(days=today.weekday())
-    week_data = []
-
-    conn = get_db()
-    c = conn.cursor()
-
-    for i in range(7):
-        day = monday + timedelta(days=i)
-        day_str = day.isoformat()
-        cap = get_day_capacity(day)
-        c.execute(
-            "SELECT id, title, duration_minutes, deadline_type FROM tasks "
-            "WHERE status='active' AND deadline LIKE ? AND deadline != ?",
-            (f'{day_str}%', NO_DEADLINE_SENTINEL)
-        )
-        tasks = [dict(t) for t in c.fetchall()]
-        planned_mins = sum(t.get('duration_minutes', 30) for t in tasks)
-        planned_h = planned_mins / 60.0
-        pct = (planned_h / cap * 100) if cap > 0 else 0
-        week_data.append({
-            'day': day.strftime('%a'),
-            'date': day_str,
-            'available_hours': cap,
-            'planned_hours': round(planned_h, 1),
-            'capacity_pct': round(pct),
-            'overloaded': pct > 100,
-            'tasks': tasks,
-        })
-
-    conn.close()
-    return jsonify(week_data)
-
-
-@app.route('/api/rebalance/<day_name>', methods=['POST'])
-def rebalance_api(day_name):
-    conn = get_db()
-    c = conn.cursor()
-    today = date.today()
-    monday = today - timedelta(days=today.weekday())
-
-    day_abbrevs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    week_tasks = {}
-    daily_cap = {}
-    for i, abbrev in enumerate(day_abbrevs):
-        d = monday + timedelta(days=i)
-        cap = get_day_capacity(d)
-        daily_cap[abbrev] = cap
-        c.execute(
-            "SELECT id, title, duration_minutes, deadline_type FROM tasks "
-            "WHERE status='active' AND deadline LIKE ? AND deadline != ?",
-            (f'{d.isoformat()}%', NO_DEADLINE_SENTINEL)
-        )
-        week_tasks[abbrev] = [dict(t) for t in c.fetchall()]
-    conn.close()
-
-    suggestion = llm_service.rebalance_suggestion(day_name, week_tasks, daily_cap)
-    if not suggestion:
-        return jsonify({'error': 'LLM unavailable'}), 503
-
-    return jsonify(suggestion)
-
-
-@app.route('/api/rebalance/apply', methods=['POST'])
-def rebalance_apply():
-    data = request.get_json()
-    task_id = data.get('task_id')
-    move_to_day = data.get('move_to')
-
-    day_abbrevs = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    today = date.today()
-    monday = today - timedelta(days=today.weekday())
-    target_date = None
-    for i, abbrev in enumerate(day_abbrevs):
-        if abbrev == move_to_day:
-            target_date = monday + timedelta(days=i)
-            break
-
-    if not target_date or not task_id:
-        return jsonify({'error': 'Invalid request'}), 400
-
-    conn = get_db()
-    c = conn.cursor()
-    c.execute("SELECT deadline FROM tasks WHERE id=?", (task_id,))
-    row = c.fetchone()
-    if not row:
-        conn.close()
-        return jsonify({'error': 'Task not found'}), 404
-
-    old_deadline = row[0]
-    old_time = old_deadline.split('T')[1] if 'T' in old_deadline else '09:00'
-    new_deadline = f"{target_date.isoformat()}T{old_time}"
-    c.execute(
-        "UPDATE tasks SET deadline=?, last_alert_type='none', last_nag_time=NULL WHERE id=?",
-        (new_deadline, task_id)
-    )
-    conn.commit()
-    conn.close()
-    return jsonify({'status': 'ok'})
 
 
 @app.route('/api/focus/start', methods=['POST'])
@@ -1537,9 +1298,6 @@ def tonight_api():
 
     conn.close()
 
-    tom_cap = get_day_capacity(tomorrow)
-    tom_planned = sum(t.get('duration_minutes', 30) for t in (tomorrow_tasks or [])) / 60
-
     _send_tonight_vm()
 
     return jsonify({
@@ -1547,8 +1305,6 @@ def tonight_api():
         'rolled_over': rolled,
         'tomorrow_tasks': tomorrow_tasks,
         'backlog_preview': backlog_tasks,
-        'tomorrow_available_h': tom_cap,
-        'tomorrow_planned_h': round(tom_planned, 1),
         'tomorrow_day': tomorrow.strftime('%A'),
     })
 
@@ -1703,16 +1459,6 @@ def add_task():
 
             conn.commit()
             conn.close()
-
-            # Capacity warning check
-            if deadline_type != 'none':
-                today_planned = get_today_planned_hours()
-                today_cap = get_today_capacity()
-                if today_planned > today_cap:
-                    trigger_voice_monkey(
-                        f"Warning {USER_NAME}. Today is now over capacity. Consider moving a task."
-                    )
-
             return redirect('/')
         except Exception as e:
             conn.close()
@@ -1912,10 +1658,9 @@ def settings():
         setting_keys = [
             'briefing_time', 'evening_briefing_time', 'dnd_start', 'dnd_end', 'bar_start_hours',
             'nag_interval', 'port', 'adhd_buffer_pct',
-            'cap_mon', 'cap_tue', 'cap_wed', 'cap_thu', 'cap_fri', 'cap_sat', 'cap_sun',
             'llm_provider', 'llm_quick_model', 'llm_deep_model', 'llm_api_key',
             'llm_ollama_host', 'user_name',
-            'gcal_enabled', 'gcal_sync_interval_hours', 'gcal_work_start_hour',
+            'gcal_enabled', 'gcal_sync_interval_hours', 'gcal_work_start_hour', 'gcal_work_end_hour',
             'gcal_client_id', 'gcal_client_secret',
         ]
         for key in setting_keys:
@@ -1926,20 +1671,6 @@ def settings():
         selected_days = request.form.getlist('briefing_days')
         days_string = ",".join(selected_days)
         c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", ('briefing_days', days_string))
-
-        # Sync daily_capacity table from cap_* settings
-        day_map = [('cap_mon', 0), ('cap_tue', 1), ('cap_wed', 2), ('cap_thu', 3),
-                   ('cap_fri', 4), ('cap_sat', 5), ('cap_sun', 6)]
-        for key, dow in day_map:
-            val = request.form.get(key)
-            if val:
-                try:
-                    c.execute(
-                        "INSERT OR REPLACE INTO daily_capacity (day_of_week, available_hours) VALUES (?, ?)",
-                        (dow, float(val))
-                    )
-                except Exception:
-                    pass
 
         conn.commit()
         conn.close()

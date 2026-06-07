@@ -58,19 +58,6 @@ header {
     white-space: nowrap; letter-spacing: 2px; text-transform: uppercase;
 }
 
-/* Capacity chip */
-#cap-chip {
-    display: flex; align-items: center; gap: 8px;
-    padding: 6px 12px; border-radius: 8px; border: 2px solid #444;
-    font-weight: 900; font-size: 0.85rem; cursor: pointer; white-space: nowrap;
-    background: #1a1a1a; color: #888;
-}
-#cap-chip.cap-warn { background: #332200; border-color: #ffd700; color: #ffd700; }
-#cap-chip.cap-over { background: #330000; border-color: #ff0055; color: #ff0055; animation: pulse-red 1s infinite; }
-
-#cap-bar-track { width: 80px; height: 12px; background: #333; border-radius: 6px; overflow: hidden; }
-#cap-bar-fill { height: 100%; border-radius: 6px; transition: width 0.5s; }
-
 @keyframes pulse-red { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
 
 .header-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -84,7 +71,6 @@ header {
 .btn-add { background: #00ff00; color: #000; border-color: #ffd700; }
 .btn-recovery { background: #000; color: #fff; border-color: #fff; }
 .btn-tonight { background: #002244; color: #66aaff; border-color: #0066cc; }
-.btn-week { background: #220044; color: #cc88ff; border-color: #7700cc; }
 .btn-quickadd { background: #1a1a00; color: #ffff00; border-color: #cccc00; }
 .nuke-btn {
     padding: 8px 12px; font-size: 0.85rem; font-weight: 900; border-radius: 8px;
@@ -237,27 +223,6 @@ header {
     font-weight: 900; cursor: pointer; text-transform: uppercase;
 }
 
-/* WEEK VIEW */
-#week-overlay { z-index: 600; }
-#week-overlay .overlay-card { max-width: 900px; border: 5px solid #7700cc; }
-.week-day-row {
-    margin: 8px 0; padding: 12px; background: #1a1a1a; border-radius: 10px;
-    border: 2px solid #333;
-}
-.week-day-row.overloaded { border-color: #ff0055; background: #1a0008; }
-.week-day-row.warn { border-color: #ffd700; background: #1a1200; }
-.week-day-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-.week-day-name { font-size: 1.1rem; font-weight: 900; color: white; text-transform: uppercase; min-width: 50px; }
-.week-cap-bar-track { flex: 1; height: 14px; background: #333; border-radius: 6px; overflow: hidden; }
-.week-cap-bar-fill { height: 100%; border-radius: 6px; }
-.week-cap-label { font-size: 0.85rem; font-weight: 900; color: #888; min-width: 80px; text-align: right; }
-.week-rebalance-btn {
-    padding: 6px 12px; background: #550000; color: #ff6666;
-    border: 2px solid #ff0055; border-radius: 6px; font-size: 0.8rem;
-    font-weight: 900; cursor: pointer; text-transform: uppercase;
-}
-.week-task-list { font-size: 0.8rem; color: #777; padding-left: 8px; }
-
 /* QUICK ADD */
 #quickadd-overlay { z-index: 600; }
 #quickadd-overlay .overlay-card { border: 5px solid #cccc00; }
@@ -341,18 +306,9 @@ header {
 <header>
     <div id="clock-full">LOADING...</div>
 
-    <!-- Capacity chip -->
-    <div id="cap-chip" onclick="editTodayCap()" title="Tap to adjust today's capacity">
-        <span id="cap-text">TODAY: —</span>
-        <div id="cap-bar-track" style="display:none;">
-            <div id="cap-bar-fill"></div>
-        </div>
-    </div>
-
     <div class="header-btns">
         <button class="btn-touch btn-quickadd" onclick="openQuickAdd()">QUICK ADD</button>
         <button class="btn-touch btn-tonight" onclick="openTonight()">TONIGHT</button>
-        <button class="btn-touch btn-week" onclick="openWeekView()">WEEK VIEW</button>
         <a href="/add" class="btn-touch btn-add">+ ADD</a>
         <a href="/settings" style="text-decoration: none; color: inherit;">
             <div class="settings-icon">⚙️</div>
@@ -446,19 +402,6 @@ header {
         <div id="otm-warning" style="display:none; font-size:1.1rem; color:#ff8800; font-weight:900; padding:8px; background:#1a0a00; border-radius:8px; margin:8px 0;">2 MINUTES REMAINING — WRAP IT UP!</div>
         <button class="otm-done-btn" onclick="endFocus('complete')">DONE — TASK COMPLETE</button>
         <button class="otm-cancel-btn" onclick="endFocus('cancel')">CANCEL FOCUS</button>
-    </div>
-</div>
-
-<!-- WEEK VIEW -->
-<div id="week-overlay" class="overlay-bg">
-    <div class="overlay-card" style="border:5px solid #7700cc; max-width:900px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-            <h2 style="color:#cc88ff; margin:0; text-transform:uppercase;">WEEK VIEW</h2>
-            <button onclick="closeWeekView()" style="padding:10px 16px; background:#333; color:white; border:2px solid #555; border-radius:8px; font-weight:900; cursor:pointer;">CLOSE</button>
-        </div>
-        <div id="week-content">
-            <div style="color:#555; text-align:center; padding:20px;">Loading...</div>
-        </div>
     </div>
 </div>
 
@@ -591,31 +534,6 @@ header {
     </div>
 </div>
 
-<!-- CAPACITY EDIT POPUP -->
-<div id="cap-edit-overlay" class="overlay-bg">
-    <div class="overlay-card" style="border:5px solid #ffd700; max-width:400px; text-align:center;">
-        <h2 style="color:#ffd700; margin:0 0 15px 0; text-transform:uppercase;">TODAY'S CAPACITY</h2>
-        <p style="color:#888; font-size:0.9rem;">Override available hours for today only.</p>
-        <input type="number" id="cap-edit-input" min="0" max="16" step="0.5"
-               style="width:100%; padding:20px; background:#222; color:white; border:3px solid white; font-size:2.5rem; font-weight:900; border-radius:10px; box-sizing:border-box; text-align:center; margin:10px 0;">
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <button onclick="saveCapOverride()" style="flex:1; padding:16px; background:#00cc00; color:black; border:3px solid white; border-radius:10px; font-size:1.2rem; font-weight:900; cursor:pointer; text-transform:uppercase;">SAVE</button>
-            <button onclick="document.getElementById('cap-edit-overlay').style.display='none'" style="flex:1; padding:16px; background:#333; color:white; border:2px solid #555; border-radius:10px; font-size:1.2rem; font-weight:900; cursor:pointer; text-transform:uppercase;">CANCEL</button>
-        </div>
-    </div>
-</div>
-
-<!-- REBALANCE CONFIRM -->
-<div id="rebalance-confirm" class="overlay-bg">
-    <div class="overlay-card" style="border:5px solid #ff8800; max-width:500px; text-align:center;">
-        <h2 style="color:#ff8800; margin:0 0 15px 0; text-transform:uppercase;">MOVE TASK?</h2>
-        <div id="rebalance-proposal" style="font-size:1.0rem; color:#ccc; line-height:1.6; margin:10px 0;"></div>
-        <div style="display:flex; gap:10px; margin-top:15px;">
-            <button onclick="applyRebalance()" style="flex:1; padding:16px; background:#00aa00; color:black; border:3px solid white; border-radius:10px; font-size:1.1rem; font-weight:900; cursor:pointer; text-transform:uppercase;">YES — MOVE IT</button>
-            <button onclick="document.getElementById('rebalance-confirm').style.display='none'" style="flex:1; padding:16px; background:#333; color:white; border:2px solid #555; border-radius:10px; font-size:1.1rem; font-weight:900; cursor:pointer; text-transform:uppercase;">NO</button>
-        </div>
-    </div>
-</div>
 
 {% endif %}
 
@@ -629,11 +547,6 @@ let focusSecondsRemaining = 0;
 let focusTimerInterval = null;
 let focusNagCount = 0;
 let focusBreakTimeouts = [];
-let pendingRebalance = null;
-
-const todayCap = {{ today_cap }};
-const todayPlanned = {{ today_planned }};
-const capPct = {{ cap_pct }};
 const treeData = {{ tree | tojson }};
 const activeFocus = {{ (active_focus | tojson) if active_focus else 'null' }};
 
@@ -651,46 +564,6 @@ function updateClock() {
 }
 setInterval(updateClock, 1000);
 updateClock();
-
-// ─── CAPACITY CHIP ───
-function initCapChip() {
-    const chip = document.getElementById('cap-chip');
-    const text = document.getElementById('cap-text');
-    const track = document.getElementById('cap-bar-track');
-    const fill = document.getElementById('cap-bar-fill');
-    if (!chip) return;
-
-    text.innerText = `TODAY: ${todayPlanned.toFixed(1)}h / ${todayCap.toFixed(1)}h`;
-
-    if (capPct >= 80) {
-        track.style.display = 'block';
-        const pct = Math.min(capPct, 100);
-        fill.style.width = pct + '%';
-        if (capPct >= 100) {
-            fill.style.background = '#ff0055';
-            chip.className = 'cap-over';
-        } else {
-            fill.style.background = '#ffd700';
-            chip.className = 'cap-warn';
-        }
-    }
-}
-initCapChip();
-
-function editTodayCap() {
-    document.getElementById('cap-edit-input').value = todayCap;
-    document.getElementById('cap-edit-overlay').style.display = 'flex';
-}
-
-function saveCapOverride() {
-    const hours = parseFloat(document.getElementById('cap-edit-input').value);
-    if (isNaN(hours) || hours < 0) return;
-    fetch('/api/capacity/update', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({day: 'today', hours})
-    }).then(() => { document.getElementById('cap-edit-overlay').style.display = 'none'; location.reload(); });
-}
 
 // ─── TREE ───
 function drawTree(variant, growth) {
@@ -981,70 +854,6 @@ if (activeFocus) {
     if (elapsed < activeFocus.planned_minutes * 60) {
         launchOTM(activeFocus.task_title, null, activeFocus.session_id || activeFocus.id, activeFocus.planned_minutes, elapsed);
     }
-}
-
-// ─── WEEK VIEW ───
-function openWeekView() {
-    document.getElementById('week-overlay').style.display = 'flex';
-    document.getElementById('week-content').innerHTML = '<div style="color:#555; text-align:center; padding:20px;">Loading...</div>';
-    fetch('/api/week_view')
-    .then(r => r.json())
-    .then(data => renderWeekView(data))
-    .catch(() => { document.getElementById('week-content').innerHTML = '<div style="color:#ff0055; padding:20px;">Failed to load week view.</div>'; });
-}
-
-function closeWeekView() {
-    document.getElementById('week-overlay').style.display = 'none';
-}
-
-function renderWeekView(days) {
-    let html = '';
-    days.forEach(day => {
-        const pct = day.available_hours > 0 ? Math.min((day.planned_hours / day.available_hours) * 100, 100) : 0;
-        const overloaded = day.overloaded;
-        const warn = pct >= 80 && !overloaded;
-        const fillColor = overloaded ? '#ff0055' : warn ? '#ffd700' : '#00aa44';
-        const rowClass = overloaded ? 'overloaded' : warn ? 'warn' : '';
-        const tasksHtml = day.tasks.slice(0, 5).map(t => `<span style="margin-right:8px; color:#666;">${t.title} (${t.duration_minutes || '?'}m)</span>`).join('');
-        const extraCount = day.tasks.length - 5;
-        html += `
-        <div class="week-day-row ${rowClass}">
-            <div class="week-day-header">
-                <div class="week-day-name">${day.day}</div>
-                <div class="week-cap-bar-track"><div class="week-cap-bar-fill" style="width:${pct}%; background:${fillColor};"></div></div>
-                <div class="week-cap-label">${day.planned_hours.toFixed(1)}h / ${day.available_hours.toFixed(1)}h</div>
-                ${overloaded ? `<button class="week-rebalance-btn" onclick="requestRebalance('${day.day}')">REBALANCE</button>` : ''}
-            </div>
-            <div class="week-task-list">${tasksHtml}${extraCount > 0 ? `<span style="color:#555;">+${extraCount} more</span>` : ''}</div>
-        </div>`;
-    });
-    document.getElementById('week-content').innerHTML = html || '<div style="color:#555; padding:20px;">No tasks this week.</div>';
-}
-
-function requestRebalance(dayName) {
-    document.getElementById('rebalance-proposal').innerText = 'Asking AI...';
-    document.getElementById('rebalance-confirm').style.display = 'flex';
-    fetch(`/api/rebalance/${dayName}`, { method: 'POST' })
-    .then(r => r.json())
-    .then(d => {
-        if (d.error) { document.getElementById('rebalance-proposal').innerText = d.error; pendingRebalance = null; return; }
-        pendingRebalance = d;
-        document.getElementById('rebalance-proposal').innerHTML =
-            `Move <strong style="color:white;">"${d.task_title}"</strong> to <strong style="color:#ffd700;">${d.move_to}</strong><br><span style="color:#888; font-size:0.85rem;">${d.reason}</span>`;
-    })
-    .catch(() => { document.getElementById('rebalance-proposal').innerText = 'AI request failed.'; pendingRebalance = null; });
-}
-
-function applyRebalance() {
-    if (!pendingRebalance) { document.getElementById('rebalance-confirm').style.display = 'none'; return; }
-    fetch('/api/rebalance/apply', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(pendingRebalance)
-    })
-    .then(r => r.json())
-    .then(() => { document.getElementById('rebalance-confirm').style.display = 'none'; openWeekView(); })
-    .catch(() => { document.getElementById('rebalance-confirm').style.display = 'none'; });
 }
 
 // ─── QUICK ADD ───
