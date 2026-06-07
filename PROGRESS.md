@@ -393,4 +393,94 @@ Date picker (year/month/day calendar) and clock picker (analog) added to index.h
 
 ---
 
+## Session 007 — 2026-06-07
+
+**Type:** New feature — Google Calendar integration  
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`  
+**Status:** Complete — ready for OAuth setup and test
+
+### What Was Done
+
+Full Google Calendar + Google Tasks integration. Additive — the app works exactly as before; GCal sync is an enhancement.
+
+**Architecture:**
+- `gcal_service.py` (new) — all Google API interactions: OAuth2 token exchange/refresh, reading primary calendar busy slots, CRUD on Google Tasks
+- `scheduler.py` (new) — pure scheduling algorithm: assigns tasks to first available slot between GCal appointments, respects daily_capacity, tightest deadline first
+- `app.py` — DB migration (gcal_task_id, scheduled_start, scheduled_end on tasks), sync function, OAuth routes, completion hook, background thread integration
+- `templates/settings.html` — Google Calendar section with connect/disconnect/sync-now UI
+
+**OAuth flow:**
+- Uses existing gdrive_client_id / gdrive_client_secret from config.json
+- Scopes: calendar.readonly + tasks (read/write)
+- Redirect URI: http://localhost:{port}/gcal_callback — works in Pi kiosk Chromium
+- Tokens stored in settings DB (access_token, refresh_token, expiry)
+- Auto-refresh when within 5 min of expiry
+- `prompt=consent` ensures refresh_token is always returned
+
+**Calendar reading:**
+- Reads primary calendar events for next 21 days
+- All-day events ignored (no time slot to conflict with)
+- Busy slots returned as {date_str: [(start_naive_local, end_naive_local), ...]}
+
+**Scheduling algorithm:**
+- Sorts tasks by deadline ascending (tightest first = highest priority)
+- For each task: iterates days from today to deadline
+- Per day: work window = work_start_hour to work_start + capacity_hours
+- Subtracts GCal busy slots + already-allocated slots from this run
+- Assigns first gap >= task duration
+- Backlog / no-deadline tasks skipped
+- Status: 'scheduled' | 'unschedulable' | 'skipped'
+
+**Google Tasks integration:**
+- Creates/updates tasks in "ADHD Tasks" tasklist (created if absent)
+- Title format: "Task Name [Mon 14:00-15:30]" — time embedded in title
+- Updates title+due date if rescheduled (when slot changes)
+- Marks as completed (status='completed') when task done in app — task kept for dopamine history
+- gcal_task_id stored in tasks DB to link app tasks to GCal tasks
+
+**Background sync:**
+- `run_gcal_sync()` called from background_task_checker()
+- Respects gcal_sync_interval_hours setting (default 24h)
+- Module-level `_gcal_last_sync_attempt` tracks last run time
+- SYNC NOW button in settings resets timer and forces immediate sync
+
+**Conflict resolution:**
+- On conflict (appointment moved into task slot): scheduler reassigns on next sync
+- No manual confirmation needed — auto-reschedule per user request
+- Unschedulable tasks (no slot before deadline): scheduled_start/end set to NULL; will show in next iteration
+
+**Settings UI:**
+- Status dot (green=connected+active, orange=connected+paused, grey=not connected)
+- CONNECT GOOGLE CALENDAR button → /gcal_auth_redirect → Google OAuth → /gcal_callback
+- SYNC NOW button (calls /api/gcal_sync_now, shows result)
+- DISCONNECT button (clears tokens, disables)
+- Sync interval (hours) and Work day start (hour) fields
+- Success/error flash messages via query params
+
+**New settings keys:**
+- gcal_enabled: '0'/'1'
+- gcal_sync_interval_hours: default '24'
+- gcal_work_start_hour: default '9' (9 = 09:00)
+- gcal_access_token, gcal_refresh_token, gcal_token_expiry, gcal_tasklist_id: managed by gcal_service
+
+**Prerequisites for user:**
+1. Google Cloud Console: enable Calendar API + Tasks API
+2. Create OAuth 2.0 credentials (Web application type)
+3. Add http://localhost:{port}/gcal_callback as Authorized Redirect URI
+4. Client ID + secret already in config.json from GDrive setup (same project can be used)
+
+### Files Changed This Session
+- `gcal_service.py` — new: OAuth2, calendar reading, Google Tasks CRUD
+- `scheduler.py` — new: time-slot scheduling algorithm
+- `app.py` — set_setting(), DB migration (3 new task columns), gcal defaults, run_gcal_sync(), background thread, complete_task_internal GCal hook, 5 new routes, settings POST update
+- `templates/settings.html` — Google Calendar section with status/connect/sync UI + JS
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All changes pushed to branch
+- Scheduler tests pass (empty slots + busy block + two competing tasks)
+- Awaiting: Google Cloud Console setup by user, first OAuth connect, first sync test
+
+---
+
 *Future sessions appended below*

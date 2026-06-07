@@ -394,6 +394,9 @@ def init_db():
         ('deadline_type', "TEXT DEFAULT 'flexible'"),
         ('parent_task_id', 'INTEGER'),
         ('buffer_applied', 'REAL DEFAULT 1.3'),
+        ('gcal_task_id', 'TEXT'),
+        ('scheduled_start', 'TEXT'),
+        ('scheduled_end', 'TEXT'),
     ]:
         try:
             c.execute(f'ALTER TABLE tasks ADD COLUMN {col} {definition}')
@@ -418,6 +421,9 @@ def init_db():
         ('cap_sun', '0'),
         ('briefing_days', 'Mon,Tue,Wed,Thu,Fri'),
         ('evening_briefing_time', '21:00'),
+        ('gcal_enabled', '0'),
+        ('gcal_sync_interval_hours', '24'),
+        ('gcal_work_start_hour', '9'),
     ]
     for key, val in defaults:
         c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
@@ -488,6 +494,14 @@ def get_setting(key, default=None):
     res = c.fetchone()
     conn.close()
     return res[0] if res else default
+
+
+def set_setting(key, value):
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)", (key, str(value) if value is not None else ''))
+    conn.commit()
+    conn.close()
 
 
 def get_user_name():
@@ -796,12 +810,109 @@ def maybe_reset_tree():
     get_or_create_tree()
 
 
+# ─── Google Calendar sync ──────────────────────────────────────────────────────
+
+_gcal_last_sync_attempt = None
+
+
+def run_gcal_sync():
+    global _gcal_last_sync_attempt
+    if get_setting('gcal_enabled', '0') != '1':
+        return
+
+    interval_hours = float(get_setting('gcal_sync_interval_hours', '24'))
+    now = datetime.now()
+    if _gcal_last_sync_attempt and (now - _gcal_last_sync_attempt).total_seconds() < interval_hours * 3600:
+        return
+    _gcal_last_sync_attempt = now
+
+    try:
+        import gcal_service
+        import scheduler as sched_mod
+
+        if not gcal_service.is_authorized():
+            return
+
+        busy_slots = gcal_service.fetch_busy_slots(days_ahead=21)
+
+        conn = sqlite3.connect('tasks.db')
+        c = conn.cursor()
+
+        c.execute("""
+            SELECT id, title, duration_minutes, deadline, deadline_type, gcal_task_id, scheduled_start
+            FROM tasks
+            WHERE status='active' AND deadline_type != 'none' AND deadline != ?
+        """, (NO_DEADLINE_SENTINEL,))
+        tasks = [
+            {'id': r[0], 'title': r[1], 'duration_minutes': r[2],
+             'deadline': r[3], 'deadline_type': r[4],
+             'gcal_task_id': r[5], 'scheduled_start': r[6]}
+            for r in c.fetchall()
+        ]
+
+        c.execute("SELECT day_of_week, available_hours FROM daily_capacity")
+        daily_caps = {r[0]: r[1] for r in c.fetchall()}
+        work_start = float(get_setting('gcal_work_start_hour', '9'))
+
+        results = sched_mod.schedule_tasks(tasks, busy_slots, daily_caps, work_start)
+
+        task_map = {t['id']: t for t in tasks}
+
+        for r in results:
+            task_id = r['task_id']
+            task    = task_map.get(task_id, {})
+            status  = r['status']
+
+            if status == 'scheduled':
+                start_str = r['scheduled_start']
+                end_str   = r['scheduled_end']
+                start_dt  = datetime.strptime(start_str, '%Y-%m-%dT%H:%M')
+                end_dt    = datetime.strptime(end_str,   '%Y-%m-%dT%H:%M')
+                gcal_title = (
+                    f"{task.get('title', '')} "
+                    f"[{start_dt.strftime('%a %H:%M')}-{end_dt.strftime('%H:%M')}]"
+                )
+                due_date = start_str[:10]
+                existing_gcal_id = task.get('gcal_task_id') or ''
+
+                if existing_gcal_id:
+                    if task.get('scheduled_start') != start_str:
+                        try:
+                            gcal_service.update_task(existing_gcal_id, gcal_title, due_date)
+                        except Exception as e:
+                            print(f"GCal update failed task {task_id}: {e}")
+                else:
+                    try:
+                        new_id = gcal_service.create_task(gcal_title, due_date)
+                        c.execute("UPDATE tasks SET gcal_task_id=? WHERE id=?", (new_id, task_id))
+                    except Exception as e:
+                        print(f"GCal create failed task {task_id}: {e}")
+                        continue
+
+                c.execute("UPDATE tasks SET scheduled_start=?, scheduled_end=? WHERE id=?",
+                          (start_str, end_str, task_id))
+
+            elif status == 'unschedulable':
+                c.execute("UPDATE tasks SET scheduled_start=NULL, scheduled_end=NULL WHERE id=?",
+                          (task_id,))
+
+        conn.commit()
+        conn.close()
+
+        set_setting('gcal_last_sync', datetime.now().strftime('%Y-%m-%d %H:%M'))
+        print(f"GCal sync complete — {len([r for r in results if r['status']=='scheduled'])} tasks scheduled")
+
+    except Exception as e:
+        print(f"GCal sync error: {e}")
+
+
 def background_task_checker():
     import time
     while True:
         try:
             run_morning_briefing()
             run_evening_briefing()
+            run_gcal_sync()
             check_recurring()
             maybe_generate_message_bank()
             maybe_reset_tree()
@@ -1296,6 +1407,74 @@ def test_llm_api():
     return jsonify({'success': success, 'message': message})
 
 
+@app.route('/gcal_auth_redirect')
+def gcal_auth_redirect():
+    import gcal_service
+    redirect_uri = f"http://localhost:{_get_app_port()}/gcal_callback"
+    auth_url = gcal_service.get_auth_url(redirect_uri)
+    return redirect(auth_url)
+
+
+@app.route('/gcal_callback')
+def gcal_callback():
+    import gcal_service
+    code = request.args.get('code')
+    error = request.args.get('error')
+    if error or not code:
+        return redirect('/settings?gcal_error=access_denied')
+    try:
+        redirect_uri = f"http://localhost:{_get_app_port()}/gcal_callback"
+        gcal_service.exchange_code(code, redirect_uri)
+        set_setting('gcal_enabled', '1')
+        return redirect('/settings?gcal_success=1')
+    except Exception as e:
+        print(f"GCal OAuth error: {e}")
+        return redirect('/settings?gcal_error=token_exchange')
+
+
+@app.route('/gcal_disconnect', methods=['POST'])
+def gcal_disconnect():
+    import gcal_service
+    gcal_service.disconnect()
+    set_setting('gcal_enabled', '0')
+    return redirect('/settings')
+
+
+@app.route('/api/gcal_sync_now', methods=['POST'])
+def gcal_sync_now():
+    global _gcal_last_sync_attempt
+    _gcal_last_sync_attempt = None  # Force sync regardless of interval
+    try:
+        run_gcal_sync()
+        last = get_setting('gcal_last_sync', '')
+        return jsonify({'success': True, 'last_sync': last})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/gcal_status')
+def gcal_status():
+    import gcal_service
+    return jsonify({
+        'authorized':    gcal_service.is_authorized(),
+        'enabled':       get_setting('gcal_enabled', '0') == '1',
+        'last_sync':     get_setting('gcal_last_sync', 'Never'),
+        'sync_interval': get_setting('gcal_sync_interval_hours', '24'),
+    })
+
+
+def _get_app_port():
+    try:
+        conn = sqlite3.connect('tasks.db')
+        c = conn.cursor()
+        c.execute("SELECT value FROM settings WHERE key='port'")
+        res = c.fetchone()
+        conn.close()
+        return int(res[0]) if res else 5001
+    except Exception:
+        return 5001
+
+
 @app.route('/api/quick_add_parse', methods=['POST'])
 def quick_add_parse():
     data = request.get_json()
@@ -1548,14 +1727,22 @@ def add_task():
 def complete_task_internal(task_id):
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT title, deadline FROM tasks WHERE id=?", (task_id,))
+    c.execute("SELECT title, deadline, gcal_task_id FROM tasks WHERE id=?", (task_id,))
     task = c.fetchone()
     if not task:
         conn.close()
         return jsonify({"status": "error"}), 404
 
-    title, current_deadline = task
+    title, current_deadline, gcal_task_id = task
     c.execute("UPDATE tasks SET status='done' WHERE id=?", (task_id,))
+
+    # Mark done in Google Tasks (non-blocking — failure doesn't break completion)
+    if gcal_task_id and get_setting('gcal_enabled', '0') == '1':
+        try:
+            import gcal_service
+            gcal_service.complete_task(gcal_task_id)
+        except Exception as e:
+            print(f"GCal complete failed for task {task_id}: {e}")
 
     # Handle recurring
     c.execute("SELECT interval FROM recurring_templates WHERE title=?", (title,))
@@ -1728,6 +1915,7 @@ def settings():
             'cap_mon', 'cap_tue', 'cap_wed', 'cap_thu', 'cap_fri', 'cap_sat', 'cap_sun',
             'llm_provider', 'llm_quick_model', 'llm_deep_model', 'llm_api_key',
             'llm_ollama_host', 'user_name',
+            'gcal_enabled', 'gcal_sync_interval_hours', 'gcal_work_start_hour',
         ]
         for key in setting_keys:
             val = request.form.get(key)

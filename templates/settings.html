@@ -246,6 +246,53 @@
                     <div id="test-result" style="flex: 2;">—</div>
                 </div>
 
+                <!-- GOOGLE CALENDAR -->
+                <div class="section-header">
+                    <h3>GOOGLE CALENDAR SYNC</h3>
+                </div>
+
+                <div id="gcal-status-row" style="margin: 8px 0; padding: 10px; background: #111; border-radius: 8px; display: flex; align-items: center; gap: 12px;">
+                    <div id="gcal-status-dot" style="width:14px; height:14px; border-radius:50%; background:#555; flex-shrink:0;"></div>
+                    <div id="gcal-status-text" style="color:#888; font-size:0.9rem; flex:1;">Checking...</div>
+                    <div id="gcal-last-sync-text" style="color:#555; font-size:0.8rem;"></div>
+                </div>
+
+                <div id="gcal-connect-row" style="display:none; margin: 8px 0;">
+                    <a href="/gcal_auth_redirect" style="display:block; width:100%; padding:14px; background:#003366; color:#66aaff; border:2px solid #0066cc; border-radius:8px; font-size:1rem; font-weight:900; text-align:center; text-decoration:none; text-transform:uppercase; box-sizing:border-box;">CONNECT GOOGLE CALENDAR</a>
+                    <p style="color:#555; font-size:0.8rem; margin:5px 0;">Saves and disconnects: Calendar (read) + Tasks (write). Saves your settings first.</p>
+                </div>
+
+                <div id="gcal-connected-row" style="display:none; margin: 8px 0;">
+                    <div style="display:flex; gap:8px;">
+                        <button type="button" id="gcal-sync-now-btn" onclick="gcalSyncNow()" style="flex:2; padding:12px; background:#004400; color:#44ff44; border:2px solid #00aa00; border-radius:8px; font-weight:900; cursor:pointer; text-transform:uppercase; font-size:0.9rem;">SYNC NOW</button>
+                        <form action="/gcal_disconnect" method="POST" style="flex:1; margin:0;">
+                            <button type="submit" style="width:100%; padding:12px; background:#330000; color:#ff6666; border:2px solid #660000; border-radius:8px; font-weight:900; cursor:pointer; text-transform:uppercase; font-size:0.9rem;">DISCONNECT</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="gcal-settings-row" style="display:none; margin-top: 10px;">
+                    <div class="side-by-side">
+                        <div>
+                            <label>SYNC EVERY (HOURS):</label>
+                            <input type="number" name="gcal_sync_interval_hours" class="input" value="{{ settings.gcal_sync_interval_hours or 24 }}" min="1" max="168" step="1">
+                        </div>
+                        <div>
+                            <label>WORK DAY STARTS (HOUR):</label>
+                            <input type="number" name="gcal_work_start_hour" class="input" value="{{ settings.gcal_work_start_hour or 9 }}" min="0" max="23" step="1">
+                        </div>
+                    </div>
+                    <input type="hidden" name="gcal_enabled" value="1">
+                    <div id="gcal-sync-result" style="font-size:0.85rem; margin-top:6px; color:#888;"></div>
+                </div>
+
+                {% if request.args.get('gcal_success') %}
+                <div style="margin:8px 0; padding:10px; background:#003300; border:2px solid #00aa00; border-radius:8px; color:#44ff44; font-size:0.9rem; font-weight:900;">Google Calendar connected successfully.</div>
+                {% endif %}
+                {% if request.args.get('gcal_error') %}
+                <div style="margin:8px 0; padding:10px; background:#330000; border:2px solid #aa0000; border-radius:8px; color:#ff6666; font-size:0.9rem; font-weight:900;">Connection failed: {{ request.args.get('gcal_error') }}. Check your Google Cloud Console credentials.</div>
+                {% endif %}
+
                 <!-- ADHD BUFFER -->
                 <div class="section-header" style="border-color: #555;">
                     <h3 style="color: #aaa;">ADHD BUFFER</h3>
@@ -505,7 +552,66 @@
                 if (provBtn) provBtn.classList.add('active');
                 updateProviderUI(prov);
             }
+
+            loadGCalStatus();
         });
+
+        // ─── GOOGLE CALENDAR ───
+        function loadGCalStatus() {
+            fetch('/api/gcal_status')
+            .then(r => r.json())
+            .then(d => {
+                const dot  = document.getElementById('gcal-status-dot');
+                const txt  = document.getElementById('gcal-status-text');
+                const last = document.getElementById('gcal-last-sync-text');
+                const connectRow   = document.getElementById('gcal-connect-row');
+                const connectedRow = document.getElementById('gcal-connected-row');
+                const settingsRow  = document.getElementById('gcal-settings-row');
+
+                if (d.authorized) {
+                    dot.style.background = d.enabled ? '#00cc00' : '#ff8800';
+                    txt.style.color = d.enabled ? '#44ff44' : '#ffaa44';
+                    txt.innerText = d.enabled ? 'Connected — sync active' : 'Connected — sync paused';
+                    last.innerText = d.last_sync !== 'Never' ? 'Last sync: ' + d.last_sync : 'Not yet synced';
+                    connectRow.style.display   = 'none';
+                    connectedRow.style.display = 'block';
+                    settingsRow.style.display  = 'block';
+                } else {
+                    dot.style.background = '#555';
+                    txt.style.color = '#888';
+                    txt.innerText = 'Not connected';
+                    last.innerText = '';
+                    connectRow.style.display   = 'block';
+                    connectedRow.style.display = 'none';
+                    settingsRow.style.display  = 'none';
+                }
+            })
+            .catch(() => {
+                document.getElementById('gcal-status-text').innerText = 'Status unavailable';
+            });
+        }
+
+        function gcalSyncNow() {
+            const btn    = document.getElementById('gcal-sync-now-btn');
+            const result = document.getElementById('gcal-sync-result');
+            btn.innerText = 'SYNCING...';
+            btn.disabled = true;
+            result.innerText = '';
+            fetch('/api/gcal_sync_now', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    result.style.color = '#44ff44';
+                    result.innerText = 'Sync complete. Last sync: ' + (d.last_sync || 'just now');
+                    document.getElementById('gcal-last-sync-text').innerText = 'Last sync: ' + (d.last_sync || 'just now');
+                } else {
+                    result.style.color = '#ff4444';
+                    result.innerText = 'Sync failed: ' + (d.error || 'unknown error');
+                }
+            })
+            .catch(() => { result.style.color='#ff4444'; result.innerText = 'Request failed.'; })
+            .finally(() => { btn.innerText = 'SYNC NOW'; btn.disabled = false; });
+        }
 
         // Test LLM connection
         function testLLM() {
