@@ -1916,6 +1916,7 @@ def settings():
             'llm_provider', 'llm_quick_model', 'llm_deep_model', 'llm_api_key',
             'llm_ollama_host', 'user_name',
             'gcal_enabled', 'gcal_sync_interval_hours', 'gcal_work_start_hour',
+            'gcal_client_id', 'gcal_client_secret',
         ]
         for key in setting_keys:
             val = request.form.get(key)

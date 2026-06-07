@@ -258,8 +258,15 @@
                 </div>
 
                 <div id="gcal-connect-row" style="display:none; margin: 8px 0;">
+                    <!-- Calendar OAuth credentials (only needed if different account from GDrive) -->
+                    <label style="color:#888; font-size:0.8rem; text-transform:uppercase; font-weight:900; display:block; margin-bottom:4px;">
+                        GOOGLE CALENDAR OAUTH CREDENTIALS
+                        <small style="color:#555; font-weight:normal;"> — leave blank to reuse your GDrive credentials</small>
+                    </label>
+                    <input type="text" name="gcal_client_id" class="input" value="{{ settings.gcal_client_id or '' }}" placeholder="Calendar OAuth Client ID (if different account to GDrive)" style="margin-bottom:6px;">
+                    <input type="password" name="gcal_client_secret" class="input" value="{{ settings.gcal_client_secret or '' }}" placeholder="Calendar OAuth Client Secret" style="margin-bottom:10px;">
                     <a href="/gcal_auth_redirect" style="display:block; width:100%; padding:14px; background:#003366; color:#66aaff; border:2px solid #0066cc; border-radius:8px; font-size:1rem; font-weight:900; text-align:center; text-decoration:none; text-transform:uppercase; box-sizing:border-box;">CONNECT GOOGLE CALENDAR</a>
-                    <p style="color:#555; font-size:0.8rem; margin:5px 0;">Saves and disconnects: Calendar (read) + Tasks (write). Saves your settings first.</p>
+                    <p style="color:#555; font-size:0.8rem; margin:5px 0;">Grants Calendar (read) + Tasks (write) access. Save settings before connecting.</p>
                 </div>
 
                 <div id="gcal-connected-row" style="display:none; margin: 8px 0;">

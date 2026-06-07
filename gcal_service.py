@@ -45,6 +45,19 @@ def _set_setting(key, value):
 
 
 def _get_client_credentials():
+    """
+    Returns (client_id, client_secret) for Calendar OAuth.
+    Uses gcal_client_id/gcal_client_secret from settings DB if set,
+    otherwise falls back to gdrive credentials from config.json.
+    This allows the Calendar and GDrive to live in different Google accounts.
+    """
+    # Check DB first (Calendar-specific credentials take priority)
+    db_id     = _get_setting('gcal_client_id', '')
+    db_secret = _get_setting('gcal_client_secret', '')
+    if db_id and db_secret:
+        return db_id, db_secret
+
+    # Fall back to gdrive credentials from config.json
     try:
         with open(_CONFIG_PATH) as f:
             cfg = json.load(f)
