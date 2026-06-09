@@ -400,8 +400,6 @@ def init_db():
         ('evening_briefing_time', '21:00'),
         ('gcal_enabled', '0'),
         ('gcal_sync_interval_hours', '24'),
-        ('gcal_work_start_hour', '9'),
-        ('gcal_work_end_hour', '17'),
     ]
     for key, val in defaults:
         c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
@@ -764,10 +762,7 @@ def run_gcal_sync():
             for r in c.fetchall()
         ]
 
-        work_start = float(get_setting('gcal_work_start_hour', '9'))
-        work_end   = float(get_setting('gcal_work_end_hour', '17'))
-
-        results = sched_mod.schedule_tasks(tasks, busy_slots, work_start, work_end)
+        results = sched_mod.schedule_tasks(tasks, busy_slots)
 
         task_map = {t['id']: t for t in tasks}
 
@@ -1660,7 +1655,7 @@ def settings():
             'nag_interval', 'port', 'adhd_buffer_pct',
             'llm_provider', 'llm_quick_model', 'llm_deep_model', 'llm_api_key',
             'llm_ollama_host', 'user_name',
-            'gcal_enabled', 'gcal_sync_interval_hours', 'gcal_work_start_hour', 'gcal_work_end_hour',
+            'gcal_enabled', 'gcal_sync_interval_hours',
             'gcal_client_id', 'gcal_client_secret',
         ]
         for key in setting_keys:

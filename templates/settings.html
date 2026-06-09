@@ -273,20 +273,8 @@
                 </div>
 
                 <div id="gcal-settings-row" style="display:none; margin-top: 10px;">
-                    <div class="side-by-side">
-                        <div>
-                            <label>SYNC EVERY (HOURS):</label>
-                            <input type="number" name="gcal_sync_interval_hours" class="input" value="{{ settings.gcal_sync_interval_hours or 24 }}" min="1" max="168" step="1">
-                        </div>
-                        <div>
-                            <label>WORK DAY STARTS (HOUR):</label>
-                            <input type="number" name="gcal_work_start_hour" class="input" value="{{ settings.gcal_work_start_hour or 9 }}" min="0" max="23" step="1">
-                        </div>
-                        <div>
-                            <label>WORK DAY ENDS (HOUR):</label>
-                            <input type="number" name="gcal_work_end_hour" class="input" value="{{ settings.gcal_work_end_hour or 17 }}" min="0" max="23" step="1">
-                        </div>
-                    </div>
+                    <label>SYNC EVERY (HOURS):</label>
+                    <input type="number" name="gcal_sync_interval_hours" class="input" value="{{ settings.gcal_sync_interval_hours or 24 }}" min="1" max="168" step="1">
                     <input type="hidden" name="gcal_enabled" value="1">
                     <div id="gcal-sync-result" style="font-size:0.85rem; margin-top:6px; color:#888;"></div>
                 </div>

@@ -1,15 +1,16 @@
 from datetime import datetime, timedelta, date, time as dt_time
 
 
-def schedule_tasks(tasks, busy_slots_by_date, work_start_float=9.0, work_end_float=17.0):
+def schedule_tasks(tasks, busy_slots_by_date):
     """
     Assign each active task to the earliest available time slot.
 
     tasks: list of dicts — id, title, duration_minutes, deadline (YYYY-MM-DDTHH:MM),
                            deadline_type, scheduled_start (existing, may be None)
     busy_slots_by_date: {date_str: [(start_dt_naive, end_dt_naive), ...]}
-    work_start_float: e.g. 9.0 = 09:00, 8.5 = 08:30
-    work_end_float: e.g. 17.0 = 17:00 (end of work window)
+
+    Available slots are the gaps between calendar events across the full day (00:00–23:59).
+    The Google Calendar defines all busy time — no separate work-hour window.
 
     Returns: list of dicts — task_id, scheduled_start (ISO str or None),
                               scheduled_end (ISO str or None), status
@@ -18,12 +19,6 @@ def schedule_tasks(tasks, busy_slots_by_date, work_start_float=9.0, work_end_flo
     today = date.today()
     results = []
     allocated = {}  # date_str -> [(start_dt, end_dt)] — slots taken in this run
-
-    # Work window boundaries
-    work_h = int(work_start_float)
-    work_m = int(round((work_start_float - work_h) * 60))
-    work_end_h = int(work_end_float)
-    work_end_m = int(round((work_end_float - work_end_h) * 60))
 
     # Tightest deadline first — this ensures high-priority tasks get earlier slots
     def _sort_key(t):
@@ -48,8 +43,7 @@ def schedule_tasks(tasks, busy_slots_by_date, work_start_float=9.0, work_end_flo
             results.append(_result(task['id'], None, None, 'skipped'))
             continue
 
-        slot = _find_slot(today, deadline_date, duration_mins,
-                          busy_slots_by_date, allocated, work_h, work_m, work_end_h, work_end_m)
+        slot = _find_slot(today, deadline_date, duration_mins, busy_slots_by_date, allocated)
 
         if slot:
             start_dt, end_dt = slot
@@ -71,12 +65,11 @@ def _result(task_id, start, end, status):
     return {'task_id': task_id, 'scheduled_start': start, 'scheduled_end': end, 'status': status}
 
 
-def _find_slot(from_date, deadline_date, duration_mins,
-               busy_by_date, allocated, work_h, work_m, work_end_h, work_end_m):
+def _find_slot(from_date, deadline_date, duration_mins, busy_by_date, allocated):
     check = from_date
     while check <= deadline_date:
-        day_start = datetime.combine(check, dt_time(work_h, work_m))
-        day_end   = datetime.combine(check, dt_time(work_end_h, work_end_m))
+        day_start = datetime.combine(check, dt_time(0, 0))
+        day_end   = datetime.combine(check, dt_time(23, 59))
         date_str  = check.strftime('%Y-%m-%d')
 
         busy = sorted(

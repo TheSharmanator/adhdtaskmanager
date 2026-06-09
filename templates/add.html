@@ -115,6 +115,11 @@
         .p-btn:active, .p-btn.active { background: #ffd700; color: black; border-color: #ffd700; }
         #month-step .p-btn { padding: 10px; font-size: 1.2rem; }
 
+        /* Hide number spinner arrows — numpad popup is used instead */
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
         @media (max-width: 600px) {
             .dl-type-row { flex-direction: column; }
             .side-by-side { flex-direction: column; align-items: stretch; gap: 0; }
@@ -835,6 +840,46 @@
             document.getElementById('error-message').innerText = msg;
             document.getElementById('error-popup').style.display = 'flex';
         }
+
+        // --- NUMPAD ---
+        let _npActiveInput = null;
+        let _npBuffer = '';
+
+        function openNumpad(inputEl) {
+            _npActiveInput = inputEl;
+            _npBuffer = String(inputEl.value || '');
+            document.getElementById('numpad-display').innerText = _npBuffer || '--';
+            document.getElementById('numpad-popup').style.display = 'flex';
+        }
+
+        function npType(val) {
+            _npBuffer += val;
+            document.getElementById('numpad-display').innerText = _npBuffer;
+        }
+
+        function npBackspace() {
+            _npBuffer = _npBuffer.slice(0, -1);
+            document.getElementById('numpad-display').innerText = _npBuffer || '--';
+        }
+
+        function npClear() {
+            _npBuffer = '';
+            document.getElementById('numpad-display').innerText = '--';
+        }
+
+        function npClose() {
+            if (_npActiveInput && _npBuffer !== '') {
+                const num = parseInt(_npBuffer, 10);
+                if (!isNaN(num)) _npActiveInput.value = num;
+            }
+            document.getElementById('numpad-popup').style.display = 'none';
+            _npActiveInput = null;
+            _npBuffer = '';
+        }
+
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('click', e => openNumpad(e.target));
+        });
     </script>
 
     <!-- ERROR POPUP -->
@@ -843,6 +888,29 @@
             <h2 style="color:#ff0055; margin-top:0; font-size:2rem; text-transform:uppercase;">ERROR</h2>
             <div id="error-message" style="font-size:1.5rem; font-weight:900; color:white; margin-bottom:20px;">Please fill in all fields.</div>
             <button onclick="document.getElementById('error-popup').style.display='none'" style="width:100%; padding:15px; font-size:1.5rem; font-weight:900; background:#ff0055; color:white; border-radius:10px; border:2px solid white; cursor:pointer;">OK</button>
+        </div>
+    </div>
+
+    <!-- NUMPAD POPUP -->
+    <div id="numpad-popup" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:90%; max-width:400px; box-sizing:border-box;">
+            <h2 id="numpad-title" style="text-align:center; color:#ffd700; margin-top:0; font-size:2rem; text-transform:uppercase;">DURATION (MINS)</h2>
+            <div id="numpad-display" style="background:#222; border:3px solid white; padding:15px; font-size:2.5rem; text-align:center; font-weight:900; margin-bottom:20px; border-radius:10px;">--</div>
+            <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;">
+                <button class="p-btn" onclick="npType('1')">1</button>
+                <button class="p-btn" onclick="npType('2')">2</button>
+                <button class="p-btn" onclick="npType('3')">3</button>
+                <button class="p-btn" onclick="npType('4')">4</button>
+                <button class="p-btn" onclick="npType('5')">5</button>
+                <button class="p-btn" onclick="npType('6')">6</button>
+                <button class="p-btn" onclick="npType('7')">7</button>
+                <button class="p-btn" onclick="npType('8')">8</button>
+                <button class="p-btn" onclick="npType('9')">9</button>
+                <button class="p-btn" onclick="npBackspace()" style="background:#ff0055; color:white; border-color:#ff0055;">⌫</button>
+                <button class="p-btn" onclick="npType('0')">0</button>
+                <button class="p-btn" onclick="npClear()" style="background:#333; color:#aaa; border-color:#555;">CLR</button>
+                <button class="p-btn" onclick="npClose()" style="background:#00ff00; color:black; border-color:#00ff00; grid-column: span 3; margin-top:10px; height: 70px; font-size: 2rem;">OK</button>
+            </div>
         </div>
     </div>
 
