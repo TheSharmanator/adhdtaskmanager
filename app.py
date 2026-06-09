@@ -738,6 +738,7 @@ def run_gcal_sync():
         return
     _gcal_last_sync_attempt = now
 
+    conn = None
     try:
         import gcal_service
         import scheduler as sched_mod
@@ -793,6 +794,8 @@ def run_gcal_sync():
                     try:
                         new_id = gcal_service.create_task(gcal_title, due_date)
                         c.execute("UPDATE tasks SET gcal_task_id=? WHERE id=?", (new_id, task_id))
+                        # Commit immediately so the ID is saved even if later tasks fail
+                        conn.commit()
                     except Exception as e:
                         print(f"GCal create failed task {task_id}: {e}")
                         continue
@@ -804,14 +807,23 @@ def run_gcal_sync():
                 c.execute("UPDATE tasks SET scheduled_start=NULL, scheduled_end=NULL WHERE id=?",
                           (task_id,))
 
-        conn.commit()
-        conn.close()
-
         set_setting('gcal_last_sync', datetime.now().strftime('%Y-%m-%d %H:%M'))
         print(f"GCal sync complete — {len([r for r in results if r['status']=='scheduled'])} tasks scheduled")
 
     except Exception as e:
         print(f"GCal sync error: {e}")
+    finally:
+        if conn:
+            conn.commit()
+            conn.close()
+
+
+def _trigger_gcal_sync_async():
+    """Reset the sync timer and kick off a GCal sync in a background thread."""
+    global _gcal_last_sync_attempt
+    _gcal_last_sync_attempt = None
+    import threading
+    threading.Thread(target=run_gcal_sync, daemon=True).start()
 
 
 def background_task_checker():
@@ -1454,6 +1466,8 @@ def add_task():
 
             conn.commit()
             conn.close()
+            if get_setting('gcal_enabled', '0') == '1':
+                _trigger_gcal_sync_async()
             return redirect('/')
         except Exception as e:
             conn.close()
@@ -1478,10 +1492,19 @@ def complete_task_internal(task_id):
     c.execute("UPDATE tasks SET status='done' WHERE id=?", (task_id,))
 
     # Mark done in Google Tasks (non-blocking — failure doesn't break completion)
-    if gcal_task_id and get_setting('gcal_enabled', '0') == '1':
+    if get_setting('gcal_enabled', '0') == '1':
         try:
             import gcal_service
-            gcal_service.complete_task(gcal_task_id)
+            if gcal_task_id:
+                gcal_service.complete_task(gcal_task_id)
+            else:
+                # Task was never synced — create it in GCal and immediately mark complete
+                due_str = (current_deadline[:10]
+                           if current_deadline and NO_DEADLINE_SENTINEL not in current_deadline
+                           else date.today().isoformat())
+                new_id = gcal_service.create_task(title, due_str)
+                gcal_service.complete_task(new_id)
+                c.execute("UPDATE tasks SET gcal_task_id=? WHERE id=?", (new_id, task_id))
         except Exception as e:
             print(f"GCal complete failed for task {task_id}: {e}")
 

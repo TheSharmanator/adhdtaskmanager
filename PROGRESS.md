@@ -533,4 +533,57 @@ Both documents updated to reflect: 5 LLM providers, new Google Calendar integrat
 
 ---
 
+## Session 009 — 2026-06-09
+
+**Type:** Bug fixes — GCal sync timing and duplicate entries  
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`  
+**Status:** Complete — ready for re-test
+
+### What Was Done
+
+Three GCal integration bugs found during first live test with real OAuth credentials.
+
+**Bug 1 — Tasks only appeared in GCal after manual SYNC NOW**
+
+Root cause: `run_gcal_sync()` was only called by the background thread (on its interval) and the manual SYNC NOW button. Adding a task did nothing to GCal until the next background cycle.
+
+Fix: Added `_trigger_gcal_sync_async()` helper that resets `_gcal_last_sync_attempt = None` and launches `run_gcal_sync()` in a daemon thread. Called from `add_task()` immediately after `conn.commit()` when GCal is enabled. Tasks now appear in Google Tasks within seconds of being added.
+
+**Bug 2 — Completing a task in the app did not mark it complete in GCal**
+
+Root cause: `complete_task_internal()` only called `gcal_service.complete_task()` if the task already had a `gcal_task_id`. For newly added tasks (before their first sync), `gcal_task_id` was NULL so the completion was silently skipped.
+
+Fix: Expanded the completion block to handle the no-ID case. If `gcal_task_id` is NULL but GCal is enabled, the function now creates the task in GCal and immediately marks it complete in one go. The `gcal_task_id` is saved to the DB so the record remains consistent.
+
+**Bug 3 — Syncing via SYNC NOW created duplicate entries in Google Tasks**
+
+Root cause: `conn.commit()` and `conn.close()` were at the end of the `try` block in `run_gcal_sync()`. If any exception occurred mid-loop (a GCal API error on one task, a bad date format, anything), the entire `try` block exited without committing. The GCal tasks HAD been created (those API calls already went out), but `gcal_task_id` was never written to the local DB. Next sync: `gcal_task_id` was still NULL → created again.
+
+Fix:
+1. Moved `conn.commit()` / `conn.close()` to a `finally` block so they always run regardless of exceptions.
+2. Added an extra `conn.commit()` immediately after each successful `create_task()` call, so the `gcal_task_id` is persisted before processing the next task.
+
+**Also fixed — work-hour removal (Session 008 addendum)**
+
+The WORK DAY STARTS/ENDS settings were removed and the scheduler changed to use a 24-hour window. The numpad popup was added to the duration field in Add Task.
+
+### Files Changed This Session
+- `app.py`:
+  - `run_gcal_sync()` — `conn` initialised before try block, `finally` ensures commit/close, immediate commit after each `create_task()`
+  - `complete_task_internal()` — handles NULL `gcal_task_id`: creates+completes GCal task inline
+  - `add_task()` — calls `_trigger_gcal_sync_async()` after saving
+  - `_trigger_gcal_sync_async()` — new helper function
+- `scheduler.py` — removed `work_start_float`/`work_end_float`; uses 00:00–23:59 full day (committed Session 008)
+- `templates/settings.html` — work hour fields removed (committed Session 008)
+- `templates/add.html` — numpad popup for duration field, spinner arrows hidden (committed Session 008)
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All fixes pushed to branch
+- GCal OAuth successfully tested by user (Session 008)
+- Duplicate entry bug fixed — re-test by clearing existing GCal Tasks duplicates and running SYNC NOW
+- Immediate sync on add/complete ready to test
+
+---
+
 *Future sessions appended below*
