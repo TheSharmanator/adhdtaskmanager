@@ -586,4 +586,66 @@ The WORK DAY STARTS/ENDS settings were removed and the scheduler changed to use 
 
 ---
 
+## Session 010 — 2026-06-09
+
+**Type:** Full local smoke test + GCal sync fix  
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`  
+**Status:** Complete — all routes green, ready for live re-test
+
+### What Was Done
+
+**Full smoke test — all routes passed**
+
+Flask server started locally (`python app.py`). Every significant route and API endpoint exercised:
+
+| Route / Endpoint | Result |
+|---|---|
+| `GET /` | 200 — task list renders |
+| `GET /add` | 200 |
+| `GET /settings` | 200 |
+| `GET /edit_list` | 200 |
+| `GET /recovery` | 200 |
+| `GET /manage_recurring` | 200 |
+| `GET /api/tasks` | 200 — correct JSON |
+| `GET /api/tree` | 200 — weekly tree data |
+| `GET /api/gcal_status` | 200 — authorized:false, graceful |
+| `GET /api/tonight` | 200 — correct structure |
+| `POST /add` (one-off, flexible) | 302 → task created, appears in `/api/tasks` |
+| `POST /add` (none / backlog) | 302 → sentinel deadline stored |
+| `POST /add` (fixed deadline) | 302 → sorted correctly by deadline |
+| `POST /complete/<id>` | 200 — praise message, tree grows, task removed from active |
+| `GET /edit/<id>` | 200 |
+| `POST /edit/<id>` | 302 → deadline/duration updated |
+| `POST /api/focus/start` | 200 — session created, first_step returned |
+| `POST /api/focus/end` (cancel) | 200 |
+| `POST /api/estimate_duration` | 503 — graceful "LLM unavailable" (no key set) |
+| `POST /api/test_llm` (bad key) | 200 — real HTTP 403 error surfaced correctly |
+| `POST /api/gcal_sync_now` | 200 — no-op when not authorized |
+| `POST /api/breakdown/questions` | 200 — 5 questions returned |
+| `POST /settings` | 302 — settings saved |
+| `POST /toggle_silence` | 200 — on/off toggle works |
+
+**Scheduler verified with unit tests**
+
+- No busy slots: tasks scheduled to `00:00` (tightest deadline first) ✓
+- With busy block `00:00–02:00`: task correctly moved to `02:00` ✓
+- Backlog tasks (deadline_type='none'): skipped ✓
+
+**No errors in app log** — only expected LLM 403 from test with invalid key.
+
+**GCal sync fix (additional — Session 009 addendum)**
+
+Discovered and fixed a further sync bug: if the user deleted tasks from Google Tasks externally (e.g., to clear duplicates), the app's DB still held the old `gcal_task_id` values. Sync saw the IDs, assumed tasks existed, and silently did nothing (no re-create, no update) because the scheduled slot was unchanged. Now: sync always calls `update_task()` regardless of whether the slot changed; if that returns a 404 (task deleted externally), it falls back to `create_task()` and saves the new ID.
+
+### Files Changed This Session
+- `app.py` — sync logic: always push to GCal, fallback create on 404
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All changes pushed to branch
+- App fully functional in isolation (no GCal credentials needed for core features)
+- GCal sync fixes ready for live re-test: pull, run SYNC NOW, tasks should appear
+
+---
+
 *Future sessions appended below*
