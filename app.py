@@ -785,16 +785,21 @@ def run_gcal_sync():
                 existing_gcal_id = task.get('gcal_task_id') or ''
 
                 if existing_gcal_id:
-                    if task.get('scheduled_start') != start_str:
+                    try:
+                        gcal_service.update_task(existing_gcal_id, gcal_title, due_date)
+                    except Exception:
+                        # Task was deleted from GCal externally — recreate it
                         try:
-                            gcal_service.update_task(existing_gcal_id, gcal_title, due_date)
+                            new_id = gcal_service.create_task(gcal_title, due_date)
+                            c.execute("UPDATE tasks SET gcal_task_id=? WHERE id=?", (new_id, task_id))
+                            conn.commit()
                         except Exception as e:
-                            print(f"GCal update failed task {task_id}: {e}")
+                            print(f"GCal recreate failed task {task_id}: {e}")
+                            continue
                 else:
                     try:
                         new_id = gcal_service.create_task(gcal_title, due_date)
                         c.execute("UPDATE tasks SET gcal_task_id=? WHERE id=?", (new_id, task_id))
-                        # Commit immediately so the ID is saved even if later tasks fail
                         conn.commit()
                     except Exception as e:
                         print(f"GCal create failed task {task_id}: {e}")
