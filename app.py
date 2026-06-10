@@ -3,6 +3,7 @@ import requests
 import random
 import json
 import os
+import threading
 from flask import Flask, render_template, request, redirect, jsonify, send_from_directory
 from datetime import datetime, timedelta, date
 
@@ -293,8 +294,9 @@ NO_DEADLINE_SENTINEL = '2099-12-31T00:00'
 
 
 def get_db():
-    conn = sqlite3.connect('tasks.db')
+    conn = sqlite3.connect('tasks.db', timeout=10)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
@@ -725,6 +727,7 @@ def maybe_reset_tree():
 # ─── Google Calendar sync ──────────────────────────────────────────────────────
 
 _gcal_last_sync_attempt = None
+_gcal_sync_lock = threading.Lock()
 
 
 def run_gcal_sync():
@@ -732,14 +735,18 @@ def run_gcal_sync():
     if get_setting('gcal_enabled', '0') != '1':
         return
 
-    interval_hours = float(get_setting('gcal_sync_interval_hours', '24'))
-    now = datetime.now()
-    if _gcal_last_sync_attempt and (now - _gcal_last_sync_attempt).total_seconds() < interval_hours * 3600:
+    # Prevent concurrent syncs — SQLite cannot handle two writers simultaneously
+    if not _gcal_sync_lock.acquire(blocking=False):
         return
-    _gcal_last_sync_attempt = now
 
     conn = None
     try:
+        interval_hours = float(get_setting('gcal_sync_interval_hours', '24'))
+        now = datetime.now()
+        if _gcal_last_sync_attempt and (now - _gcal_last_sync_attempt).total_seconds() < interval_hours * 3600:
+            return
+        _gcal_last_sync_attempt = now
+
         import gcal_service
         import scheduler as sched_mod
 
@@ -748,7 +755,8 @@ def run_gcal_sync():
 
         busy_slots = gcal_service.fetch_busy_slots(days_ahead=21)
 
-        conn = sqlite3.connect('tasks.db')
+        conn = sqlite3.connect('tasks.db', timeout=10)
+        conn.execute("PRAGMA journal_mode=WAL")
         c = conn.cursor()
 
         c.execute("""
@@ -821,6 +829,7 @@ def run_gcal_sync():
         if conn:
             conn.commit()
             conn.close()
+        _gcal_sync_lock.release()
 
 
 def _trigger_gcal_sync_async():
@@ -1834,9 +1843,9 @@ if __name__ == '__main__':
     app_port = int(res[0]) if res else 5001
     conn.close()
 
-    import threading
-    t = threading.Thread(target=background_task_checker, daemon=True)
-    t.start()
+    if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        t = threading.Thread(target=background_task_checker, daemon=True)
+        t.start()
 
     import logging
     logging.getLogger('werkzeug').setLevel(logging.ERROR)

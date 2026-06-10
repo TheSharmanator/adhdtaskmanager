@@ -648,4 +648,49 @@ Discovered and fixed a further sync bug: if the user deleted tasks from Google T
 
 ---
 
+## Session 011 — 2026-06-10
+
+**Type:** Critical bug fix — Werkzeug dual-process SQLite "database is locked"  
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`  
+**Status:** Complete — fix committed and pushed
+
+### Root Cause Identified
+
+Live test in Session 010 revealed `GCal sync error: database is locked` appearing twice on startup — tasks got `gcal_task_id` written but `scheduled_start` remained NULL.
+
+**Root cause:** Flask `debug=True` uses the Werkzeug reloader which spawns **two separate OS processes**:
+1. The **loader process** — monitors files for changes, immediately forks the worker
+2. The **worker process** — the one that actually serves requests
+
+Both processes called `if __name__ == '__main__':` and both started the `background_task_checker` thread. Each process has its own `threading.Lock()` instance, so the in-process lock did NOT protect against cross-process concurrency. Both threads ran `run_gcal_sync()` simultaneously, both tried to write to `tasks.db`, and one always hit a SQLite lock.
+
+### Fix Applied
+
+`app.py` — guarded background thread start:
+
+```python
+# Before (broken — thread starts in BOTH Werkzeug processes):
+import threading
+t = threading.Thread(target=background_task_checker, daemon=True)
+t.start()
+
+# After (correct — thread only starts in the one worker process):
+if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+    t = threading.Thread(target=background_task_checker, daemon=True)
+    t.start()
+```
+
+`WERKZEUG_RUN_MAIN` is set to `'true'` by Werkzeug **only in the worker process**. The loader process never sets it. In production (`debug=False`), the condition is always True and the thread starts normally.
+
+### Files Changed This Session
+- `app.py` — Werkzeug worker-process guard on background thread start
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- Fix pushed to branch
+- Ready for live re-test: pull to local, run `python app.py`, add a task → should appear in GCal within seconds, no "database is locked" errors
+- If GCal tokens have expired (they will after ~1 hour), re-authorize via Settings → Connect Google Calendar
+
+---
+
 *Future sessions appended below*
