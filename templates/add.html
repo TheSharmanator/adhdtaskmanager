@@ -818,27 +818,103 @@
             .catch(() => { hideBreakdownLoading(); showError('Breakdown failed. Check AI connection in Settings.'); });
         }
 
+        const _bdMonths = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        function _fmtBdDate(deadline_date, deadline_time) {
+            if (!deadline_date) return 'No deadline';
+            const [y, m, d] = deadline_date.split('-');
+            return `${parseInt(d)} ${_bdMonths[parseInt(m)-1]} ${deadline_time || '09:00'}`;
+        }
+
         function showSubtasksPreview(subtasks, parentTitle, parentDeadline) {
+            _breakdownSubtasks = subtasks;
             const list = document.getElementById('bd-subtasks-list');
             list.innerHTML = '';
             subtasks.forEach((s, i) => {
                 const row = document.createElement('div');
                 row.style.cssText = 'background:#1a1a1a; border:2px solid #444; border-radius:8px; padding:12px; margin-bottom:10px;';
-                let dl = 'No deadline';
-                if (s.deadline_date) {
-                    const [y, m, d] = s.deadline_date.split('-');
-                    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-                    dl = `${parseInt(d)} ${months[parseInt(m)-1]} ${s.deadline_time || '09:00'}`;
-                }
-                row.innerHTML = `<div style="font-weight:900; color:white; font-size:1rem;">${i+1}. ${s.title}</div>
-                    <div style="color:#aaa; font-size:0.85rem; margin-top:4px;">${s.duration_display || s.duration_minutes + ' min'} &nbsp;·&nbsp; ${dl}</div>`;
+                const dl = _fmtBdDate(s.deadline_date, s.deadline_time);
+                const dur = s.duration_display || (s.duration_minutes + ' min');
+                row.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:8px;">
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-weight:900; color:white; font-size:1rem;">${i+1}. ${s.title}</div>
+                            <div style="color:#aaa; font-size:0.85rem; margin-top:4px;">${dur} &nbsp;·&nbsp; ${dl}</div>
+                        </div>
+                        <div style="display:flex; gap:6px; flex-shrink:0;">
+                            <button onclick="openBdEdit(${i})" style="padding:6px 10px; background:#002244; color:#4499ff; border:2px solid #4499ff; border-radius:6px; font-weight:900; font-size:0.75rem; cursor:pointer;">EDIT</button>
+                            <button onclick="deleteBdTask(${i})" style="padding:6px 10px; background:#440000; color:#ff4444; border:2px solid #ff4444; border-radius:6px; font-weight:900; font-size:0.75rem; cursor:pointer;">✕</button>
+                        </div>
+                    </div>`;
                 list.appendChild(row);
             });
+            // Add task button
+            const addBtn = document.createElement('button');
+            addBtn.textContent = '+ ADD TASK';
+            addBtn.style.cssText = 'width:100%; padding:10px; margin-top:4px; background:#111; color:#ffd700; border:2px dashed #ffd700; border-radius:8px; font-weight:900; font-size:0.9rem; cursor:pointer;';
+            addBtn.onclick = () => openBdEdit(-1);
+            list.appendChild(addBtn);
+
             document.getElementById('bd-parent-title').innerText = parentTitle;
             document.getElementById('breakdown-preview-modal').style.display = 'flex';
-            // Store for commit
             document.getElementById('breakdown-preview-modal').dataset.parentTitle = parentTitle;
             document.getElementById('breakdown-preview-modal').dataset.parentDeadline = parentDeadline;
+        }
+
+        // ── BREAKDOWN TASK EDIT ───────────────────────────────────────────────
+        let _bdEditIndex = null;
+
+        function openBdEdit(idx) {
+            _bdEditIndex = idx;
+            const s = idx >= 0 ? _breakdownSubtasks[idx] : {title:'', deadline_date:'', deadline_time:'09:00', duration_minutes:30};
+            document.getElementById('bde-title').value = s.title || '';
+            document.getElementById('bde-time').value = s.deadline_time || '09:00';
+            document.getElementById('bde-duration').value = s.duration_minutes || 30;
+            if (s.deadline_date) {
+                const [y, m, d] = s.deadline_date.split('-');
+                document.getElementById('bde-date').value = `${d.padStart(2,'0')}/${m.padStart(2,'0')}/${y}`;
+            } else {
+                document.getElementById('bde-date').value = '';
+            }
+            document.getElementById('bd-edit-modal').style.display = 'flex';
+        }
+
+        function closeBdEdit() {
+            document.getElementById('bd-edit-modal').style.display = 'none';
+        }
+
+        function saveBdEdit() {
+            const title = document.getElementById('bde-title').value.trim();
+            if (!title) return;
+            const dateVal = document.getElementById('bde-date').value.trim();
+            const timeVal = document.getElementById('bde-time').value || '09:00';
+            const duration = parseInt(document.getElementById('bde-duration').value) || 30;
+            let deadline_date = '';
+            if (dateVal) {
+                if (dateVal.includes('/')) {
+                    const [d, m, y] = dateVal.split('/');
+                    deadline_date = `${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+                } else {
+                    deadline_date = dateVal;
+                }
+            }
+            const dur_h = Math.floor(duration / 60), dur_m = duration % 60;
+            const duration_display = dur_h > 0 ? (dur_m > 0 ? `${dur_h}h ${dur_m}m` : `${dur_h}h`) : `${duration} MIN`;
+            const task = {title, deadline_date, deadline_time: timeVal, duration_minutes: duration, duration_display};
+            if (_bdEditIndex >= 0) {
+                _breakdownSubtasks[_bdEditIndex] = task;
+            } else {
+                _breakdownSubtasks.push(task);
+            }
+            closeBdEdit();
+            const modal = document.getElementById('breakdown-preview-modal');
+            showSubtasksPreview(_breakdownSubtasks, modal.dataset.parentTitle, modal.dataset.parentDeadline);
+        }
+
+        function deleteBdTask(idx) {
+            _breakdownSubtasks.splice(idx, 1);
+            const modal = document.getElementById('breakdown-preview-modal');
+            showSubtasksPreview(_breakdownSubtasks, modal.dataset.parentTitle, modal.dataset.parentDeadline);
         }
 
         function confirmBreakdown() {
@@ -954,6 +1030,37 @@
     </div>
 
     <!-- BREAKDOWN: LOADING -->
+    <!-- BREAKDOWN: TASK EDIT -->
+    <div id="bd-edit-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.97); z-index:3100; justify-content:center; align-items:center; flex-direction:column;">
+        <div style="background:#111; border:5px solid #4499ff; border-radius:20px; padding:28px; width:92%; max-width:480px; box-sizing:border-box;">
+            <h2 style="color:#4499ff; margin:0 0 20px 0; font-size:1.2rem; text-transform:uppercase;">Edit Task</h2>
+            <label style="color:#aaa; font-size:0.8rem; font-weight:900; display:block; margin-bottom:4px;">TITLE</label>
+            <input id="bde-title" type="text" style="width:100%; padding:12px; background:#1a1a1a; color:white; border:2px solid #444; border-radius:8px; font-size:1rem; font-weight:700; box-sizing:border-box; margin-bottom:14px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+                <div>
+                    <label style="color:#aaa; font-size:0.8rem; font-weight:900; display:block; margin-bottom:4px;">DATE</label>
+                    <input id="bde-date" type="text" placeholder="DD/MM/YYYY" readonly
+                           style="width:100%; padding:12px; background:#1a1a1a; color:white; border:2px solid #444; border-radius:8px; font-size:0.95rem; font-weight:700; box-sizing:border-box; cursor:pointer;"
+                           onclick="if(!isMobile){openPicker(this)}else{this.removeAttribute('readonly');this.type='text';}">
+                </div>
+                <div>
+                    <label style="color:#aaa; font-size:0.8rem; font-weight:900; display:block; margin-bottom:4px;">TIME</label>
+                    <input id="bde-time" type="text" placeholder="HH:MM" readonly
+                           style="width:100%; padding:12px; background:#1a1a1a; color:white; border:2px solid #444; border-radius:8px; font-size:0.95rem; font-weight:700; box-sizing:border-box; cursor:pointer;"
+                           onclick="if(!isMobile){openClockPicker(this)}else{this.removeAttribute('readonly');this.type='time';}">
+                </div>
+            </div>
+            <label style="color:#aaa; font-size:0.8rem; font-weight:900; display:block; margin-bottom:4px;">DURATION (MINUTES)</label>
+            <input id="bde-duration" type="number" min="5" max="480" step="5"
+                   style="width:100%; padding:12px; background:#1a1a1a; color:white; border:2px solid #444; border-radius:8px; font-size:1rem; font-weight:700; box-sizing:border-box; margin-bottom:20px; cursor:pointer;"
+                   onclick="openNumpad(this)">
+            <div style="display:flex; gap:12px;">
+                <button onclick="saveBdEdit()" style="flex:2; padding:16px; font-size:1.1rem; font-weight:900; background:#002244; color:#4499ff; border:3px solid #4499ff; border-radius:10px; cursor:pointer;">SAVE</button>
+                <button onclick="closeBdEdit()" style="flex:1; padding:16px; font-size:1rem; font-weight:900; background:#333; color:#aaa; border:2px solid #555; border-radius:10px; cursor:pointer;">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
     <div id="breakdown-loading-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:3000; justify-content:center; align-items:center; flex-direction:column;">
         <div style="font-size:3rem; margin-bottom:20px;">🤖</div>
         <div id="bd-loading-msg" style="color:#ffd700; font-size:1.4rem; font-weight:900; text-align:center;">Working...</div>

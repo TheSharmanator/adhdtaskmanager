@@ -1770,11 +1770,13 @@ def edit_task(task_id):
 
         c.execute(
             "UPDATE tasks SET deadline=?, last_alert_type='none', last_nag_time=NULL, "
-            "duration_minutes=?, deadline_type=? WHERE id=?",
+            "duration_minutes=?, deadline_type=?, scheduled_start=NULL, scheduled_end=NULL WHERE id=?",
             (deadline, duration_minutes, deadline_type, task_id)
         )
         conn.commit()
         conn.close()
+        if get_setting('gcal_enabled', '0') == '1':
+            _trigger_gcal_sync_async()
         return redirect('/')
 
     c.execute("SELECT id, title, deadline, duration_minutes, deadline_type FROM tasks WHERE id=?", (task_id,))

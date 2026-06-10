@@ -601,20 +601,11 @@ The LLM (QUICK MODEL) generates up to 5 clarifying questions specific to the tas
 Each question displays however many buttons its options require (2–4), rendered dynamically. Falls back to generic yes/no questions if the LLM is unavailable. The full question text and chosen answer are passed to the DEEP MODEL for breakdown — richer context than binary yes/no flags.
 
 **Subtask cards:**
-After the questions, the DEEP MODEL generates a breakdown displayed as a vertical stack of cards:
-```
-┌─────────────────────────────────┐
-│ 1. Research competitor pricing  │
-│    Suggested: TUE 02 JUN        │
-│    Duration: 30 MIN             │
-└─────────────────────────────────┘
-┌─────────────────────────────────┐
-│ 2. Draft executive summary      │
-│    Suggested: WED 03 JUN        │
-│    Duration: 45 MIN             │
-└─────────────────────────────────┘
-```
-Each card is tappable to edit the title, date, or duration.
+After the questions, the DEEP MODEL generates a breakdown displayed as a vertical stack of editable cards. Each card shows title, duration, and suggested date in UK format (e.g. `12 Jun 18:00`). The user can modify the list before saving:
+
+- **EDIT** button on each card — opens an edit popup with the task's title, date (touch picker), time (clock picker), and duration (numpad). Uses the same picker infrastructure as the main Add Task form. Changes are applied immediately to the preview.
+- **✕** button — removes the task from the list
+- **+ ADD TASK** button at the bottom — opens the same edit popup in new-task mode
 
 **Commit:**
 - [COMMIT ALL] button — saves all subtasks to the DB as individual tasks linked to the parent by `parent_task_id`

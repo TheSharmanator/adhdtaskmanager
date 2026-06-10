@@ -761,4 +761,41 @@ Now:
 
 ---
 
+## Session 013 — 2026-06-10
+
+**Type:** Feature additions + bug fixes
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`
+**Status:** Complete — all changes pushed
+
+### What Was Done
+
+**GCal sync on task edit**
+`edit_task()` POST handler now calls `_trigger_gcal_sync_async()` after saving. Also resets `scheduled_start` and `scheduled_end` to NULL so the next sync recalculates the slot from scratch with the new deadline/duration. Previously edits only took effect on the next scheduled 24h sync.
+
+**GCal sync on breakdown save**
+`breakdown_commit()` was already fixed in Session 012 to trigger sync. Confirmed working.
+
+**UK date format in breakdown preview**
+Dates in the AI breakdown preview now display as `12 Jun 18:00` instead of raw ISO `2026-06-12 18:00`.
+
+**Edit/delete/add tasks in breakdown preview**
+Before hitting SAVE on the AI breakdown, each task card now has:
+- **EDIT** button — opens `#bd-edit-modal` with the task's title, date (touch picker), time (clock picker), and duration (numpad). Same picker infrastructure as the main Add Task form. Writes back to `_breakdownSubtasks[i]` and re-renders the list.
+- **✕** button — removes the task from the list instantly
+- **+ ADD TASK** button at the bottom — opens the same edit modal in "new task" mode; appends to list on save
+
+The edit modal reuses the existing date/time pickers already on the page — `openPicker()`, `openClockPicker()`, `openNumpad()` are called with the modal's inputs so no duplicate picker code is needed.
+
+### Files Changed This Session
+- `app.py` — `edit_task()`: reset scheduled slots + trigger GCal sync on save
+- `templates/add.html` — breakdown preview: EDIT/DELETE/ADD buttons; `#bd-edit-modal` HTML + JS (`openBdEdit`, `closeBdEdit`, `saveBdEdit`, `deleteBdTask`)
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All changes pushed
+- Test: edit a task in app → should immediately update GCal title/date
+- Test: in breakdown preview, tap EDIT on a task, change title/date/time/duration, Save → row updates; tap ✕ to remove; tap + ADD TASK to add a new one
+
+---
+
 *Future sessions appended below*
