@@ -296,23 +296,30 @@ def rebalance_suggestion(day_name, week_tasks, daily_capacity):
 
 
 def generate_breakdown_questions(task_title):
-    """Return 5 yes/no questions specific to task_title, or None on failure."""
+    """Return 5 task-specific questions each with 2-4 answer options, or None on failure."""
     sys_p = (
         'You are an ADHD task-planning assistant. '
-        'Given a task title, generate exactly 5 short yes/no questions that help clarify '
-        'the scope and dependencies of THAT SPECIFIC task — not generic project questions. '
-        'Questions must reference the actual task by name or context where relevant. '
-        'Return ONLY a JSON array of 5 strings, no keys, no explanation. '
-        'Example format: ["Question 1?", "Question 2?", ...]'
+        'Given a task title, generate exactly 5 questions that clarify the scope, '
+        'dependencies, and approach for THAT SPECIFIC task. '
+        'Each question must have 2-4 short answer options that are genuinely distinct '
+        'and useful for planning — not just "Yes" and "No" unless that is truly the right shape. '
+        'Questions and options must be specific to the task, not generic. '
+        'Return ONLY a JSON array of 5 objects, no explanation: '
+        '[{"question": "...", "options": ["option A", "option B", ...]}, ...]'
     )
-    prompt = f'Task: "{task_title}"\nGenerate 5 specific yes/no questions to clarify scope and subtasks.'
+    prompt = f'Task: "{task_title}"\nGenerate 5 planning questions with specific answer options.'
     result = call_llm(prompt, 'quick', sys_p)
     if not result:
         return None
     try:
         questions = json.loads(_clean_json(result))
         if isinstance(questions, list) and len(questions) >= 3:
-            return [str(q) for q in questions[:5]]
+            validated = []
+            for q in questions[:5]:
+                if isinstance(q, dict) and q.get('question') and isinstance(q.get('options'), list) and len(q['options']) >= 2:
+                    validated.append({'question': str(q['question']), 'options': [str(o) for o in q['options'][:4]]})
+            if len(validated) >= 3:
+                return validated
     except Exception:
         pass
     return None

@@ -590,15 +590,15 @@ SUN  [░░░░░░░░░░]  0h / 0h
 - On the Add Task form: a **COMPLEX** toggle
 - Toggling it on changes the form flow — after the basic task details are entered, the breakdown flow begins before saving
 
-**Breakdown flow (max 5 questions, binary where possible):**
-The LLM (DEEP MODEL) asks up to 5 clarifying questions displayed one at a time as large tap cards. Questions are tailored to the task name. Examples:
-1. "Does this task require input or approval from anyone else?" [YES / NO]
-2. "Do you have everything you need to start right now?" [YES / NO]
-3. "Is this something you've done before?" [YES / NO]
-4. "Will any parts of this task need to happen in a specific order?" [YES / NO]
-5. "Does this have any parts that depend on each other?" [YES / NO]
+**Breakdown flow (max 5 questions, dynamic options):**
+The LLM (QUICK MODEL) generates up to 5 clarifying questions specific to the task name, each with 2–4 tailored answer options. Questions and options are generated on the fly — not a fixed set. Examples for "Cook Sunday roast for family":
+1. "Are you cooking for just yourself, or for others?" [Just me / For others too]
+2. "Do you have all the ingredients?" [Yes, ready to go / No, need to shop first]
+3. "How familiar are you with this recipe?" [Know it well / Roughly familiar / It's new to me]
+4. "Do you need to prep anything the day before?" [Yes / No]
+5. "Is there a fixed serving time you're working back from?" [Yes / No — flexible timing]
 
-The LLM uses these answers + the deadline to calibrate the breakdown.
+Each question displays however many buttons its options require (2–4), rendered dynamically. Falls back to generic yes/no questions if the LLM is unavailable. The full question text and chosen answer are passed to the DEEP MODEL for breakdown — richer context than binary yes/no flags.
 
 **Subtask cards:**
 After the questions, the DEEP MODEL generates a breakdown displayed as a vertical stack of cards:

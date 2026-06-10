@@ -1342,11 +1342,11 @@ def tonight_api():
 
 
 _FALLBACK_QUESTIONS = [
-    "Does this task require input or approval from anyone else?",
-    "Do you have everything you need to start right now?",
-    "Is this something you've done before?",
-    "Will any parts need to happen in a specific order?",
-    "Are there any parts that depend on each other completing first?",
+    {"question": "Does this task require input or approval from anyone else?", "options": ["Yes", "No"]},
+    {"question": "Do you have everything you need to start right now?", "options": ["Yes, ready to go", "No, need to gather things first"]},
+    {"question": "Is this something you've done before?", "options": ["Yes, I know the process", "No, it's new to me"]},
+    {"question": "Will any parts need to happen in a specific order?", "options": ["Yes, strict order", "No, can do in any order"]},
+    {"question": "Are there any parts that depend on other things completing first?", "options": ["Yes", "No"]},
 ]
 
 @app.route('/api/breakdown/questions', methods=['POST'])

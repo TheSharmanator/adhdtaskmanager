@@ -693,4 +693,72 @@ if not app.debug or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
 
 ---
 
+## Session 012 — 2026-06-10
+
+**Type:** Bug fixes + feature improvements (8 issues)
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`
+**Status:** Complete — all changes pushed, ready for testing
+
+### Issues Fixed
+
+**Issue 7 + 1 + 2 — GCal busy slot detection completely reworked**
+
+Root cause: the previous Events API approach used Python's `astimezone()` which in the cloud container resolves to UTC. Recurring calendar blocks set in BST (e.g. 00:01–08:00 local) were stored as 23:01 the previous day in UTC, so the date key in the busy-slots dict was off by one day. Today's date appeared fully free → scheduler packed all tasks into midnight onwards → all tasks appeared today in GCal, and scheduled times clashed with real appointments.
+
+Fix:
+- Switched from Calendar Events API to **Google Calendar FreeBusy API** — designed exactly for "what time is busy?" queries, handles all event types (recurring, OOO, etc.) natively
+- Added `_get_calendar_timezone()` — fetches the user's primary calendar IANA timezone (e.g. `Europe/London`) and converts UTC busy intervals via `zoneinfo.ZoneInfo` so date boundaries always match what the user sees in Google Calendar
+- Midnight-spanning slots (e.g. a meeting 11pm–1am) are split at the boundary so both affected dates get the correct partial block
+
+**Issue 1 — All tasks appearing on today in GCal**
+Consequence of the busy-slot bug above. Now fixed as a side-effect of the FreeBusy switch.
+
+**Issue 2 — Scheduled times clashing with calendar appointments**
+Same root cause. Fixed.
+
+**Issue 3 + 5 + 6 — GCal task title format cleaned up**
+- Before: `"Buy milk [Mon 09:00-10:00]"`
+- After: `"Buy milk [09:00-10:00]"`
+- Day name removed (redundant — task appears on the correct date in Google Calendar)
+- 24h clock eliminates AM/PM ambiguity
+- `update_task()` always sets the due date to the scheduled date, so tasks move to the correct day in GCal when rescheduled
+
+**Issue 4 — Scheduled time shown on app main screen**
+Task cards now display the allocated slot alongside the deadline:
+`10 JUN 08:00 · DUE: FRI 10 JUN 17:00`
+Applied to both main task cards (top 5) and queue cards. Falls back to `DUE: ...` only when no slot has been assigned yet. Added `scheduled_start` to the index query and `scheduled_label` to `processed_tasks`.
+
+**Scheduler — no past slots**
+`_find_slot()` now starts from `max(midnight, now)` so tasks are never scheduled in time that has already passed.
+
+**Issue 8 — Complex task breakdown: dynamic per-question answer options**
+Previously: hardcoded 5 generic yes/no questions, YES/NO buttons.
+Now:
+- `llm_service.generate_breakdown_questions()` asks the QUICK MODEL to generate 5 task-specific questions, each with 2–4 tailored answer options
+- Frontend renders however many buttons the question requires — 2-option questions get a side-by-side row, 3–4 option questions stack vertically
+- Four colour-coded button styles (green, red, blue, purple) cycle across options
+- Full `"question text: chosen answer"` string passed to the DEEP MODEL for richer context
+- Falls back to updated generic questions (also in the new `{question, options}` shape) if LLM unavailable
+- BLUEPRINT.md section 6.13 updated to reflect the new flow
+
+### Files Changed This Session
+- `gcal_service.py` — FreeBusy API, `_get_calendar_timezone()`, `zoneinfo` import, midnight-split logic
+- `scheduler.py` — `now` param, `max(midnight, now)` day_start
+- `app.py` — pass `now` to scheduler; new title format (no day name); `scheduled_start` in index query; `scheduled_label` in processed_tasks; fallback questions updated to `{question, options}` shape
+- `templates/index.html` — scheduled label on main and queue task cards; dynamic year picker
+- `templates/add.html` — dynamic option buttons in breakdown modal; year picker fix
+- `templates/edit_task.html` — year picker fix
+- `llm_service.py` — `generate_breakdown_questions()` returns `{question, options}` objects; `breakdown_complex_task` receives richer answer context
+- `BLUEPRINT.md` — section 6.13 updated
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All changes pushed to branch
+- Requires pull + SYNC NOW to test scheduling fixes
+- Re-authorize GCal if tokens have expired (Settings → Connect Google Calendar)
+- Test: add a complex task → check AI questions are task-specific with relevant options
+- Test: check scheduled times on task cards match GCal entries and respect calendar busy blocks
+
+---
+
 *Future sessions appended below*
