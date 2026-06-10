@@ -787,7 +787,7 @@ def run_gcal_sync():
                 end_dt    = datetime.strptime(end_str,   '%Y-%m-%dT%H:%M')
                 gcal_title = (
                     f"{task.get('title', '')} "
-                    f"[{start_dt.strftime('%a %H:%M')}-{end_dt.strftime('%H:%M')}]"
+                    f"[{start_dt.strftime('%H:%M')}-{end_dt.strftime('%H:%M')}]"
                 )
                 due_date = start_str[:10]
                 existing_gcal_id = task.get('gcal_task_id') or ''
@@ -948,7 +948,7 @@ def index():
     silence_mode = res_silence[0] if res_silence else 'off'
 
     c.execute(
-        "SELECT id, title, deadline, status, duration_minutes, deadline_type "
+        "SELECT id, title, deadline, status, duration_minutes, deadline_type, scheduled_start "
         "FROM tasks WHERE status='active' ORDER BY deadline ASC"
     )
     all_tasks = c.fetchall()
@@ -957,7 +957,7 @@ def index():
     now = datetime.now()
 
     for task in all_tasks:
-        t_id, t_title, t_deadline, t_status, dur_mins, dl_type = task
+        t_id, t_title, t_deadline, t_status, dur_mins, dl_type, sched_start = task
         dur_mins = dur_mins or 30
         dl_type = dl_type or 'flexible'
 
@@ -971,6 +971,7 @@ def index():
                 'duration_display': format_duration(dur_mins),
                 'duration_minutes': dur_mins,
                 'deadline_type': 'none',
+                'scheduled_label': '',
             })
             continue
 
@@ -989,6 +990,15 @@ def index():
         percent = max(0, min(100, 100 - (time_left_mins / bar_scale_mins * 100)))
         readable_deadline = deadline_dt.strftime('%a %d %b %H:%M').upper()
 
+        if sched_start:
+            try:
+                sched_dt = datetime.strptime(sched_start, '%Y-%m-%dT%H:%M')
+                sched_label = sched_dt.strftime('%d %b %H:%M').upper()
+            except Exception:
+                sched_label = ''
+        else:
+            sched_label = ''
+
         processed_tasks.append({
             'id': t_id,
             'title': t_title,
@@ -998,6 +1008,7 @@ def index():
             'duration_display': format_duration(dur_mins),
             'duration_minutes': dur_mins,
             'deadline_type': dl_type,
+            'scheduled_label': sched_label,
         })
 
     conn.commit()

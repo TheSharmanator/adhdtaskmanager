@@ -332,7 +332,7 @@ header {
         <div class="task-content">
             <span class="task-text">{{ task.title }}</span>
             <span class="task-deadline">
-                {% if task.deadline_type == 'none' %}BACKLOG{% else %}DUE: {{ task.deadline }}{% endif %}
+                {% if task.deadline_type == 'none' %}BACKLOG{% elif task.scheduled_label %}{{ task.scheduled_label }} · DUE: {{ task.deadline }}{% else %}DUE: {{ task.deadline }}{% endif %}
             </span>
         </div>
         <button class="focus-btn"
@@ -355,7 +355,7 @@ header {
         {% for task in queue_tasks %}
         <div class="queue-task {{ task.phase }}">
             <div class="qt-title">{{ task.title }}</div>
-            <div class="qt-due">{% if task.deadline_type == 'none' %}BACKLOG{% else %}{{ task.deadline }}{% endif %}</div>
+            <div class="qt-due">{% if task.deadline_type == 'none' %}BACKLOG{% elif task.scheduled_label %}{{ task.scheduled_label }} · DUE: {{ task.deadline }}{% else %}DUE: {{ task.deadline }}{% endif %}</div>
             <div class="qt-dur">{% if task.duration_minutes %}{{ task.duration_minutes }}m{% endif %}</div>
         </div>
         {% endfor %}
