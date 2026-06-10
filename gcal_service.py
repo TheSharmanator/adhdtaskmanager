@@ -3,6 +3,7 @@ import os
 import sqlite3
 import urllib.parse
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import requests
 
@@ -147,57 +148,75 @@ def disconnect():
 
 # ─── Calendar reading ─────────────────────────────────────────────────────────
 
+def _get_calendar_timezone(token):
+    """Return the primary calendar's IANA timezone string (e.g. 'Europe/London')."""
+    try:
+        r = requests.get(
+            f'{_CAL_API}/calendars/primary',
+            headers={'Authorization': f'Bearer {token}'},
+            timeout=10,
+        )
+        r.raise_for_status()
+        return r.json().get('timeZone', 'UTC')
+    except Exception:
+        return 'UTC'
+
+
 def fetch_busy_slots(days_ahead=21):
     """
-    Read primary calendar and return busy slots as:
-    {date_str: [(start_dt_naive_local, end_dt_naive_local), ...]}
+    Return busy slots as {date_str: [(start_naive_local, end_naive_local), ...]}
+
+    Uses the FreeBusy API so recurring events are always expanded correctly,
+    then converts UTC results to the calendar's own timezone so the date
+    boundaries match what the user sees in Google Calendar.
     """
     token = get_access_token()
     now = datetime.now(timezone.utc)
     time_min = now.isoformat()
     time_max = (now + timedelta(days=days_ahead)).isoformat()
 
-    events = []
-    page_token = None
-    while True:
-        params = {
-            'timeMin':      time_min,
-            'timeMax':      time_max,
-            'singleEvents': 'true',
-            'orderBy':      'startTime',
-            'maxResults':   250,
-        }
-        if page_token:
-            params['pageToken'] = page_token
-        r = requests.get(
-            f'{_CAL_API}/calendars/primary/events',
-            headers={'Authorization': f'Bearer {token}'},
-            params=params,
-            timeout=20,
-        )
-        r.raise_for_status()
-        data = r.json()
-        events.extend(data.get('items', []))
-        page_token = data.get('nextPageToken')
-        if not page_token:
-            break
+    tz_str = _get_calendar_timezone(token)
+    try:
+        cal_tz = ZoneInfo(tz_str)
+    except (ZoneInfoNotFoundError, Exception):
+        cal_tz = timezone.utc
+
+    r = requests.post(
+        f'{_CAL_API}/freeBusy',
+        headers={'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'},
+        json={
+            'timeMin': time_min,
+            'timeMax': time_max,
+            'items':   [{'id': 'primary'}],
+        },
+        timeout=20,
+    )
+    r.raise_for_status()
+    data = r.json()
+    intervals = data.get('calendars', {}).get('primary', {}).get('busy', [])
 
     busy = {}
-    for ev in events:
-        start_raw = ev.get('start', {})
-        end_raw   = ev.get('end', {})
-        if 'dateTime' not in start_raw:
-            continue  # skip all-day events
+    for interval in intervals:
         try:
-            start_dt = datetime.fromisoformat(start_raw['dateTime'].replace('Z', '+00:00'))
-            end_dt   = datetime.fromisoformat(end_raw['dateTime'].replace('Z', '+00:00'))
+            start_dt = datetime.fromisoformat(interval['start'].replace('Z', '+00:00'))
+            end_dt   = datetime.fromisoformat(interval['end'].replace('Z', '+00:00'))
         except Exception:
             continue
-        # Convert to local naive datetime
-        start_local = start_dt.astimezone().replace(tzinfo=None)
-        end_local   = end_dt.astimezone().replace(tzinfo=None)
-        date_str = start_local.strftime('%Y-%m-%d')
-        busy.setdefault(date_str, []).append((start_local, end_local))
+
+        start_local = start_dt.astimezone(cal_tz).replace(tzinfo=None)
+        end_local   = end_dt.astimezone(cal_tz).replace(tzinfo=None)
+
+        # If a slot spans midnight, split it at the boundary so each date
+        # only contains times within that calendar day.
+        current_date = start_local.date()
+        seg_start = start_local
+        while current_date <= end_local.date():
+            from datetime import time as dt_time
+            seg_end = min(end_local, datetime.combine(current_date, dt_time(23, 59, 59)))
+            if seg_end > seg_start:
+                busy.setdefault(current_date.strftime('%Y-%m-%d'), []).append((seg_start, seg_end))
+            current_date += timedelta(days=1)
+            seg_start = datetime.combine(current_date, dt_time(0, 0))
 
     return busy
 

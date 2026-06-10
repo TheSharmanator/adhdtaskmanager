@@ -771,7 +771,7 @@ def run_gcal_sync():
             for r in c.fetchall()
         ]
 
-        results = sched_mod.schedule_tasks(tasks, busy_slots)
+        results = sched_mod.schedule_tasks(tasks, busy_slots, now=now)
 
         task_map = {t['id']: t for t in tasks}
 

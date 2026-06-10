@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, date, time as dt_time
 
 
-def schedule_tasks(tasks, busy_slots_by_date):
+def schedule_tasks(tasks, busy_slots_by_date, now=None):
     """
     Assign each active task to the earliest available time slot.
 
@@ -16,7 +16,9 @@ def schedule_tasks(tasks, busy_slots_by_date):
                               scheduled_end (ISO str or None), status
              status: 'scheduled' | 'unschedulable' | 'skipped'
     """
-    today = date.today()
+    if now is None:
+        now = datetime.now()
+    today = now.date()
     results = []
     allocated = {}  # date_str -> [(start_dt, end_dt)] — slots taken in this run
 
@@ -43,7 +45,7 @@ def schedule_tasks(tasks, busy_slots_by_date):
             results.append(_result(task['id'], None, None, 'skipped'))
             continue
 
-        slot = _find_slot(today, deadline_date, duration_mins, busy_slots_by_date, allocated)
+        slot = _find_slot(today, deadline_date, duration_mins, busy_slots_by_date, allocated, now)
 
         if slot:
             start_dt, end_dt = slot
@@ -65,10 +67,13 @@ def _result(task_id, start, end, status):
     return {'task_id': task_id, 'scheduled_start': start, 'scheduled_end': end, 'status': status}
 
 
-def _find_slot(from_date, deadline_date, duration_mins, busy_by_date, allocated):
+def _find_slot(from_date, deadline_date, duration_mins, busy_by_date, allocated, now=None):
+    if now is None:
+        now = datetime.now()
     check = from_date
     while check <= deadline_date:
-        day_start = datetime.combine(check, dt_time(0, 0))
+        # Never schedule a slot that starts in the past
+        day_start = max(datetime.combine(check, dt_time(0, 0)), now)
         day_end   = datetime.combine(check, dt_time(23, 59))
         date_str  = check.strftime('%Y-%m-%d')
 
