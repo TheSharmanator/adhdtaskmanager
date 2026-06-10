@@ -1341,18 +1341,20 @@ def tonight_api():
     })
 
 
+_FALLBACK_QUESTIONS = [
+    "Does this task require input or approval from anyone else?",
+    "Do you have everything you need to start right now?",
+    "Is this something you've done before?",
+    "Will any parts need to happen in a specific order?",
+    "Are there any parts that depend on each other completing first?",
+]
+
 @app.route('/api/breakdown/questions', methods=['POST'])
 def breakdown_questions():
     data = request.get_json()
     task_title = data.get('title', '')
-    QUESTIONS = [
-        "Does this task require input or approval from anyone else?",
-        "Do you have everything you need to start right now?",
-        "Is this something you've done before?",
-        "Will any parts need to happen in a specific order?",
-        "Are there any parts that depend on each other completing first?",
-    ]
-    return jsonify({'questions': QUESTIONS, 'title': task_title})
+    questions = llm_service.generate_breakdown_questions(task_title) or _FALLBACK_QUESTIONS
+    return jsonify({'questions': questions, 'title': task_title})
 
 
 @app.route('/api/breakdown/complete', methods=['POST'])
