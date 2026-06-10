@@ -262,14 +262,7 @@
     <div id="touch-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:1000; justify-content:center; align-items:center; flex-direction:column;">
         <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:95%; max-width:850px; box-sizing:border-box;">
             <h2 id="picker-title" style="text-align:center; color:#ffd700; margin-top:0; font-size:2rem; text-transform:uppercase;">SELECT YEAR</h2>
-            <div id="year-step" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;">
-                <button class="p-btn" onclick="selectYear(2025)">2025</button>
-                <button class="p-btn" onclick="selectYear(2026)">2026</button>
-                <button class="p-btn" onclick="selectYear(2027)">2027</button>
-                <button class="p-btn" onclick="selectYear(2028)">2028</button>
-                <button class="p-btn" onclick="selectYear(2029)">2029</button>
-                <button class="p-btn" onclick="selectYear(2030)">2030</button>
-            </div>
+            <div id="year-step" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;"></div>
             <div id="month-step" style="display:none; grid-template-columns: repeat(6, 1fr); gap:10px;">
                 <button class="p-btn" onclick="selectMonth(0)">JAN</button>
                 <button class="p-btn" onclick="selectMonth(1)">FEB</button>
@@ -408,6 +401,19 @@
             resetPicker();
             document.getElementById('touch-picker').style.display = 'flex';
         }
+
+        function buildYearButtons() {
+            const yr = new Date().getFullYear();
+            const el = document.getElementById('year-step');
+            el.innerHTML = '';
+            for (let y = yr; y <= yr + 2; y++) {
+                const b = document.createElement('button');
+                b.className = 'p-btn'; b.textContent = y;
+                b.onclick = () => selectYear(y);
+                el.appendChild(b);
+            }
+        }
+        buildYearButtons();
 
         function resetPicker() {
             selectedYear = null; selectedMonth = null; selectedDay = null;

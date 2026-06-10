@@ -464,14 +464,7 @@ header {
 <div id="qa-touch-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
     <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:95%; max-width:850px; box-sizing:border-box;">
         <h2 id="qa-picker-title" style="text-align:center; color:#ffd700; margin-top:0; font-size:2rem; text-transform:uppercase;">SELECT YEAR</h2>
-        <div id="qa-year-step" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;">
-            <button class="qap-btn" onclick="qaSelectYear(2025)">2025</button>
-            <button class="qap-btn" onclick="qaSelectYear(2026)">2026</button>
-            <button class="qap-btn" onclick="qaSelectYear(2027)">2027</button>
-            <button class="qap-btn" onclick="qaSelectYear(2028)">2028</button>
-            <button class="qap-btn" onclick="qaSelectYear(2029)">2029</button>
-            <button class="qap-btn" onclick="qaSelectYear(2030)">2030</button>
-        </div>
+        <div id="qa-year-step" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;"></div>
         <div id="qa-month-step" style="display:none; grid-template-columns: repeat(6, 1fr); gap:10px;">
             <button class="qap-btn" onclick="qaSelectMonth(0)">JAN</button>
             <button class="qap-btn" onclick="qaSelectMonth(1)">FEB</button>
@@ -1004,6 +997,19 @@ window.addEventListener('mousemove', qaHandleClockMove);
 window.addEventListener('touchmove', qaHandleClockMove, { passive: false });
 window.addEventListener('mouseup', () => qaActiveHand = null);
 window.addEventListener('touchend', () => qaActiveHand = null);
+
+function buildQaYearButtons() {
+    const yr = new Date().getFullYear();
+    const el = document.getElementById('qa-year-step');
+    el.innerHTML = '';
+    for (let y = yr; y <= yr + 2; y++) {
+        const b = document.createElement('button');
+        b.className = 'qap-btn'; b.textContent = y;
+        b.onclick = () => qaSelectYear(y);
+        el.appendChild(b);
+    }
+}
+buildQaYearButtons();
 
 function qaResetPicker() {
     qaSelectedYear = null; qaSelectedMonth = null; qaSelectedDay = null;
