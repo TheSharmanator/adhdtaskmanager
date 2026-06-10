@@ -733,6 +733,9 @@ function launchOTM(title, firstStep, sessionId, plannedMinutes, elapsedSeconds) 
 
     // Schedule break reminders
     setupBreakReminders(plannedMinutes, elapsedSeconds);
+
+    // Schedule focus nudges every 10 minutes
+    setupFocusNudges(plannedMinutes, elapsedSeconds);
 }
 
 function updateTimerDisplay() {
@@ -772,6 +775,42 @@ function setupBreakReminders(plannedMinutes, alreadyElapsed) {
 function fireBreakReminder(elapsedMins) {
     fetch('/api/focus/break_reminder', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({elapsed_minutes: elapsedMins}) });
     flashOverlay('#003300', 2000);
+}
+
+function setupFocusNudges(plannedMinutes, alreadyElapsed) {
+    // Fire a nudge at 10, 20, 30... minutes (stop before the last 2 min warning)
+    const nudgeInterval = 10 * 60; // 10 minutes in seconds
+    for (let elapsed = nudgeInterval; elapsed < plannedMinutes * 60 - 120; elapsed += nudgeInterval) {
+        const remaining = elapsed - alreadyElapsed;
+        if (remaining > 0) {
+            const t = setTimeout(() => {
+                if (focusTimerInterval) fireFocusNudge();
+            }, remaining * 1000);
+            focusBreakTimeouts.push(t); // reuse same array so they get cleared on cancel
+        }
+    }
+}
+
+function fireFocusNudge() {
+    fetch('/api/focus/nudge', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}' })
+        .then(r => r.json())
+        .then(d => { if (d.nudge) showNudgeBanner(d.nudge); });
+}
+
+function showNudgeBanner(text) {
+    let banner = document.getElementById('focus-nudge-banner');
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'focus-nudge-banner';
+        banner.style.cssText = 'position:absolute; bottom:80px; left:50%; transform:translateX(-50%); '
+            + 'background:#111; border:2px solid #ffd700; border-radius:10px; padding:12px 20px; '
+            + 'color:#ffd700; font-weight:900; font-size:1rem; text-align:center; max-width:85%; '
+            + 'z-index:10; opacity:0; transition:opacity 0.4s;';
+        document.getElementById('otm-overlay').appendChild(banner);
+    }
+    banner.innerText = text;
+    banner.style.opacity = '1';
+    setTimeout(() => { banner.style.opacity = '0'; }, 6000);
 }
 
 function flashOverlay(color, ms) {

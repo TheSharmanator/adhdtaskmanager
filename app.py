@@ -290,6 +290,37 @@ CHIMES = [
     "soundbank://soundlibrary/musical/amzn_sfx_test_tone_01",
 ]
 
+FOCUS_NUDGES = [
+    "Stay on task. Nothing else exists right now.",
+    "No side quests. Finish what you started.",
+    "Ignore the shiny thing. It will still be there later.",
+    "One thing. This thing. Right now.",
+    "Put the phone down.",
+    "You were doing something. Keep going.",
+    "Don't open a new tab.",
+    "Momentum is your friend. Don't break it.",
+    "Not now. Later. Focus.",
+    "Rabbit holes are for rabbits.",
+    "New idea? Write it down and come back to this.",
+    "Eyes forward. You're doing it.",
+    "The other thing can wait. This one can't.",
+    "You started this. Finish it.",
+    "Time blindness check: are you still on task?",
+    "Don't fix something that isn't your task.",
+    "Hyper-focus on the right thing. This thing.",
+    "Distraction is the enemy. You are stronger.",
+    "One tab. One task. One goal.",
+    "Still there? Good. Keep going.",
+    "The urge to switch is not an emergency. Ignore it.",
+    "No quick checks. No just-one-minutes. Stay.",
+    "You are in the zone. Stay in the zone.",
+    "Interruptions compound. Block them all.",
+    "Your future self will thank you for finishing this.",
+    "Brain wandering? Bring it back. Now.",
+    "This is the task. Not the other one. This one.",
+    "Steady. You're closer than you think.",
+]
+
 NO_DEADLINE_SENTINEL = '2099-12-31T00:00'
 
 
@@ -1162,6 +1193,13 @@ def focus_expired():
     idx = min(escalation - 1, len(nag_messages) - 1)
     trigger_voice_monkey(nag_messages[idx], chime=random.choice(CHIMES))
     return jsonify({'status': 'ok'})
+
+
+@app.route('/api/focus/nudge', methods=['POST'])
+def focus_nudge():
+    nudge = random.choice(FOCUS_NUDGES)
+    trigger_voice_monkey(nudge)
+    return jsonify({'status': 'ok', 'nudge': nudge})
 
 
 @app.route('/api/estimate_duration', methods=['POST'])
