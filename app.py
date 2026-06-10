@@ -1412,6 +1412,8 @@ def breakdown_commit():
 
     conn.commit()
     conn.close()
+    if get_setting('gcal_enabled', '0') == '1':
+        _trigger_gcal_sync_async()
     return jsonify({'status': 'ok', 'parent_id': parent_id, 'count': len(subtasks)})
 
 
