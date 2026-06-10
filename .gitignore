@@ -1,4 +1,6 @@
 tasks.db
+tasks.db-shm
+tasks.db-wal
 *.pyc
 __pycache__/
 instance/
