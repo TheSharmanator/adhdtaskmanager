@@ -238,8 +238,15 @@ def generate_message_bank():
         'Each under 12 words. Genuinely enthusiastic and warm. No task names, no names. '
         'Return a JSON array of 25 strings ONLY. No other text.'
     )
+    nudge_sys = (
+        'Generate exactly 25 short, punchy focus reminders for someone with ADHD working in focus mode. '
+        'Each under 12 words. Address common ADHD focus failures: task-switching, shiny-object syndrome, '
+        'side quests, phone checking, time blindness, opening new tabs, rabbit holes, losing momentum. '
+        'Tone: direct, no-nonsense, encouraging not shaming. No names. '
+        'Return a JSON array of 25 strings ONLY. No other text.'
+    )
     messages = []
-    for sys_p, mtype in [(nag_sys, 'nag'), (praise_sys, 'praise')]:
+    for sys_p, mtype in [(nag_sys, 'nag'), (praise_sys, 'praise'), (nudge_sys, 'focus_nudge')]:
         result = call_llm('Generate the messages now.', 'quick', sys_p)
         if result:
             try:

@@ -587,6 +587,8 @@ def get_message_from_bank(msg_type):
     # Fallback to built-in
     if msg_type == 'nag':
         return random.choice(NAG_EXPIRED)
+    if msg_type == 'focus_nudge':
+        return random.choice(FOCUS_NUDGES)
     return random.choice(PRAISE_MESSAGES).format(name=USER_NAME)
 
 
@@ -1197,7 +1199,7 @@ def focus_expired():
 
 @app.route('/api/focus/nudge', methods=['POST'])
 def focus_nudge():
-    nudge = random.choice(FOCUS_NUDGES)
+    nudge = get_message_from_bank('focus_nudge')
     trigger_voice_monkey(nudge)
     return jsonify({'status': 'ok', 'nudge': nudge})
 
