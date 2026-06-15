@@ -1006,6 +1006,8 @@ def index():
                 'deadline_type': 'none',
                 'scheduled_label': '',
                 'sched_bracket': '',
+                'edit_date': '',
+                'edit_time': '',
             })
             continue
 
@@ -1052,9 +1054,18 @@ def index():
             'deadline_type': dl_type,
             'scheduled_label': sched_label,
             'sched_bracket': sched_bracket,
+            'edit_date': deadline_dt.strftime('%Y-%m-%d'),
+            'edit_time': deadline_dt.strftime('%H:%M'),
         })
 
     conn.commit()
+
+    if is_mobile:
+        conn.close()
+        return render_template('mobile.html',
+                               tasks=processed_tasks,
+                               user_name=USER_NAME,
+                               buffer_pct=int(get_buffer_pct()))
 
     c.execute("SELECT value FROM settings WHERE key='dnd_start'")
     d_start_res = c.fetchone()

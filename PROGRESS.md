@@ -835,4 +835,44 @@ All three date pickers (Quick Add on index, Add Task, Edit Task) now show a row 
 
 ---
 
+## Session 015 — 2026-06-15
+
+**Type:** Feature — dedicated mobile interface + README rewrite (pre-merge)
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`
+**Status:** Complete — all changes pushed
+
+### What Was Done
+
+**New mobile interface (`templates/mobile.html`)**
+The app is reached on a phone over Tailscale. The old mobile version was a bare inline `{% if is_mobile %}` block inside `index.html` (just a task list with DONE buttons, no edit/add/AI). That block was removed and replaced with a dedicated, self-contained `mobile.html` template. The `/` route now renders `mobile.html` when a mobile user-agent is detected (kiosk `index.html` is unchanged for the touchscreen).
+
+Mobile features:
+- **Task list** — every active task as a card showing title + scheduled `[HH:MM-HH:MM]` bracket, deadline (or BACKLOG), and duration. Card border turns red when overdue, orange/yellow when soon.
+- **✓ Done** — posts to `/complete/<id>`, then shows the full-screen **fireworks celebration** with the praise message (or overdue sarcasm — whatever `/complete` returns), plays the applause audio, and reloads.
+- **✎ Edit** — opens an overlay with native `<input type="date">` / `<input type="time">` / number inputs, prefilled from the task, posting to `/edit/<id>`.
+- **⚡ Quick Add** — overlay with native pickers, deadline-type buttons, duration grid, and **🤖 AI Estimate** (`/api/estimate_duration`). Posts to `/add`.
+- **＋ Add** — same simple form plus **🧠 Break It Down With AI**: runs the full complex-task flow (`/api/breakdown/questions` → dynamic per-question options → `/api/breakdown/complete` → sub-task preview → `/api/breakdown/commit`).
+
+Uses native mobile date/time pickers throughout (not the kiosk touch pickers). Task data is passed to the edit overlay via a script-safe `TASKS` JSON array (`tojson`) rather than inline-escaped onclick args, avoiding HTML-attribute escaping bugs with quotes/`&`/`<`.
+
+**`app.py`** — index route: added `edit_date`/`edit_time` (ISO) to each task dict for prefill; added the `is_mobile` branch returning `mobile.html` with `tasks`, `user_name`, `buffer_pct`.
+
+**`index.html`** — removed the obsolete inline mobile block and its `{% if is_mobile %}/{% else %}/{% endif %}` wrapper.
+
+**README rewrite** — `README.md` fully rewritten for the v2 merge (committed separately as `a5c5597`): current feature set, architecture, setup, configuration, mobile/Tailscale access, usage.
+
+### Files Changed This Session
+- `templates/mobile.html` — new mobile interface (added)
+- `app.py` — mobile route branch + edit prefill fields
+- `templates/index.html` — removed old inline mobile block
+- `README.md` — rewritten (separate commit)
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All changes pushed
+- Verified: mobile UA → `mobile.html`; desktop UA → kiosk `index.html`; AI estimate + breakdown endpoints return real LLM responses; titles with quotes/`<`/`&` render safely
+- Test on phone via Tailscale: list, Done (fireworks + message), Edit, Quick Add (+AI), Add (+AI breakdown)
+
+---
+
 *Future sessions appended below*

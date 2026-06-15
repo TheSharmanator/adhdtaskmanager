@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ADHD Board — Mobile</title>
+    <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            margin: 0; padding: 0;
+            background: #0d0d0d; color: #fff;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            min-height: 100vh;
+        }
+        .m-header {
+            position: sticky; top: 0; z-index: 50;
+            background: #0d0d0d; border-bottom: 3px solid #ffd700;
+            padding: 14px 14px 12px;
+        }
+        .m-header h1 {
+            margin: 0 0 12px; text-align: center;
+            color: #ffd700; font-size: 1.6rem; font-weight: 900;
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+        .m-header-btns { display: flex; gap: 10px; }
+        .m-btn {
+            flex: 1; padding: 16px 8px; border-radius: 12px;
+            font-size: 1.05rem; font-weight: 900; text-transform: uppercase;
+            border: 3px solid #fff; cursor: pointer; color: #000;
+        }
+        .m-btn-quick { background: #ffff00; }
+        .m-btn-add   { background: #00ff66; }
+
+        #task-list { padding: 12px 12px 80px; }
+        .m-task {
+            background: #1c1c1c; border: 3px solid #333;
+            border-radius: 14px; padding: 14px;
+            margin-bottom: 12px;
+        }
+        .m-task.late { border-color: #ff0044; }
+        .m-task.soon { border-color: #ff9900; }
+        .m-task-title {
+            font-size: 1.2rem; font-weight: 800; color: #fff;
+            line-height: 1.25; word-break: break-word;
+        }
+        .m-task-bracket { color: #ffd700; font-size: 0.9em; }
+        .m-task-meta {
+            margin-top: 6px; font-size: 0.9rem; color: #ffd700;
+            text-transform: uppercase;
+        }
+        .m-task-dur { color: #888; font-size: 0.8rem; margin-top: 2px; }
+        .m-task-actions { display: flex; gap: 10px; margin-top: 12px; }
+        .m-action {
+            flex: 1; padding: 14px; border-radius: 10px;
+            font-size: 1rem; font-weight: 900; text-transform: uppercase;
+            border: 2px solid #fff; cursor: pointer;
+        }
+        .m-done { background: #00ff66; color: #000; }
+        .m-edit { background: #003366; color: #66aaff; border-color: #0066cc; }
+        .m-empty { text-align: center; color: #555; padding: 50px 20px; font-size: 1.1rem; }
+
+        /* ── Overlays ── */
+        .m-overlay {
+            display: none; position: fixed; inset: 0; z-index: 600;
+            background: rgba(0,0,0,0.92);
+            overflow-y: auto; padding: 16px;
+        }
+        .m-card {
+            background: #141414; border: 4px solid #ffd700;
+            border-radius: 16px; padding: 18px;
+            max-width: 560px; margin: 10px auto 40px;
+        }
+        .m-card.quick { border-color: #ffff00; }
+        .m-card.add   { border-color: #00ff66; }
+        .m-card-head {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 10px;
+        }
+        .m-card-head h2 { margin: 0; font-size: 1.4rem; text-transform: uppercase; color: #ffd700; }
+        .m-close {
+            padding: 8px 14px; background: #333; color: #fff;
+            border: 2px solid #555; border-radius: 8px; font-weight: 900; cursor: pointer;
+        }
+        .m-label {
+            display: block; margin: 14px 0 6px;
+            font-size: 0.8rem; font-weight: 900; color: #888; text-transform: uppercase;
+        }
+        .m-input {
+            width: 100%; padding: 14px; font-size: 1.1rem;
+            background: #000; color: #fff; border: 2px solid #444;
+            border-radius: 10px;
+        }
+        .m-dl-row { display: flex; gap: 8px; }
+        .m-dl-btn {
+            flex: 1; padding: 12px 4px; border-radius: 10px;
+            border: 2px solid #444; background: #1c1c1c; color: #aaa;
+            font-weight: 900; font-size: 0.85rem; text-transform: uppercase; cursor: pointer;
+        }
+        .m-dl-btn small { display: block; font-size: 0.65rem; font-weight: 400; color: #666; }
+        .m-dl-btn.sel-fixed    { background: #330011; border-color: #ff0044; color: #ff6688; }
+        .m-dl-btn.sel-flexible { background: #003311; border-color: #00ff66; color: #66ffaa; }
+        .m-dl-btn.sel-none     { background: #001133; border-color: #0066cc; color: #66aaff; }
+        .m-dt-row { display: flex; gap: 10px; }
+        .m-dt-row > div { flex: 1; }
+        .m-dur-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .m-dur-btn {
+            padding: 14px 0; border-radius: 10px; border: 2px solid #444;
+            background: #1c1c1c; color: #fff; font-weight: 900; font-size: 1rem; cursor: pointer;
+        }
+        .m-dur-btn.active { background: #ffd700; color: #000; border-color: #fff; }
+        .m-ai-btn {
+            width: 100%; margin-top: 10px; padding: 14px;
+            background: #002244; color: #66aaff; border: 2px solid #0066cc;
+            border-radius: 10px; font-size: 0.95rem; font-weight: 900; text-transform: uppercase; cursor: pointer;
+        }
+        .m-ai-info {
+            display: none; margin-top: 8px; padding: 8px; font-size: 0.85rem;
+            color: #aaa; background: #0a0a0a; border-radius: 8px;
+        }
+        .m-save-btn {
+            width: 100%; margin-top: 18px; padding: 18px;
+            background: #00ff66; color: #000; border: 3px solid #fff;
+            border-radius: 12px; font-size: 1.2rem; font-weight: 900; text-transform: uppercase; cursor: pointer;
+        }
+        .m-status { margin-top: 10px; font-size: 0.95rem; color: #ff5555; min-height: 1.2em; text-align: center; }
+
+        /* ── Breakdown ── */
+        .m-bd-q { margin-bottom: 16px; }
+        .m-bd-q-text { font-size: 1.05rem; font-weight: 700; margin-bottom: 8px; color: #fff; }
+        .m-bd-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+        .m-bd-opt {
+            flex: 1 1 45%; padding: 12px; border-radius: 10px;
+            border: 2px solid #444; background: #1c1c1c; color: #ddd;
+            font-weight: 700; font-size: 0.95rem; cursor: pointer; text-align: center;
+        }
+        .m-bd-opt.active { background: #ffd700; color: #000; border-color: #fff; }
+        .m-sub {
+            background: #1c1c1c; border: 2px solid #333; border-radius: 10px;
+            padding: 12px; margin-bottom: 10px;
+        }
+        .m-sub-title { font-weight: 800; color: #fff; }
+        .m-sub-meta { font-size: 0.85rem; color: #ffd700; margin-top: 4px; }
+
+        /* ── Celebration ── */
+        #celebration {
+            display: none; position: fixed; inset: 0; z-index: 9000;
+            background: #000; justify-content: center; align-items: center; flex-direction: column;
+        }
+        #fireworks-canvas { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; }
+        #praise-text {
+            position: relative; z-index: 2; font-size: 2.2rem; font-weight: 900;
+            text-align: center; color: #ffd700; margin: 20px; padding: 24px;
+            background: rgba(0,0,0,0.75); border-radius: 18px; line-height: 1.3;
+        }
+    </style>
+</head>
+<body>
+
+<div class="m-header">
+    <h1>{{ user_name or 'ADHD' }}'s Board</h1>
+    <div class="m-header-btns">
+        <button class="m-btn m-btn-quick" onclick="openQuick()">⚡ Quick Add</button>
+        <button class="m-btn m-btn-add" onclick="openAdd()">＋ Add</button>
+    </div>
+</div>
+
+<div id="task-list">
+    {% for task in tasks %}
+    <div class="m-task {{ 'late' if task.phase == 'phase-red' else ('soon' if task.phase in ['phase-orange','phase-yellow'] else '') }}">
+        <div class="m-task-title">
+            {{ task.title }}{% if task.sched_bracket %} <span class="m-task-bracket">{{ task.sched_bracket }}</span>{% endif %}
+        </div>
+        <div class="m-task-meta">
+            {% if task.deadline_type == 'none' %}BACKLOG{% else %}DUE: {{ task.deadline }}{% endif %}
+        </div>
+        {% if task.duration_minutes %}<div class="m-task-dur">{{ task.duration_display }}</div>{% endif %}
+        <div class="m-task-actions">
+            <button class="m-action m-done" onclick="completeTask({{ task.id }})">✓ Done</button>
+            <button class="m-action m-edit" onclick="openEdit({{ task.id }})">✎ Edit</button>
+        </div>
+    </div>
+    {% else %}
+    <div class="m-empty">No active tasks.<br>Tap Quick Add or Add to create one.</div>
+    {% endfor %}
+</div>
+
+<!-- ── QUICK ADD ── -->
+<div id="quick-overlay" class="m-overlay">
+    <div class="m-card quick">
+        <div class="m-card-head">
+            <h2 style="color:#ffff00;">⚡ Quick Add</h2>
+            <button class="m-close" onclick="closeOverlay('quick-overlay')">CLOSE</button>
+        </div>
+        <span class="m-label">Task Name</span>
+        <input type="text" id="q-title" class="m-input" placeholder="What needs doing?">
+
+        <span class="m-label">Deadline</span>
+        <div class="m-dl-row">
+            <button class="m-dl-btn" id="q-dl-fixed"    onclick="setDL('q','fixed')">Fixed<small>hard</small></button>
+            <button class="m-dl-btn" id="q-dl-flexible" onclick="setDL('q','flexible')">Flexible<small>casual</small></button>
+            <button class="m-dl-btn" id="q-dl-none"     onclick="setDL('q','none')">No Date<small>backlog</small></button>
+        </div>
+        <div class="m-dt-row" id="q-dt-row" style="display:none; margin-top:12px;">
+            <div><span class="m-label" style="margin-top:0;">Date</span><input type="date" id="q-date" class="m-input"></div>
+            <div><span class="m-label" style="margin-top:0;">Time</span><input type="time" id="q-time" class="m-input" value="09:00"></div>
+        </div>
+
+        <span class="m-label">Duration (minutes)</span>
+        <div class="m-dur-grid">
+            <button class="m-dur-btn" onclick="setDur('q',15,this)">15</button>
+            <button class="m-dur-btn" onclick="setDur('q',30,this)">30</button>
+            <button class="m-dur-btn" onclick="setDur('q',45,this)">45</button>
+            <button class="m-dur-btn" onclick="setDur('q',60,this)">60</button>
+            <button class="m-dur-btn" onclick="setDur('q',90,this)">90</button>
+            <button class="m-dur-btn" onclick="setDur('q',120,this)">120</button>
+        </div>
+        <input type="number" id="q-dur-custom" class="m-input" style="margin-top:8px;" placeholder="or type minutes" min="1" max="999" oninput="customDur('q',this.value)">
+        <button class="m-ai-btn" id="q-ai-btn" onclick="aiEstimate('q')">🤖 AI Estimate Duration</button>
+        <div class="m-ai-info" id="q-ai-info"></div>
+
+        <button class="m-save-btn" onclick="saveSimple('q', this)">Save Task</button>
+        <div class="m-status" id="q-status"></div>
+    </div>
+</div>
+
+<!-- ── ADD (with AI breakdown) ── -->
+<div id="add-overlay" class="m-overlay">
+    <div class="m-card add">
+        <div class="m-card-head">
+            <h2 style="color:#00ff66;">＋ Add Task</h2>
+            <button class="m-close" onclick="closeOverlay('add-overlay')">CLOSE</button>
+        </div>
+
+        <div id="a-main">
+            <span class="m-label">Task Name</span>
+            <input type="text" id="a-title" class="m-input" placeholder="What needs doing?">
+
+            <span class="m-label">Deadline</span>
+            <div class="m-dl-row">
+                <button class="m-dl-btn" id="a-dl-fixed"    onclick="setDL('a','fixed')">Fixed<small>hard</small></button>
+                <button class="m-dl-btn" id="a-dl-flexible" onclick="setDL('a','flexible')">Flexible<small>casual</small></button>
+                <button class="m-dl-btn" id="a-dl-none"     onclick="setDL('a','none')">No Date<small>backlog</small></button>
+            </div>
+            <div class="m-dt-row" id="a-dt-row" style="display:none; margin-top:12px;">
+                <div><span class="m-label" style="margin-top:0;">Date</span><input type="date" id="a-date" class="m-input"></div>
+                <div><span class="m-label" style="margin-top:0;">Time</span><input type="time" id="a-time" class="m-input" value="09:00"></div>
+            </div>
+
+            <span class="m-label">Duration (minutes)</span>
+            <div class="m-dur-grid">
+                <button class="m-dur-btn" onclick="setDur('a',15,this)">15</button>
+                <button class="m-dur-btn" onclick="setDur('a',30,this)">30</button>
+                <button class="m-dur-btn" onclick="setDur('a',45,this)">45</button>
+                <button class="m-dur-btn" onclick="setDur('a',60,this)">60</button>
+                <button class="m-dur-btn" onclick="setDur('a',90,this)">90</button>
+                <button class="m-dur-btn" onclick="setDur('a',120,this)">120</button>
+            </div>
+            <input type="number" id="a-dur-custom" class="m-input" style="margin-top:8px;" placeholder="or type minutes" min="1" max="999" oninput="customDur('a',this.value)">
+            <button class="m-ai-btn" id="a-ai-btn" onclick="aiEstimate('a')">🤖 AI Estimate Duration</button>
+            <div class="m-ai-info" id="a-ai-info"></div>
+
+            <button class="m-save-btn" onclick="saveSimple('a', this)">Save Task</button>
+            <button class="m-ai-btn" style="margin-top:12px; background:#2a0033; color:#cc88ff; border-color:#8800cc;" onclick="startBreakdown(this)">🧠 Too Big? Break It Down With AI</button>
+            <div class="m-status" id="a-status"></div>
+        </div>
+
+        <!-- Breakdown questions -->
+        <div id="a-questions" style="display:none;">
+            <p style="color:#cc88ff; font-weight:900; text-transform:uppercase; font-size:0.9rem;">Answer a few questions:</p>
+            <div id="a-q-list"></div>
+            <button class="m-save-btn" style="background:#cc88ff;" onclick="generateSubtasks(this)">Generate Sub-Tasks</button>
+            <button class="m-ai-btn" style="margin-top:10px; background:#222;" onclick="cancelBreakdown()">← Back</button>
+            <div class="m-status" id="a-q-status"></div>
+        </div>
+
+        <!-- Breakdown preview -->
+        <div id="a-preview" style="display:none;">
+            <p style="color:#00ff66; font-weight:900; text-transform:uppercase; font-size:0.9rem;">Review &amp; save sub-tasks:</p>
+            <div id="a-sub-list"></div>
+            <button class="m-save-btn" onclick="commitBreakdown(this)">Save All Sub-Tasks</button>
+            <button class="m-ai-btn" style="margin-top:10px; background:#222;" onclick="cancelBreakdown()">← Cancel</button>
+            <div class="m-status" id="a-p-status"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ── EDIT ── -->
+<div id="edit-overlay" class="m-overlay">
+    <div class="m-card">
+        <div class="m-card-head">
+            <h2>✎ Edit Task</h2>
+            <button class="m-close" onclick="closeOverlay('edit-overlay')">CLOSE</button>
+        </div>
+        <span class="m-label">Task</span>
+        <div id="e-title" class="m-input" style="background:#0a0a0a; color:#aaa;"></div>
+
+        <span class="m-label">Deadline</span>
+        <div class="m-dl-row">
+            <button class="m-dl-btn" id="e-dl-fixed"    onclick="setDL('e','fixed')">Fixed<small>hard</small></button>
+            <button class="m-dl-btn" id="e-dl-flexible" onclick="setDL('e','flexible')">Flexible<small>casual</small></button>
+            <button class="m-dl-btn" id="e-dl-none"     onclick="setDL('e','none')">No Date<small>backlog</small></button>
+        </div>
+        <div class="m-dt-row" id="e-dt-row" style="display:none; margin-top:12px;">
+            <div><span class="m-label" style="margin-top:0;">Date</span><input type="date" id="e-date" class="m-input"></div>
+            <div><span class="m-label" style="margin-top:0;">Time</span><input type="time" id="e-time" class="m-input"></div>
+        </div>
+
+        <span class="m-label">Duration (minutes)</span>
+        <input type="number" id="e-dur-custom" class="m-input" min="1" max="999">
+
+        <button class="m-save-btn" onclick="saveEdit(this)">Save Changes</button>
+        <div class="m-status" id="e-status"></div>
+    </div>
+</div>
+
+<!-- ── CELEBRATION ── -->
+<div id="celebration">
+    <canvas id="fireworks-canvas"></canvas>
+    <h1 id="praise-text"></h1>
+</div>
+
+<script>
+const BUFFER_PCT = {{ buffer_pct }};
+const TASKS = {{ tasks|tojson }};
+
+// ── form state: prefix 'q' (quick), 'a' (add), 'e' (edit) ──
+const state = { q: {dl:'', dur:0}, a: {dl:'', dur:0}, e: {dl:'', dur:0} };
+
+function openOverlay(id){ document.getElementById(id).style.display='block'; document.body.style.overflow='hidden'; }
+function closeOverlay(id){ document.getElementById(id).style.display='none'; document.body.style.overflow=''; }
+
+// ── QUICK ADD ──
+function openQuick(){
+    resetForm('q');
+    document.getElementById('q-title').value='';
+    document.getElementById('q-date').value='';
+    document.getElementById('q-time').value='09:00';
+    openOverlay('quick-overlay');
+}
+
+// ── ADD ──
+function openAdd(){
+    resetForm('a');
+    document.getElementById('a-title').value='';
+    document.getElementById('a-date').value='';
+    document.getElementById('a-time').value='09:00';
+    document.getElementById('a-main').style.display='block';
+    document.getElementById('a-questions').style.display='none';
+    document.getElementById('a-preview').style.display='none';
+    openOverlay('add-overlay');
+}
+
+function resetForm(p){
+    state[p].dl=''; state[p].dur=0;
+    ['fixed','flexible','none'].forEach(t=>{ const b=document.getElementById(p+'-dl-'+t); if(b) b.className='m-dl-btn'; });
+    const row=document.getElementById(p+'-dt-row'); if(row) row.style.display='none';
+    document.querySelectorAll('#'+(p==='q'?'quick':p==='a'?'add':'edit')+'-overlay .m-dur-btn').forEach(b=>b.classList.remove('active'));
+    const c=document.getElementById(p+'-dur-custom'); if(c) c.value='';
+    const ai=document.getElementById(p+'-ai-info'); if(ai) ai.style.display='none';
+    const st=document.getElementById(p+'-status'); if(st) st.innerText='';
+}
+
+function setDL(p,type){
+    state[p].dl=type;
+    ['fixed','flexible','none'].forEach(t=>{ document.getElementById(p+'-dl-'+t).className='m-dl-btn'; });
+    document.getElementById(p+'-dl-'+type).classList.add('sel-'+type);
+    document.getElementById(p+'-dt-row').style.display = (type==='none') ? 'none' : 'flex';
+}
+
+function setDur(p,mins,btn){
+    state[p].dur=mins;
+    btn.parentElement.querySelectorAll('.m-dur-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(p+'-dur-custom').value='';
+}
+function customDur(p,val){
+    state[p].dur=parseInt(val)||0;
+    document.querySelectorAll('#'+(p==='q'?'quick':'add')+'-overlay .m-dur-btn').forEach(b=>b.classList.remove('active'));
+}
+
+function aiEstimate(p){
+    const title=document.getElementById(p+'-title').value.trim();
+    const status=document.getElementById(p+'-status');
+    if(!title){ status.innerText='Enter a task name first.'; return; }
+    status.innerText='';
+    const btn=document.getElementById(p+'-ai-btn');
+    const info=document.getElementById(p+'-ai-info');
+    const label=btn.innerText; btn.innerText='🤖 Thinking...'; btn.disabled=true;
+    fetch('/api/estimate_duration',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title})})
+    .then(r=>r.json())
+    .then(d=>{
+        if(d.buffered_minutes){
+            state[p].dur=d.buffered_minutes;
+            document.getElementById(p+'-dur-custom').value=d.buffered_minutes;
+            document.querySelectorAll('#'+(p==='q'?'quick':'add')+'-overlay .m-dur-btn').forEach(b=>b.classList.remove('active'));
+            info.innerText=`AI: ${d.raw_minutes}min + buffer = ${d.buffered_minutes}min — ${d.rationale}`;
+        } else { info.innerText=d.error||'AI estimate unavailable.'; }
+        info.style.display='block';
+    })
+    .catch(()=>{ info.innerText='AI unavailable.'; info.style.display='block'; })
+    .finally(()=>{ btn.innerText=label; btn.disabled=false; });
+}
+
+function saveSimple(p, btn){
+    const title=document.getElementById(p+'-title').value.trim();
+    const status=document.getElementById(p+'-status');
+    status.innerText='';
+    if(!title){ status.innerText='Task name is required.'; return; }
+    if(!state[p].dl){ status.innerText='Select a deadline type.'; return; }
+    if(state[p].dl!=='none'){
+        if(!document.getElementById(p+'-date').value){ status.innerText='Pick a date.'; return; }
+        if(!document.getElementById(p+'-time').value){ status.innerText='Pick a time.'; return; }
+    }
+    const form=new FormData();
+    form.append('type','one-off');
+    form.append('title',title);
+    form.append('deadline_type',state[p].dl);
+    form.append('duration_minutes',state[p].dur||30);
+    if(state[p].dl!=='none'){
+        form.append('deadline_date',document.getElementById(p+'-date').value); // YYYY-MM-DD
+        form.append('deadline_time',document.getElementById(p+'-time').value||'09:00');
+    }
+    btn.innerText='Saving...'; btn.disabled=true;
+    fetch('/add',{method:'POST',body:form})
+    .then(r=>{ if(r.ok||r.redirected){ location.reload(); } else { throw new Error(); } })
+    .catch(()=>{ btn.innerText='Save Task'; btn.disabled=false; status.innerText='Save failed — check fields.'; });
+}
+
+// ── EDIT ──
+let editTaskId=null;
+function openEdit(id){
+    const task=TASKS.find(t=>t.id===id);
+    if(!task) return;
+    editTaskId=id;
+    resetForm('e');
+    document.getElementById('e-title').innerText=task.title;
+    document.getElementById('e-date').value=task.edit_date||'';
+    document.getElementById('e-time').value=task.edit_time||'09:00';
+    document.getElementById('e-dur-custom').value=task.duration_minutes||30;
+    state.e.dur=task.duration_minutes||30;
+    setDL('e', task.deadline_type||'flexible');
+    openOverlay('edit-overlay');
+}
+function saveEdit(btn){
+    const status=document.getElementById('e-status'); status.innerText='';
+    if(!state.e.dl){ status.innerText='Select a deadline type.'; return; }
+    if(state.e.dl!=='none'){
+        if(!document.getElementById('e-date').value){ status.innerText='Pick a date.'; return; }
+        if(!document.getElementById('e-time').value){ status.innerText='Pick a time.'; return; }
+    }
+    const dur=parseInt(document.getElementById('e-dur-custom').value)||30;
+    const form=new FormData();
+    form.append('deadline_type',state.e.dl);
+    form.append('duration_minutes',dur);
+    if(state.e.dl!=='none'){
+        form.append('deadline_date',document.getElementById('e-date').value);
+        form.append('deadline_time',document.getElementById('e-time').value||'09:00');
+    }
+    btn.innerText='Saving...'; btn.disabled=true;
+    fetch('/edit/'+editTaskId,{method:'POST',body:form})
+    .then(r=>{ if(r.ok||r.redirected){ location.reload(); } else { throw new Error(); } })
+    .catch(()=>{ btn.innerText='Save Changes'; btn.disabled=false; status.innerText='Save failed.'; });
+}
+
+// ── AI BREAKDOWN ──
+let bdQuestions=[], bdAnswers={}, bdSubtasks=[], bdParentDeadline='';
+
+function startBreakdown(btn){
+    const title=document.getElementById('a-title').value.trim();
+    const status=document.getElementById('a-status');
+    if(!title){ status.innerText='Enter a task name first.'; return; }
+    status.innerText='';
+    // capture parent deadline for context
+    if(state.a.dl && state.a.dl!=='none' && document.getElementById('a-date').value){
+        bdParentDeadline=document.getElementById('a-date').value+'T'+(document.getElementById('a-time').value||'09:00');
+    } else { bdParentDeadline=''; }
+    btn.innerText='🧠 Thinking...'; btn.disabled=true;
+    fetch('/api/breakdown/questions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title})})
+    .then(r=>r.json())
+    .then(d=>{
+        bdQuestions=d.questions||[]; bdAnswers={};
+        renderQuestions();
+        document.getElementById('a-main').style.display='none';
+        document.getElementById('a-questions').style.display='block';
+    })
+    .catch(()=>{ status.innerText='AI unavailable.'; })
+    .finally(()=>{ btn.innerText='🧠 Too Big? Break It Down With AI'; btn.disabled=false; });
+}
+
+function renderQuestions(){
+    const list=document.getElementById('a-q-list'); list.innerHTML='';
+    bdQuestions.forEach((q,qi)=>{
+        const wrap=document.createElement('div'); wrap.className='m-bd-q';
+        const txt=document.createElement('div'); txt.className='m-bd-q-text'; txt.innerText=(qi+1)+'. '+q.question;
+        wrap.appendChild(txt);
+        const opts=document.createElement('div'); opts.className='m-bd-opts';
+        (q.options||['Yes','No']).forEach(opt=>{
+            const b=document.createElement('button'); b.className='m-bd-opt'; b.innerText=opt;
+            b.onclick=()=>{
+                bdAnswers[q.question]=opt;
+                opts.querySelectorAll('.m-bd-opt').forEach(x=>x.classList.remove('active'));
+                b.classList.add('active');
+            };
+            opts.appendChild(b);
+        });
+        wrap.appendChild(opts); list.appendChild(wrap);
+    });
+}
+
+function generateSubtasks(btn){
+    const status=document.getElementById('a-q-status');
+    if(Object.keys(bdAnswers).length < bdQuestions.length){ status.innerText='Please answer every question.'; return; }
+    status.innerText='';
+    const title=document.getElementById('a-title').value.trim();
+    btn.innerText='Generating...'; btn.disabled=true;
+    fetch('/api/breakdown/complete',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({title, deadline:bdParentDeadline, answers:bdAnswers})})
+    .then(r=>r.json())
+    .then(d=>{
+        if(d.error||!d.subtasks){ status.innerText=d.error||'No sub-tasks generated.'; return; }
+        bdSubtasks=d.subtasks; renderSubtasks();
+        document.getElementById('a-questions').style.display='none';
+        document.getElementById('a-preview').style.display='block';
+    })
+    .catch(()=>{ status.innerText='AI unavailable.'; })
+    .finally(()=>{ btn.innerText='Generate Sub-Tasks'; btn.disabled=false; });
+}
+
+function renderSubtasks(){
+    const list=document.getElementById('a-sub-list'); list.innerHTML='';
+    bdSubtasks.forEach(s=>{
+        const div=document.createElement('div'); div.className='m-sub';
+        const t=document.createElement('div'); t.className='m-sub-title'; t.innerText=s.title;
+        div.appendChild(t);
+        const meta=document.createElement('div'); meta.className='m-sub-meta';
+        let when='No date';
+        if(s.deadline_date){
+            const parts=s.deadline_date.split('-');
+            when=parts[2]+'/'+parts[1]+'/'+parts[0]+' '+(s.deadline_time||'09:00');
+        }
+        meta.innerText=when+' · '+(s.duration_display||s.duration_minutes+'m');
+        div.appendChild(meta); list.appendChild(div);
+    });
+}
+
+function commitBreakdown(btn){
+    const status=document.getElementById('a-p-status'); status.innerText='';
+    const title=document.getElementById('a-title').value.trim();
+    btn.innerText='Saving...'; btn.disabled=true;
+    fetch('/api/breakdown/commit',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({parent_title:title, parent_deadline:(bdParentDeadline||'2099-12-31T00:00'), subtasks:bdSubtasks})})
+    .then(r=>r.json())
+    .then(d=>{ if(d.status==='ok'){ location.reload(); } else { throw new Error(); } })
+    .catch(()=>{ btn.innerText='Save All Sub-Tasks'; btn.disabled=false; status.innerText='Save failed.'; });
+}
+
+function cancelBreakdown(){
+    document.getElementById('a-questions').style.display='none';
+    document.getElementById('a-preview').style.display='none';
+    document.getElementById('a-main').style.display='block';
+}
+
+// ── COMPLETE + CELEBRATION ──
+function completeTask(id){
+    fetch('/complete/'+id,{method:'POST'})
+    .then(r=>{ if(!r.ok) throw new Error(); return r.json(); })
+    .then(data=>{
+        if(data.audio){ try{ new Audio(data.audio).play(); }catch(e){} }
+        const cel=document.getElementById('celebration');
+        document.getElementById('praise-text').innerText=data.message||'TASK COMPLETE!';
+        cel.style.display='flex';
+        startFireworks();
+        setTimeout(()=>location.reload(), 7000);
+    })
+    .catch(()=>location.reload());
+}
+
+function startFireworks(){
+    const canvas=document.getElementById('fireworks-canvas');
+    if(!canvas) return;
+    const ctx=canvas.getContext('2d');
+    canvas.width=window.innerWidth; canvas.height=window.innerHeight;
+    let particles=[];
+    const colors=['#ff0044','#00ffcc','#ffff00','#ff00ff','#00ff00','#ffffff','#ffaa00'];
+    function Particle(x,y,c){ this.x=x;this.y=y;this.color=c;this.radius=Math.random()*3+1;
+        this.vx=(Math.random()-.5)*12;this.vy=(Math.random()-.5)*12;this.alpha=1;this.decay=Math.random()*0.015+0.005; }
+    Particle.prototype.update=function(){ this.vy+=0.05;this.x+=this.vx;this.y+=this.vy;this.alpha-=this.decay;
+        ctx.save();ctx.globalAlpha=this.alpha;ctx.beginPath();ctx.arc(this.x,this.y,this.radius,0,Math.PI*2);ctx.fillStyle=this.color;ctx.fill();ctx.restore(); };
+    function burst(x,y){ const c=colors[Math.floor(Math.random()*colors.length)]; for(let i=0;i<80;i++) particles.push(new Particle(x,y,c)); }
+    let animId;
+    function animate(){ animId=requestAnimationFrame(animate);
+        ctx.fillStyle='rgba(0,0,0,0.1)';ctx.fillRect(0,0,canvas.width,canvas.height);
+        if(Math.random()<0.06) burst(Math.random()*canvas.width, Math.random()*canvas.height*0.7);
+        particles=particles.filter(p=>p.alpha>0); particles.forEach(p=>p.update()); }
+    animate();
+    setTimeout(()=>{ cancelAnimationFrame(animId); ctx.clearRect(0,0,canvas.width,canvas.height); }, 7000);
+}
+</script>
+</body>
+</html>
