@@ -1032,7 +1032,7 @@ def index():
             try:
                 s_dt = datetime.strptime(sched_start, '%Y-%m-%dT%H:%M')
                 e_dt = datetime.strptime(sched_end,   '%Y-%m-%dT%H:%M')
-                sched_bracket = f"[{s_dt.strftime('%H:%M')}-{e_dt.strftime('%H:%M')}]"
+                sched_bracket = f"[{s_dt.strftime('%a %d %b')} {s_dt.strftime('%H:%M')}-{e_dt.strftime('%H:%M')}]"
                 sched_label   = s_dt.strftime('%d %b %H:%M').upper()
             except Exception:
                 pass
