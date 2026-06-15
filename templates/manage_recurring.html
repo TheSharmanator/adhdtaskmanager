@@ -123,6 +123,11 @@
                 <div class="info-box">
                     <strong>{{ t.title }}</strong>
                     <small>{{ t.display }}</small>
+                    {% if t.end_date %}
+                    <small style="color:#ff8800; display:block; margin-top:8px;">UNTIL {{ t.end_date }}</small>
+                    {% else %}
+                    <small style="color:#888; display:block; margin-top:8px;">NO END DATE</small>
+                    {% endif %}
                 </div>
                     <form action="/delete_template/{{ t.id }}" method="POST" autocomplete="off">
                         <button type="submit" class="btn-delete">DELETE</button>

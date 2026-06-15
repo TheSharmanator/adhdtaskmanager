@@ -359,10 +359,15 @@ def init_db():
             title TEXT NOT NULL,
             start_time TEXT NOT NULL,
             interval TEXT NOT NULL,
-            last_generated TEXT
+            last_generated TEXT,
+            end_date TEXT
         )
     """)
-
+    # Migration: add end_date column if missing (existing DBs)
+    try:
+        c.execute("ALTER TABLE recurring_templates ADD COLUMN end_date TEXT")
+    except:
+        pass  # column already exists
     c.execute("""
         CREATE TABLE IF NOT EXISTS settings (
             key TEXT PRIMARY KEY,
@@ -698,10 +703,24 @@ def run_morning_briefing():
 def check_recurring():
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT title, start_time, interval FROM recurring_templates")
+    # Fetch all master templates
+    c.execute("SELECT title, start_time, interval, end_date FROM recurring_templates")
     templates = c.fetchall()
     for temp in templates:
-        title, start_time, interval = temp
+        title, start_time, interval, end_date = temp
+
+        # If end_date has passed, skip generating any new instances
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                if datetime.now().date() > end_dt.date():
+                    continue
+            except:
+                pass
+
+        # We look for ANY instance of this task in the tasks table
+        # If no instance exists at all, we create the first one for 'today'
+        # (or the next logical occurrence)
         c.execute("SELECT deadline FROM tasks WHERE title=? ORDER BY deadline DESC LIMIT 1", (title,))
         last_instance = c.fetchone()
         if not last_instance:
@@ -1515,6 +1534,7 @@ def add_task():
                 interval = request.form.get('interval')
                 recur_time = request.form.get('recur_time')
                 recur_start_date = request.form.get('recur_start_date')
+                recur_end_date = request.form.get('recur_end_date', '').strip()
                 if not all([interval, recur_time, recur_start_date]):
                     return "Error: All recurring fields are compulsory.", 400
                 if '-' in recur_start_date:
@@ -1522,10 +1542,21 @@ def add_task():
                 else:
                     day, month, year = recur_start_date.split('/')
                     iso_start_date = f"{year}-{month}-{day}"
+
+                # Parse optional end date
+                iso_end_date = None
+                if recur_end_date:
+                    if '-' in recur_end_date:
+                        iso_end_date = recur_end_date
+                    else:
+                        ed, em, ey = recur_end_date.split('/')
+                        iso_end_date = f"{ey}-{em}-{ed}"
+
                 now_today = datetime.now().strftime('%Y-%m-%d')
                 c.execute(
-                    "INSERT INTO recurring_templates (title, start_time, interval, last_generated) VALUES (?, ?, ?, ?)",
-                    (title, recur_time, interval, now_today)
+                    "INSERT INTO recurring_templates (title, start_time, interval, last_generated, end_date) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (title, recur_time, interval, now_today, iso_end_date)
                 )
                 first_deadline = f"{iso_start_date}T{recur_time}"
                 c.execute(
@@ -1599,10 +1630,10 @@ def complete_task_internal(task_id):
             print(f"GCal complete failed for task {task_id}: {e}")
 
     # Handle recurring
-    c.execute("SELECT interval FROM recurring_templates WHERE title=?", (title,))
+    c.execute("SELECT interval, end_date FROM recurring_templates WHERE title=?", (title,))
     template = c.fetchone()
     if template and current_deadline != NO_DEADLINE_SENTINEL:
-        interval = template[0]
+        interval, end_date = template
         old_dt = datetime.strptime(current_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
         if interval == 'weekly':
             count, unit = 1, 'W'
@@ -1628,12 +1659,23 @@ def complete_task_internal(task_id):
                 new_dt = new_dt.replace(year=year, month=month, day=day)
 
         new_deadline = new_dt.strftime('%Y-%m-%dT%H:%M')
-        c.execute("SELECT id FROM tasks WHERE title=? AND deadline=?", (title, new_deadline))
-        if not c.fetchone():
-            c.execute(
-                "INSERT INTO tasks (title, deadline, last_alert_type, deadline_type) VALUES (?, ?, 'none', 'fixed')",
-                (title, new_deadline)
-            )
+
+        # Guard: don't generate the next instance past the template's end date
+        past_end = False
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                past_end = new_dt.date() > end_dt.date()
+            except Exception:
+                past_end = False
+
+        if not past_end:
+            c.execute("SELECT id FROM tasks WHERE title=? AND deadline=?", (title, new_deadline))
+            if not c.fetchone():
+                c.execute(
+                    "INSERT INTO tasks (title, deadline, last_alert_type, deadline_type) VALUES (?, ?, 'none', 'fixed')",
+                    (title, new_deadline)
+                )
 
     conn.commit()
     conn.close()
@@ -1712,11 +1754,14 @@ def restore_task(task_id):
 def manage_recurring():
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT id, title, start_time, interval FROM recurring_templates")
+    # Fetch templates
+    c.execute("SELECT id, title, start_time, interval, end_date FROM recurring_templates")
     rows = c.fetchall()
     processed_templates = []
     for r in rows:
-        t_id, title, s_time, interval = r
+        t_id, title, s_time, interval, end_date = r
+
+        # Look up the first task created for this title to get the original date
         c.execute("SELECT deadline FROM tasks WHERE title=? ORDER BY id ASC LIMIT 1", (title,))
         task_res = c.fetchone()
         display_str = ""
@@ -1742,7 +1787,22 @@ def manage_recurring():
                 if 11 <= day_num <= 13:
                     suffix = 'TH'
                 display_str = f"EVERY {count} MONTHS (ON THE {day_num}{suffix}) @ {s_time}" if count > 1 else f"EVERY {day_num}{suffix} OF THE MONTH @ {s_time}"
-            processed_templates.append({'id': t_id, 'title': title, 'display': display_str})
+
+            # Format end date for display
+            end_display = None
+            if end_date:
+                try:
+                    end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                    end_display = end_dt.strftime('%d %b %Y').upper()
+                except:
+                    end_display = end_date
+
+            processed_templates.append({
+                'id': t_id,
+                'title': title,
+                'display': display_str,
+                'end_date': end_display
+            })
     conn.close()
     return render_template('manage_recurring.html', templates=processed_templates)
 
