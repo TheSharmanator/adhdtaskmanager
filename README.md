@@ -1,182 +1,154 @@
-# ADHD Task Board
+# ADHD Task Manager
 
-Welcome to the **ADHD Task Board**! This app is a purpose-built physiological and cognitive externalisation of your executive function. It is designed specifically to help neurodivergent minds bypass the "wall of awful" associated with digital planners. 
+A neurologically-informed, kiosk-mode task manager built for a Raspberry Pi touchscreen. It is not a general-purpose productivity app — it is an always-on, ambient externalisation of executive function for ADHD brains, converting abstract deadlines into visceral, spatial urgency through shrinking progress bars, colour, sound, and escalating Alexa voice nags. It is a Python/Flask web app backed by SQLite, with an LLM-wired scheduling/breakdown engine and two-way Google Calendar/Tasks sync.
 
-By utilizing a high-contrast, stripped-back interface, this app combats time blindness through a visual progress bar system that converts abstract deadlines into tangible, shrinking geometric areas. It prioritizes a "top-five" hierarchy to prevent choice paralysis, ensuring that only your most critical objectives occupy your primary visual field. Secondary tasks are relegated to a sub-queue to minimize cognitive load.
+> The core app works fully offline. The LLM, Alexa voice, and Google Calendar layers are all optional enhancements — basic task management (add, complete, view, nag, celebrate) never depends on them.
 
-The system requires zero maintenance once an initial schedule is established. To accommodate the ADHD brain's need for novelty and immediate dopamine, the app utilizes celebratory UI finales and auditory rewards to provide the high-energy feedback necessary for task completion.
-
----
-
-## 🛠️ 1. Installation
-
-This app is run using Python. Don't worry if you're not a programmer, the steps are straightforward! 
-
-### Windows Instructions:
-1. Open your Command Prompt (`cmd`) or PowerShell.
-2. Navigate to the folder where you want to install it. For example, if you want it on your C drive:
-   ```cmd
-   cd C:\
-   ```
-3. Clone the repository and go inside the new folder:
-   ```cmd
-   git clone https://github.com/TheSharmanator/adhdtaskmanager.git
-   cd adhdtaskmanager
-   ```
-4. Install the required Python packages:
-   ```cmd
-   pip install -r requirements.txt
-   ```
-5. **CRITICAL STEP:** You must set up your configuration file before running the app.
-   - Look for the file named `config.json.example`.
-   - Rename it to just `config.json` (remove the `.example` part).
-   - Open `config.json` in a text editor (like Notepad) and fill in your details (see Voice Monkey section below).
-6. Run the app! Make sure you are inside the `adhdtaskmanager` folder, then type:
-   ```cmd
-   python app.py
-   ```
-
-### Linux / Raspberry Pi Instructions:
-1. Open your Terminal.
-2. Navigate to your user directory:
-   ```bash
-   cd /home/user/
-   ```
-3. Clone the repository and enter the directory:
-   ```bash
-   git clone https://github.com/TheSharmanator/adhdtaskmanager.git
-   cd adhdtaskmanager
-   ```
-4. Install the required packages:
-   ```bash
-   pip3 install -r requirements.txt
-   ```
-5. **CRITICAL STEP:** Prepare your config file.
-   ```bash
-   mv config.json.example config.json
-   nano config.json
-   ```
-   Fill in your details and save (`Ctrl+X`, `Y`, `Enter`).
-6. Run the app:
-   ```bash
-   python3 app.py
-   ```
+For the full design rationale and neuroscience behind every decision, see **[BLUEPRINT.md](BLUEPRINT.md)**. For the chronological build log, see **[PROGRESS.md](PROGRESS.md)**.
 
 ---
 
-## 🐒 2. Voice Monkey Integration
+## Key Features
 
-Voice Monkey allows the app to give you auditory feedback, praises, and nags through your Alexa devices. This breaks hyperfocus and gives you a dopamine hit when you complete a task.
-
-1. Go to the Voice Monkey website: [https://voicemonkey.io/](https://voicemonkey.io/)
-2. Log in using your **Amazon Account**.
-3. Open the **Alexa App** on your phone and add the **Voice Monkey Skill**.
-4. Go back to the Voice Monkey dashboard in your browser and click on **Manage Devices**.
-5. Press **Add Speaker**.
-6. Give the device a name (e.g., "ADHD Board"). *Note: This is just a virtual name, not a physical Alexa device.*
-7. Press **Next**.
-8. Go to **Devices** in your Alexa App. You should see the new device you just made. Click on it and **Toggle OFF** "Doorbell Press Notifications".
-9. Go to **Routines** in the Alexa App and press the **+** button.
-10. Click **Add an Event**, select **Smart Home**, then select the device you just added from Voice Monkey. Hit **Save**.
-11. Press **Add an Action**. Select **Skills**, then **Your Skills**, then **Voice Monkey**, then **Next**.
-12. Press **Save**. Alexa will ask which device you want it to respond from. Choose your physical Alexa speaker.
-13. Go back to the Voice Monkey console and click **Sync Device**. You will hear a test announcement!
-14. Finally, go to **API Credentials** in the Voice Monkey console and copy the **token**.
-15. Open your `config.json` file. Set `"VM": true`. Paste your token into the token field. Set `"VM Device alerts and briefings"` to the exact name of the device you created in step 6. Put your name in the User Name field.
+- **Top-5 dashboard** — the five most urgent tasks shown as cards ordered by deadline, each with a progress bar that shrinks as the deadline approaches. Remaining tasks live in a scrollable queue below.
+- **Focus Mode / One Task Mode** — tap a task to start a full-screen countdown for its allocated time. The rest of the board disappears so nothing competes for attention.
+- **Task initiation trigger** — on Focus Mode start, an LLM "first step" micro-prompt + engage announcement fire, providing the dopamine nudge needed to actually begin.
+- **Anti-hyperfocus nudges & break reminders** — periodic break/stretch reminders during long sessions, a 2-minute transition warning before time runs out, and an escalating nag if the timer expires.
+- **Duration field + ADHD buffer** — every task carries a work-duration estimate. An **AI ESTIMATE** button asks the LLM for a duration, then applies a configurable buffer (default +30%) to correct for chronic ADHD time-underestimation.
+- **Complex task breakdown** — flag a task as COMPLEX and the AI asks up to 5 task-specific clarifying questions, then generates a sequenced set of editable subtasks (each with its own duration and scheduled slot) before committing them.
+- **Quick Add** — a touchscreen-native capture form (text name + FIXED/FLEXIBLE/NO DATE toggle + touch calendar + analog clock picker + quick-tap durations), no OS keyboard required.
+- **Auto-scheduling engine** — `scheduler.py` places tasks into gaps between real Google Calendar appointments, tightest deadline first, and writes the resulting slots back to the dashboard and to Google Tasks.
+- **Google Calendar / Tasks integration** — reads the primary calendar (FreeBusy) to find busy slots, writes scheduled tasks to an "ADHD Tasks" tasklist with times embedded in the title, and marks them complete when done in-app.
+- **LLM message bank** — a fresh bank of 50 messages (25 brutal nags, 25 warm praise) regenerated weekly (Monday ~2am) to prevent habituation. Falls back to extensive built-in message lists when no LLM is configured.
+- **Celebration finale + weekly tree** — completing a task triggers a full-screen celebration and grows a procedural SVG "weekly tree" (oak / cherry / pine / willow / maple, randomised each week) that fills the dashboard background.
+- **Alexa voice nags (Voice Monkey)** — escalating verbal alerts at 30 min, 15 min, deadline, and beyond, plus morning and on-demand evening briefings.
+- **Recurring tasks** — template-based recurring tasks so the board is never blank.
+- **Do Not Disturb & Silence** — DND time window plus a manual silence toggle to kill all audio during meetings or sensory overload.
+- **Mobile / remote access** — reachable from a phone over Tailscale; the dashboard adapts when a mobile user-agent is detected.
 
 ---
 
-## 🌐 3. Tailscale Setup (Remote Access)
+## Architecture
 
-Why install Tailscale? 
-There is a "simple" remote version of this app designed for adding or completing tasks while you are away from the main board. Tailscale creates a secure, private network between your devices, allowing your phone or laptop to talk to your Task Board from anywhere in the world, securely, without opening router ports.
+### Backend (Python / Flask)
 
-1. Go to [https://tailscale.com/](https://tailscale.com/) and create a free account.
-2. Install Tailscale on the device running the Task Board (e.g., your Raspberry Pi or PC).
-3. Log in to Tailscale on that device.
-4. Install Tailscale on your mobile phone or laptop. Log into the same account.
-5. Once both devices are connected, open the Tailscale app. You will see an IP address for your Task Board device (it usually starts with `100.x.x.x`).
-6. On your phone, open your browser and type that IP address followed by `:5001` (e.g., `http://100.x.x.x:5001`). 
-7. You now have remote access to your tasks!
+| File | Responsibility |
+|---|---|
+| `app.py` | Main Flask app: routes, SQLite schema/migrations, background worker thread, Focus Mode, weekly tree, message bank, Voice Monkey, briefings, GCal sync orchestration. |
+| `llm_service.py` | LLM wrapper for 5 providers (OpenAI, Anthropic, Google Gemini, Ollama, LlamaCPP). Duration estimates, first-step prompts, weekly message bank, NL parsing, complex-task questions + breakdown. Reads config from `config.json` then overlays DB settings; surfaces real API errors; degrades gracefully when unavailable. |
+| `gcal_service.py` | Google OAuth2 (exchange/refresh), Calendar FreeBusy reading with timezone handling, and Google Tasks CRUD. Supports separate OAuth credentials for Calendar vs Google Drive. |
+| `scheduler.py` | Pure scheduling algorithm — sorts tasks by deadline, fills gaps between busy slots, never schedules into the past. Returns `scheduled` / `unschedulable` / `skipped` per task. |
+| `templates/` | Jinja templates: `index.html` (dashboard + Focus Mode + Quick Add overlays + tree), `add.html`, `edit_task.html`, `settings.html`, `edit_list.html`, `manage_recurring.html`, `recovery.html`, setup screens. |
+| `static/` | CSS / JS, including `scale.js` for kiosk display scaling. |
+
+A background thread (`background_task_checker`) runs every 60s to fire deadline nags, briefings, recurring-task generation, weekly message-bank generation, tree upkeep, and Google Calendar sync. It is guarded with `WERKZEUG_RUN_MAIN` so it only starts in the worker process under the Flask reloader.
+
+### Data model (SQLite — `tasks.db`)
+
+- **`tasks`** — title, deadline, status, `duration_minutes`, `deadline_type` (`fixed` / `flexible` / `none`), `parent_task_id`, `buffer_applied`, `gcal_task_id`, `scheduled_start`, `scheduled_end`. No-deadline tasks use a sentinel deadline and act as the backlog.
+- **`recurring_templates`** — recurring task definitions.
+- **`settings`** — key/value config (LLM provider/models/key, ADHD buffer %, briefing times, DND window, GCal tokens & interval, port, etc.).
+- **`focus_sessions`** — Focus Mode session log (task, start, planned minutes, end reason).
+- **`message_bank`** — weekly LLM-generated nag/praise messages.
+- **`weekly_tree`** — per-week tree variant, growth level, completion count.
 
 ---
 
-## 🖥️ 4. What is Kiosk Mode?
+## Setup & Installation
 
-This app is optimally designed for **Always-On Devices in Kiosk Mode**. 
+**Requirements:** Python 3 (3.10+ recommended) and the packages in `requirements.txt` (Flask, requests, etc.).
 
-**Kiosk Mode** forces a web browser to run in absolute full-screen. There are no address bars, no tabs, no close buttons, and no distractions. It turns a regular monitor or tablet into a dedicated, single-purpose appliance.
-
-Because the app is meant to be a constant visual anchor in your room, it is highly suited for minimal, low-power setups like a **Raspberry Pi** plugged into a spare monitor.
-
----
-
-## 🚀 5. Running in Kiosk Mode
-
-Follow these steps to launch the app as a dedicated kiosk:
-
-### Step A: Find your Browser and IP
-1. **Find your browser command (Linux):** 
-   Open a terminal and type:
-   ```bash
-   which chromium-browser chromium
-   ```
-   Note the output (e.g., `/usr/bin/chromium-browser`). If you are on Windows, your browser is likely `msedge.exe` or `chrome.exe`.
-
-2. **Get your IP Address:**
-   - **Linux:** Type `hostname -I` in the terminal.
-   - **Windows:** Type `ipconfig` in Command Prompt and look for "IPv4 Address".
-
-### Step B: The Kiosk Command
-Using the information from above, run this command in your terminal/command prompt (replace the bracketed info with your actual details):
 ```bash
-{browsername} --kiosk --noerrdialogs --disable-infobars http://{ip address}:5001
+git clone https://github.com/TheSharmanator/adhdtaskmanager.git
+cd adhdtaskmanager
+pip install -r requirements.txt
 ```
 
-### 🚪 How to Exit Kiosk Mode
-If you need to close the app while in Kiosk mode:
-*   **Windows**: Press `Alt + F4`. 
-*   **Linux**: Press `Alt + F4`. If you are stuck, press `Ctrl + Alt + T` to open a terminal and run `pkill chromium` or `pkill chrome`.
+Create your config from the example (or complete it via the `/setup` flow on first launch):
 
-### Step C: Creating a Desktop Shortcut
-**On Windows:**
-1. Right-click your Desktop > **New** > **Shortcut**.
-2. For the location, type the path to your browser followed by the kiosk arguments. Example:
-   ```cmd
-   "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --noerrdialogs --disable-infobars http://localhost:5001
-   ```
-3. Name it "Task Board Kiosk" and click Finish.
+```bash
+cp config.json.example config.json
+```
 
-**On Linux (Raspberry Pi):**
-1. Right-click your desktop and select **Create New** > **Shortcut** (or create a `.desktop` file).
-2. For the command, use:
-   ```bash
-   chromium-browser --kiosk --noerrdialogs --disable-infobars http://localhost:5001
-   ```
+Run the app:
 
-### Step D: Autoboot Instructions (Advanced)
-To make your device truly feel like an appliance, it should boot straight into the app.
+```bash
+python app.py
+```
 
-**Linux (Raspberry Pi via Autostart):**
-1. Open terminal and edit the autostart file:
-   ```bash
-   nano ~/.config/lxsession/LXDE-pi/autostart
-   ```
-2. Add these two lines at the bottom. The first starts the server, the second starts the browser. *(Make sure the path matches where you cloned the repo)*:
-   ```bash
-   @bash -c "cd /home/pi/adhdtaskmanager && python3 app.py"
-   @chromium-browser --kiosk --noerrdialogs --disable-infobars http://localhost:5001
-   ```
+It serves on **`http://localhost:5001`** (host `0.0.0.0`, so it is reachable on the local network and over Tailscale). The port is read from the `port` setting and defaults to `5001`.
 
-**Windows:**
-1. Press `Win + R`, type `shell:startup`, and hit Enter.
-2. Create a batch file (`start_board.bat`) in this folder.
-3. Edit the file in Notepad and add:
-   ```cmd
-   @echo off
-   cd C:\adhdtaskmanager
-   start /B python app.py
-   timeout /t 5
-   start "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --noerrdialogs --disable-infobars http://localhost:5001
-   ```
-4. Save it. Every time Windows boots, your board will launch automatically!
+### First run
+
+On first launch, if `setup_complete` is false you are redirected to **`/setup`**, which asks whether you want Google Drive backup:
+
+- **No backup** → marks setup complete and goes to the dashboard.
+- **Backup** → `/setup_oauth` collects a Google Drive OAuth client ID/secret, stores them in `config.json`, and completes setup.
+
+`config.json` is gitignored — only `config.json.example` is committed.
+
+### Kiosk mode
+
+The app is designed to run permanently full-screen on the Pi's 14" 1920×1080 touchscreen via Chromium kiosk mode. In Settings, choose the **LARGE (1920×1080)** screen-size option so the layout scales correctly. A typical launch command:
+
+```bash
+chromium-browser --kiosk --noerrdialogs --disable-infobars http://localhost:5001
+```
+
+The server and browser can both be launched from the Pi's autostart file so the device boots straight into the board.
+
+---
+
+## Configuration
+
+All runtime configuration is in **Settings** (gear icon) except Voice Monkey credentials, which live in `config.json`.
+
+### Voice Monkey (Alexa)
+
+`config.json` holds the Voice Monkey token, alert/briefing device names, and language. Set `"VM": true` to enable. Used for nags, briefings, and Focus Mode announcements. When disabled, in DND, or in Silence mode, all audio is suppressed. (Pairing a Voice Monkey virtual device to an Alexa routine is required — see the Voice Monkey docs.)
+
+### LLM provider
+
+In Settings → AI Assistant, pick one of **OpenAI / Anthropic / Google / Ollama / LlamaCPP**. Cloud providers take an API key and model dropdowns (with a "Custom…" option); local providers take a host (`IP:port`) and model names. Two model slots are configured:
+
+- **QUICK MODEL** — fast operations: duration estimates, message bank, first-step prompts, breakdown questions.
+- **DEEP MODEL** — heavier operations: complex-task breakdown.
+
+A **TEST CONNECTION** button fires a live call using the current form values and surfaces the real API error if it fails. If no LLM is configured, AI features degrade silently and the built-in message banks are used.
+
+### Google Calendar OAuth
+
+In Settings → Google Calendar Sync:
+
+1. In Google Cloud Console, enable the **Calendar API** and **Tasks API** and create OAuth 2.0 (Web application) credentials.
+2. Add `http://localhost:{port}/gcal_callback` as an authorised redirect URI.
+3. Click **CONNECT GOOGLE CALENDAR** to authorise (scopes: `calendar.readonly` + `tasks`).
+4. Optionally configure the sync interval; **SYNC NOW** forces an immediate sync.
+
+By default this reuses the Google Drive OAuth client from `config.json`; optional separate `gcal_client_id` / `gcal_client_secret` settings let Calendar live in a different Google account. Tokens are stored in the settings table and auto-refresh near expiry.
+
+### Other settings
+
+ADHD buffer %, morning/evening briefing times and days, DND window, nag interval, progress-bar time scale, user name, and screen-size multiplier are all configurable in Settings.
+
+---
+
+## Mobile access
+
+The kiosk runs on the Pi; a phone reaches it over **Tailscale** (a private mesh VPN — no port forwarding). Install Tailscale on both the Pi and the phone, then browse to the Pi's Tailscale IP plus the port, e.g. `http://100.x.x.x:5001`.
+
+The dashboard detects mobile user-agents and adapts. A dedicated, fully mobile-optimised interface (task list with done/edit, Quick Add and add-with-AI, and a celebration screen) is an active development phase being built/refined separately — see BLUEPRINT.md §11.8. Because Google Calendar sync keeps the schedule synced, the mobile view primarily needs to display and quickly manage tasks.
+
+---
+
+## Usage
+
+Day to day: glance at the always-on board to see your top-5 urgent tasks. Tap **QUICK ADD** to capture a task in a few taps. Tap a task and confirm **"Working on this now?"** to drop into Focus Mode — the screen clears to a single countdown, the AI gives you a concrete first step, and break/transition reminders keep you on track. Complete a task (drag the smiley, or **DONE** in Focus Mode) to trigger the celebration and grow the weekly tree. Overdue tasks flash and escalate Alexa nags until handled; use **SILENCE** or the DND window to mute. Tap **TONIGHT** for an on-demand evening briefing of what you finished and what's coming tomorrow.
+
+---
+
+## Further reading
+
+- **[BLUEPRINT.md](BLUEPRINT.md)** — master design document: philosophy, neuroscience, full feature specs, data model, architecture.
+- **[PROGRESS.md](PROGRESS.md)** — session-by-session implementation log.
+</content>
