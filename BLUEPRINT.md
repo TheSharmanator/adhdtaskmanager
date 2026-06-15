@@ -1,6 +1,6 @@
 # ADHD Task Manager — Master Blueprint
-**Version:** 2.0 (In Development)  
-**Status:** Actively being built — see PROGRESS.md for session-by-session implementation log  
+**Version:** v2 (2.0)  
+**Status:** Complete — ready for merge to `main`. The pre-v2 release is preserved on the `v1` branch (commit `1ad66e8`). See PROGRESS.md for the session-by-session implementation log.  
 **Last Updated:** 2026-06-15  
 **Purpose:** Complete reference document for any engineer or AI agent implementing this system. Contains full project context, design philosophy, agreed feature specifications, data model, architecture, and v2 ideas. Do not begin implementation without reading this document in full.
 
