@@ -330,9 +330,9 @@ header {
          ondrop="drop(event, {{ task.id }})">
         <div class="progress-bg" style="width: {{ task.percent }}%;"></div>
         <div class="task-content">
-            <span class="task-text">{{ task.title }}</span>
+            <span class="task-text">{{ task.title }}{% if task.sched_bracket %} <span style="color:#ffd700; font-size:0.85em;">{{ task.sched_bracket }}</span>{% endif %}</span>
             <span class="task-deadline">
-                {% if task.deadline_type == 'none' %}BACKLOG{% elif task.scheduled_label %}{{ task.scheduled_label }} · DUE: {{ task.deadline }}{% else %}DUE: {{ task.deadline }}{% endif %}
+                {% if task.deadline_type == 'none' %}BACKLOG{% else %}DUE: {{ task.deadline }}{% endif %}
             </span>
         </div>
         <button class="focus-btn"
@@ -354,8 +354,8 @@ header {
     <div id="queue-scroll-area">
         {% for task in queue_tasks %}
         <div class="queue-task {{ task.phase }}">
-            <div class="qt-title">{{ task.title }}</div>
-            <div class="qt-due">{% if task.deadline_type == 'none' %}BACKLOG{% elif task.scheduled_label %}{{ task.scheduled_label }} · DUE: {{ task.deadline }}{% else %}DUE: {{ task.deadline }}{% endif %}</div>
+            <div class="qt-title">{{ task.title }}{% if task.sched_bracket %} {{ task.sched_bracket }}{% endif %}</div>
+            <div class="qt-due">{% if task.deadline_type == 'none' %}BACKLOG{% else %}DUE: {{ task.deadline }}{% endif %}</div>
             <div class="qt-dur">{% if task.duration_minutes %}{{ task.duration_minutes }}m{% endif %}</div>
         </div>
         {% endfor %}
@@ -464,6 +464,7 @@ header {
 <div id="qa-touch-picker" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:2000; justify-content:center; align-items:center; flex-direction:column;">
     <div style="background:#111; border:5px solid #ffd700; border-radius:20px; padding:30px; width:95%; max-width:850px; box-sizing:border-box;">
         <h2 id="qa-picker-title" style="text-align:center; color:#ffd700; margin-top:0; font-size:2rem; text-transform:uppercase;">SELECT YEAR</h2>
+        <div id="qa-picker-shortcuts" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:15px; justify-content:center;"></div>
         <div id="qa-year-step" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px;"></div>
         <div id="qa-month-step" style="display:none; grid-template-columns: repeat(6, 1fr); gap:10px;">
             <button class="qap-btn" onclick="qaSelectMonth(0)">JAN</button>
@@ -1049,6 +1050,36 @@ function buildQaYearButtons() {
     }
 }
 buildQaYearButtons();
+
+function buildQaPickerShortcuts() {
+    const DAY_NAMES = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+    const today = new Date();
+    const el = document.getElementById('qa-picker-shortcuts');
+    el.innerHTML = '';
+    const shortcuts = [{ label: 'TODAY', offset: 0 }, { label: 'TOMORROW', offset: 1 }];
+    for (let i = 2; i <= 6; i++) {
+        const d = new Date(today); d.setDate(today.getDate() + i);
+        shortcuts.push({ label: DAY_NAMES[d.getDay()], offset: i });
+    }
+    shortcuts.forEach(sc => {
+        const d = new Date(today); d.setDate(today.getDate() + sc.offset);
+        const b = document.createElement('button');
+        b.className = 'qap-btn';
+        b.style.cssText = 'background:#1a3a00; color:#ffd700; border-color:#ffd700; font-size:1rem; padding:10px 14px;';
+        b.textContent = sc.label;
+        b.onclick = () => qaSelectShortcutDate(d);
+        el.appendChild(b);
+    });
+}
+buildQaPickerShortcuts();
+
+function qaSelectShortcutDate(date) {
+    if (!qaActivePickerInput) return;
+    const dd = String(date.getDate()).padStart(2, '0');
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    qaActivePickerInput.value = `${dd}/${mm}/${date.getFullYear()}`;
+    document.getElementById('qa-touch-picker').style.display = 'none';
+}
 
 function qaResetPicker() {
     qaSelectedYear = null; qaSelectedMonth = null; qaSelectedDay = null;

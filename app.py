@@ -981,7 +981,7 @@ def index():
     silence_mode = res_silence[0] if res_silence else 'off'
 
     c.execute(
-        "SELECT id, title, deadline, status, duration_minutes, deadline_type, scheduled_start "
+        "SELECT id, title, deadline, status, duration_minutes, deadline_type, scheduled_start, scheduled_end "
         "FROM tasks WHERE status='active' ORDER BY deadline ASC"
     )
     all_tasks = c.fetchall()
@@ -990,7 +990,7 @@ def index():
     now = datetime.now()
 
     for task in all_tasks:
-        t_id, t_title, t_deadline, t_status, dur_mins, dl_type, sched_start = task
+        t_id, t_title, t_deadline, t_status, dur_mins, dl_type, sched_start, sched_end = task
         dur_mins = dur_mins or 30
         dl_type = dl_type or 'flexible'
 
@@ -1005,6 +1005,7 @@ def index():
                 'duration_minutes': dur_mins,
                 'deadline_type': 'none',
                 'scheduled_label': '',
+                'sched_bracket': '',
             })
             continue
 
@@ -1023,14 +1024,22 @@ def index():
         percent = max(0, min(100, 100 - (time_left_mins / bar_scale_mins * 100)))
         readable_deadline = deadline_dt.strftime('%a %d %b %H:%M').upper()
 
-        if sched_start:
+        sched_bracket = ''
+        sched_label = ''
+        if sched_start and sched_end:
             try:
-                sched_dt = datetime.strptime(sched_start, '%Y-%m-%dT%H:%M')
-                sched_label = sched_dt.strftime('%d %b %H:%M').upper()
+                s_dt = datetime.strptime(sched_start, '%Y-%m-%dT%H:%M')
+                e_dt = datetime.strptime(sched_end,   '%Y-%m-%dT%H:%M')
+                sched_bracket = f"[{s_dt.strftime('%H:%M')}-{e_dt.strftime('%H:%M')}]"
+                sched_label   = s_dt.strftime('%d %b %H:%M').upper()
             except Exception:
-                sched_label = ''
-        else:
-            sched_label = ''
+                pass
+        elif sched_start:
+            try:
+                s_dt = datetime.strptime(sched_start, '%Y-%m-%dT%H:%M')
+                sched_label = s_dt.strftime('%d %b %H:%M').upper()
+            except Exception:
+                pass
 
         processed_tasks.append({
             'id': t_id,
@@ -1042,6 +1051,7 @@ def index():
             'duration_minutes': dur_mins,
             'deadline_type': dl_type,
             'scheduled_label': sched_label,
+            'sched_bracket': sched_bracket,
         })
 
     conn.commit()

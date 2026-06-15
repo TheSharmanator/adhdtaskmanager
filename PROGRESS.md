@@ -798,4 +798,41 @@ The edit modal reuses the existing date/time pickers already on the page — `op
 
 ---
 
+## Session 014 — 2026-06-15
+
+**Type:** Feature additions (polish from user testing)
+**Branch:** `claude/adhd-taskmanager-review-zRJtI`
+**Status:** Complete — all changes pushed
+
+### What Was Done
+
+**Scheduled time bracket in app task title**
+Task cards on the main dashboard and queue now show the scheduled time slot in the title, matching the GCal title format. A gold `[HH:MM-HH:MM]` bracket appears after the task name if a scheduled slot exists.
+
+- `app.py` index route: added `scheduled_end` to SELECT, computes `sched_bracket = "[HH:MM-HH:MM]"` and `sched_label` from `scheduled_start`/`scheduled_end`, adds both to `processed_tasks`
+- `templates/index.html`: task card title renders `{{ task.title }} <span style="color:#ffd700">{{ task.sched_bracket }}</span>`; queue card also shows bracket
+
+**Date picker shortcut buttons**
+All three date pickers (Quick Add on index, Add Task, Edit Task) now show a row of quick-select buttons at the top of the picker overlay:  
+`TODAY  TOMORROW  MON  TUE  WED  THU  FRI`  
+(the weekday buttons show the next occurrence — e.g. today is Sunday, so MON = tomorrow+1). Clicking any shortcut immediately populates the date input in `DD/MM/YYYY` format and closes the picker.
+
+- `templates/index.html`: `<div id="qa-picker-shortcuts">` in picker HTML; `buildQaPickerShortcuts()` + `qaSelectShortcutDate()` in JS
+- `templates/add.html`: `<div id="picker-shortcuts">` in picker HTML; `buildPickerShortcuts()` + `selectShortcutDate()` in JS (dispatches `input` event so deadline-type chip updates)
+- `templates/edit_task.html`: same as add.html
+
+### Files Changed This Session
+- `app.py` — index route: fetch + compute `sched_bracket`
+- `templates/index.html` — task title bracket display + date picker shortcuts
+- `templates/add.html` — date picker shortcuts
+- `templates/edit_task.html` — date picker shortcuts
+- `PROGRESS.md` — this entry
+
+### State at End of Session
+- All changes pushed
+- Test: schedule a task → card should show `Task Title [09:00-10:00]` in gold
+- Test: tap date field → shortcut buttons appear at top of picker; tap TODAY → date field fills instantly
+
+---
+
 *Future sessions appended below*

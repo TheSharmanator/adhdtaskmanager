@@ -1,7 +1,7 @@
 # ADHD Task Manager — Master Blueprint
 **Version:** 2.0 (In Development)  
 **Status:** Actively being built — see PROGRESS.md for session-by-session implementation log  
-**Last Updated:** 2026-06-07  
+**Last Updated:** 2026-06-15  
 **Purpose:** Complete reference document for any engineer or AI agent implementing this system. Contains full project context, design philosophy, agreed feature specifications, data model, architecture, and v2 ideas. Do not begin implementation without reading this document in full.
 
 ---
@@ -648,7 +648,7 @@ After the questions, the DEEP MODEL generates a breakdown displayed as a vertica
    - **NO DATE** (blue) — backlog, no deadline
 
 3. **BY DATE / AT TIME** — hidden when NO DATE selected. Uses:
-   - Full-screen year → month → day calendar picker (tap to select)
+   - Full-screen year → month → day calendar picker (tap to select), with a **shortcut row** at the top showing TODAY / TOMORROW / MON–FRI for the next 5 days. Tapping a shortcut fills the date instantly and closes the picker.
    - Analog clock picker (drag hands to set time)
    Both pickers are touch-native, no OS keyboard.
 
