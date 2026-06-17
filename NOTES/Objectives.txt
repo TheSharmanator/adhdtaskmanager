@@ -1,0 +1,35 @@
+xpanded ADHD Task Board Brief
+Objective: A high-visibility, "low-friction" physical dashboard (Raspberry Pi + Touchscreen) designed to combat time blindness and task paralysis through sensory urgency and randomized rewards. 🚨
+
+The "Urgency Engine" (Post-Deadline Logic): ⏱️
+
+Once a deadline passes, the task doesn't just sit there; it enters an "Overdue" state.
+
+Visuals: The task bar begins flashing or pulsing with high-contrast colors (e.g., bright red or yellow) to create a visual "itch" that must be scratched. 💡
+
+Alexa Integration: The system triggers an Alexa speaker to provide verbal nudges or "nags" at intervals until the task is handled. 🔊
+
+The "Dopamine Casino" (Completion Finale): 🎰
+
+To provide a variable reward, completing a task triggers a randomized "Finale."
+
+Visuals: Full-screen animations (fireworks, confetti, or "Level Up" graphics). 🎆
+
+Audio: The speaker plays randomized notes—ranging from high-praise "Jolly good show!" to snarky British wit—ensuring the reward never feels repetitive or boring. 🎙️
+
+The "Nuke" Button & Global Settings: ☢️
+
+Nuke: A one-touch emergency silence button that kills all flashing and audio for a set "snooze" period during meetings or overstimulation.
+
+Global Settings: A dedicated menu (accessed via the gear icon) to adjust system-wide variables like the "Urgency Window" (e.g., 24h vs 12h), Alexa volume, and "Nuke" duration. ⚙️
+
+⚙️ Setting up the "Settings" Logic
+Since you want to incorporate Global Settings, we need a place to store these preferences so they don't reset every time you restart the Pi. We have two main ways to handle this:
+
+The Database Approach: 💾 Add a new table called settings to your tasks.db file.
+
+The Config File: 📄 Create a simple text file (like config.json) that the app reads at startup.
+
+Given that we are already using SQLite for tasks, adding a settings table is often the cleanest way to keep everything in one "box."
+
+Which of those feels more manageable for you to track, or do you have a preference for how we store those global variables? 🧐

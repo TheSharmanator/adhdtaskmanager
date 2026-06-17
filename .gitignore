@@ -1,0 +1,15 @@
+tasks.db
+tasks.db-shm
+tasks.db-wal
+*.pyc
+*.pyo
+__pycache__/
+instance/
+.env
+config.json
+config.json.save
+.DS_Store
+Thumbs.db
+.venv/
+venv/
+graphify-out/

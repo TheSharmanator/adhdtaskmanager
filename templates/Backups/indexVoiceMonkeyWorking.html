@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ADHD Task Board</title>
+    <style>
+        /* THEME: MATRIX */
+        .theme-matrix { background: black !important; color: #00ff00 !important; font-family: monospace; overflow: hidden; }
+        .theme-matrix::before { content: "101010110101"; position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.3; animation: matrix-fall 2s linear infinite; }
+        @keyframes matrix-fall { 0% { transform: translateY(-100%); } 100% { transform: translateY(100%); } }
+
+        /* THEME: GLITCH */
+        .theme-glitch { animation: glitch 0.2s infinite; background: #222 !important; }
+        @keyframes glitch { 0% { transform: translate(0); } 20% { transform: translate(-5px, 5px); color: cyan; } 40% { transform: translate(5px, -5px); color: magenta; } 100% { transform: translate(0); } }
+
+        /* THEME: GOLD RUSH */   
+        .theme-gold-rush { background: #ffd700 !important; color: #000 !important; }
+        .theme-gold-rush::after { content: "💰💰💰"; font-size: 5rem; position: absolute; animation: coin-fall 1s ease-in infinite; }
+        @keyframes coin-fall { 0% { top: -100px; opacity: 1; } 100% { top: 100%; opacity: 0; } }
+
+        body { background: #121212; color: #e0e0e0; font-family: sans-serif; margin: 0; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        header { height: 80px; background: #000; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; border-bottom: 2px solid #333; }
+        #clock-container { display: flex; flex-direction: column; }
+        #clock { font-size: 2.2rem; font-weight: bold; color: #ffd700; line-height: 1; }
+        #date { color: #888; font-size: 1rem; font-weight: bold; margin-top: 5px; }
+        .header-btns { display: flex; gap: 15px; align-items: center; }
+        .nuke-btn { background: #900; color: white; border: none; padding: 10px 25px; border-radius: 5px; font-weight: bold; font-size: 1.1rem; cursor: pointer; }
+        .settings-icon { font-size: 2rem; cursor: pointer; user-select: none; }
+        
+        #top-five { flex: 3; display: flex; flex-direction: column; padding: 10px; }
+        .main-task { flex: 1; margin: 5px; background: #1e1e1e; border: 2px solid #333; border-radius: 8px; display: flex; align-items: center; position: relative; overflow: hidden; padding-left: 20px; }
+        .progress-bg { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(0, 255, 0, 0.2); z-index: 0; transition: width 1s linear; }
+        .task-content { z-index: 1; display: flex; flex-direction: column; pointer-events: none; }
+        .task-text { font-size: 1.8rem; font-weight: bold; }
+        .task-deadline { font-size: 0.9rem; color: #ffd700; font-weight: bold; }
+
+        /* WARNING PHASE ANIMATIONS */
+        @keyframes flash-yellow { 
+            0% { background: #1e1e1e; } 
+            50% { background: #ffff00; color: #000; } /* Black text for readability on yellow */
+            100% { background: #1e1e1e; } 
+        }
+        @keyframes flash-orange { 
+            0% { background: #1e1e1e; } 
+            50% { background: #ffae42; color: #000; } 
+            100% { background: #1e1e1e; } 
+        }
+        @keyframes flash-red { 
+            0% { background: #1e1e1e; } 
+            50% { background: #ff0000; color: #fff; } 
+            100% { background: #1e1e1e; } 
+        }
+
+        .phase-yellow { animation: flash-yellow 2s infinite; }
+        .phase-orange { animation: flash-orange 1s infinite; }
+        .phase-red { animation: flash-red 0.5s infinite; border-color: #ff0000 !important; }
+
+        #bottom-ten { min-height: 160px; display: grid; grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(5, 1fr); gap: 8px; padding: 10px; background: #181818; border-top: 2px solid #333; }
+        .sub-task { background: #252525; padding: 10px; border-radius: 6px; border: 1px solid #333; display: flex; flex-direction: column; justify-content: center; }
+        .sub-text { font-size: 1rem; font-weight: bold; }
+        .sub-deadline { font-size: 0.7rem; color: #777; }
+        
+        #control-bar { height: 130px; background: #000; display: flex; justify-content: center; align-items: center; border-top: 2px solid #333; }
+        #smiley-source { width: 90px; height: 90px; background: #ffd700; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 50px; cursor: grab; }
+    </style>
+</head>
+<body>
+    <header>
+        <div id="clock-container"><div id="clock">00:00</div><div id="date">...</div></div>
+        <div class="header-btns"><button class="nuke-btn">NUKE</button><div class="settings-icon">⚙️</div></div>
+    </header>
+
+    <div id="top-five">
+        {% for task in main_tasks %}
+            <div class="main-task {{ task.phase }}" ondragover="event.preventDefault()" ondrop="drop(event, {{ task.id }})">
+                <div class="progress-bg" style="width: {{ task.percent }}%;"></div>
+                <div class="task-content">
+                    <span class="task-text">{{ task.title }}</span>
+                    <span class="task-deadline">DUE: {{ task.deadline }}</span>
+                </div>
+            </div>
+        {% endfor %}
+        {% for i in range(5 - (main_tasks|length)) %}
+            <div class="main-task"><span class="task-text" style="color: #333;">(Waiting for task...)</span></div>
+        {% endfor %}
+    </div>
+
+    <div id="bottom-ten">
+        {% for task in queue_tasks %}
+            <div class="sub-task {{ task.phase }}">
+                <span class="sub-text">{{ task.title }}</span>
+                <span class="sub-deadline">Due: {{ task.deadline }}</span>
+            </div>
+        {% endfor %}
+        {% for i in range(10 - (queue_tasks|length)) %}
+            <div class="sub-task"><span class="sub-text" style="color: #444;">(Waiting...)</span></div>
+        {% endfor %}
+    </div>
+
+    <div id="control-bar"><div id="smiley-source" draggable="true" ondragstart="drag(event)">😴</div></div>
+
+    <script>
+        // All the JavaScript logic goes inside here
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString('en-GB', {hour: '2-digit', minute:'2-digit'});
+            document.getElementById('date').innerText = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        // Auto-refresh every 60 seconds to trigger the nag alerts from the server
+        setTimeout(() => { location.reload(); }, 60000);
+
+        function drag(ev) { ev.dataTransfer.setData("text", ev.target.id); }
+
+        function drop(ev, taskId) {
+            ev.preventDefault();
+            fetch('/complete/' + taskId, { method: 'POST' }).then(() => location.reload());
+        }
+    </script>
+</body>
+</html>
