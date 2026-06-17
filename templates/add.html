@@ -216,7 +216,8 @@
                     <div class="side-by-side" style="align-items: flex-end; margin-top: 5px;">
                         <div style="flex: 2;">
                             <label>DURATION (MINUTES):</label>
-                            <input type="number" name="duration_minutes" id="duration_minutes" class="input" placeholder="30" min="5" max="960" step="5">
+                            <input type="number" name="duration_minutes" id="duration_minutes" class="input" placeholder="30" min="5" max="960" step="5" oninput="document.getElementById('dur_already_buffered').value='0'">
+                            <input type="hidden" name="duration_already_buffered" id="dur_already_buffered" value="0">
                         </div>
                         <div style="flex: 1;">
                             <button type="button" id="ai-estimate-btn" onclick="estimateDuration()" class="ai-btn">AI ESTIMATE</button>
@@ -389,6 +390,7 @@
             .then(d => {
                 if (d.buffered_minutes) {
                     document.getElementById('duration_minutes').value = d.buffered_minutes;
+                    document.getElementById('dur_already_buffered').value = '1';
                     info.innerText = `AI: ${d.raw_minutes}min + buffer = ${d.buffered_minutes}min  —  ${d.rationale}`;
                     info.style.display = 'block';
                 } else {

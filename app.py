@@ -375,12 +375,17 @@ def init_db():
             start_time TEXT NOT NULL,
             interval TEXT NOT NULL,
             last_generated TEXT,
-            end_date TEXT
+            end_date TEXT,
+            duration_minutes INTEGER DEFAULT 30
         )
     """)
     # Migration: add end_date column if missing (existing DBs)
     try:
         c.execute("ALTER TABLE recurring_templates ADD COLUMN end_date TEXT")
+    except:
+        pass  # column already exists
+    try:
+        c.execute("ALTER TABLE recurring_templates ADD COLUMN duration_minutes INTEGER DEFAULT 30")
     except:
         pass  # column already exists
     c.execute("""
@@ -674,10 +679,10 @@ def check_recurring():
     conn = get_db()
     c = conn.cursor()
     # Fetch all master templates
-    c.execute("SELECT title, start_time, interval, end_date FROM recurring_templates")
+    c.execute("SELECT title, start_time, interval, end_date, duration_minutes FROM recurring_templates")
     templates = c.fetchall()
     for temp in templates:
-        title, start_time, interval, end_date = temp
+        title, start_time, interval, end_date, tmpl_duration = temp
 
         # If end_date has passed, skip generating any new instances
         if end_date:
@@ -698,8 +703,8 @@ def check_recurring():
             c.execute("SELECT id FROM tasks WHERE title=? AND deadline=?", (title, first_deadline))
             if not c.fetchone():
                 c.execute(
-                    "INSERT INTO tasks (title, deadline, last_alert_type, deadline_type, pin_to_date) VALUES (?, ?, 'none', 'fixed', 1)",
-                    (title, first_deadline)
+                    "INSERT INTO tasks (title, deadline, last_alert_type, duration_minutes, deadline_type, pin_to_date) VALUES (?, ?, 'none', ?, 'fixed', 1)",
+                    (title, first_deadline, tmpl_duration or 30)
                 )
     conn.commit()
     conn.close()
@@ -1590,6 +1595,7 @@ def add_task():
         except Exception:
             duration_minutes = 30
 
+        already_buffered = request.form.get('duration_already_buffered') == '1'
         deadline_type = request.form.get('deadline_type', 'flexible')
         pin_to_date = 1 if request.form.get('pin_to_date') else 0
 
@@ -1618,19 +1624,25 @@ def add_task():
                         ed, em, ey = recur_end_date.split('/')
                         iso_end_date = f"{ey}-{em}-{ed}"
 
+                buf = get_buffer_pct()
+                buffered_duration = max(5, round(duration_minutes * (1 + buf / 100) / 5) * 5)
                 now_today = datetime.now().strftime('%Y-%m-%d')
                 c.execute(
-                    "INSERT INTO recurring_templates (title, start_time, interval, last_generated, end_date) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (title, recur_time, interval, now_today, iso_end_date)
+                    "INSERT INTO recurring_templates (title, start_time, interval, last_generated, end_date, duration_minutes) "
+                    "VALUES (?, ?, ?, ?, ?, ?)",
+                    (title, recur_time, interval, now_today, iso_end_date, buffered_duration)
                 )
                 first_deadline = f"{iso_start_date}T{recur_time}"
                 c.execute(
                     "INSERT INTO tasks (title, deadline, last_alert_type, duration_minutes, deadline_type, pin_to_date) "
                     "VALUES (?, ?, 'none', ?, 'fixed', 1)",
-                    (title, first_deadline, duration_minutes)
+                    (title, first_deadline, buffered_duration)
                 )
             else:
+                if not already_buffered:
+                    buf = get_buffer_pct()
+                    duration_minutes = max(5, round(duration_minutes * (1 + buf / 100) / 5) * 5)
+
                 if deadline_type == 'none':
                     deadline = NO_DEADLINE_SENTINEL
                 else:
@@ -1679,10 +1691,10 @@ def complete_task_internal(task_id):
     c.execute("UPDATE tasks SET status='done' WHERE id=?", (task_id,))
 
     # Handle recurring — generate next instance synchronously so the board updates immediately
-    c.execute("SELECT interval, end_date FROM recurring_templates WHERE title=?", (title,))
+    c.execute("SELECT interval, end_date, duration_minutes FROM recurring_templates WHERE title=?", (title,))
     template = c.fetchone()
     if template and current_deadline != NO_DEADLINE_SENTINEL:
-        interval, end_date = template
+        interval, end_date, tmpl_duration = template
         old_dt = datetime.strptime(current_deadline.replace('T', ' '), '%Y-%m-%d %H:%M')
         if interval == 'weekly':
             count, unit = 1, 'W'
@@ -1720,8 +1732,8 @@ def complete_task_internal(task_id):
             c.execute("SELECT id FROM tasks WHERE title=? AND deadline=?", (title, new_deadline))
             if not c.fetchone():
                 c.execute(
-                    "INSERT INTO tasks (title, deadline, last_alert_type, deadline_type, pin_to_date) VALUES (?, ?, 'none', 'fixed', 1)",
-                    (title, new_deadline)
+                    "INSERT INTO tasks (title, deadline, last_alert_type, duration_minutes, deadline_type, pin_to_date) VALUES (?, ?, 'none', ?, 'fixed', 1)",
+                    (title, new_deadline, tmpl_duration or 30)
                 )
 
     conn.commit()
