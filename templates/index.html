@@ -22,8 +22,17 @@
 #dnd-overlay {
     display: {{ 'flex' if dnd_active else 'none' }};
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: black; z-index: 10001;
+    background: #000; z-index: 10001;
     justify-content: center; align-items: center;
+    flex-direction: column; gap: 24px; cursor: pointer; user-select: none;
+}
+#dnd-clock-display {
+    font-size: 6rem; font-weight: 900; color: #1a1a1a;
+    letter-spacing: 6px; font-variant-numeric: tabular-nums;
+}
+#dnd-hint {
+    font-size: 0.75rem; color: #111; letter-spacing: 4px;
+    text-transform: uppercase; font-weight: 700;
 }
 
 /* Celebration overlay */
@@ -283,7 +292,10 @@ header {
 
 <body>
 <!-- DND overlay -->
-<div id="dnd-overlay"></div>
+<div id="dnd-overlay">
+    <div id="dnd-clock-display">00:00</div>
+    <div id="dnd-hint">TAP TO WAKE</div>
+</div>
 
 <!-- Celebration overlay -->
 <div id="celebration-overlay">
@@ -1305,30 +1317,39 @@ function toggleSilence() {
     });
 }
 
-// ─── DND 3-TAP WAKE ───
-let dndTapCount = 0, dndTapTimeout, dndWakeTimeout;
+// ─── DND SINGLE-TAP WAKE ───
 const dndOverlay = document.getElementById('dnd-overlay');
+const dndClockDisplay = document.getElementById('dnd-clock-display');
+let dndWakeTimeout;
+
+// Keep DND clock ticking while overlay is visible
+(function tickDndClock() {
+    if (dndClockDisplay) {
+        const now = new Date();
+        const h = String(now.getHours()).padStart(2, '0');
+        const m = String(now.getMinutes()).padStart(2, '0');
+        dndClockDisplay.textContent = h + ':' + m;
+    }
+    setTimeout(tickDndClock, 10000);
+})();
+
 if (dndOverlay) {
     dndOverlay.addEventListener('click', () => {
-        dndTapCount++;
-        clearTimeout(dndTapTimeout);
-        if (dndTapCount >= 3) {
-            dndOverlay.style.display = 'none';
-            dndTapCount = 0;
-            resetDndWakeTimer();
-        } else {
-            dndTapTimeout = setTimeout(() => { dndTapCount = 0; }, 1000);
-        }
+        dndOverlay.style.display = 'none';
+        resetDndWakeTimer();
     });
 }
 
 function resetDndWakeTimer() {
     clearTimeout(dndWakeTimeout);
-    dndWakeTimeout = setTimeout(() => { if (dndOverlay) dndOverlay.style.display = 'flex'; }, 120000);
+    dndWakeTimeout = setTimeout(() => { if (dndOverlay) dndOverlay.style.display = 'flex'; }, 300000);
 }
 
-document.body.addEventListener('click', () => {
-    if (dndOverlay && dndOverlay.style.display === 'none' && dndWakeTimeout) resetDndWakeTimer();
+// Reset 5-minute inactivity timer on any interaction while board is visible
+['click', 'touchstart', 'keydown', 'mousemove'].forEach(evt => {
+    document.body.addEventListener(evt, () => {
+        if (dndOverlay && dndOverlay.style.display === 'none' && dndWakeTimeout) resetDndWakeTimer();
+    }, evt === 'touchstart' || evt === 'mousemove' ? { passive: true } : false);
 });
 
 // ─── POLL ───
