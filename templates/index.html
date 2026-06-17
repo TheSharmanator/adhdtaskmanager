@@ -720,9 +720,11 @@ function setupFocusNudges(plannedMinutes, alreadyElapsed) {
 
 function fireFocusNudge() {
     const minsLeft = Math.ceil(focusSecondsRemaining / 60);
+    console.log('[focus] nudge firing, mins_remaining=' + minsLeft);
     fetch('/api/focus/nudge', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({mins_remaining: minsLeft}) })
         .then(r => r.json())
-        .then(d => { if (d.nudge) showNudgeBanner(d.nudge); });
+        .then(d => { console.log('[focus] nudge response:', d); if (d.nudge) showNudgeBanner(d.nudge); })
+        .catch(e => console.error('[focus] nudge fetch failed:', e));
 }
 
 function showNudgeBanner(text) {

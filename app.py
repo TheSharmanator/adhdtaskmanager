@@ -456,6 +456,7 @@ def init_db():
 
 def trigger_voice_monkey(text, device=None, chime=None):
     if not VM_ENABLED or not VM_TOKEN:
+        print(f"[VM] skipped — VM_ENABLED={VM_ENABLED} VM_TOKEN={'set' if VM_TOKEN else 'missing'}")
         return
     conn = get_db()
     c = conn.cursor()
@@ -464,14 +465,21 @@ def trigger_voice_monkey(text, device=None, chime=None):
     conn.close()
 
     if sets.get('silence_mode') == 'on':
+        print("[VM] skipped — silence mode is ON")
         return
 
     dnd_start = sets.get('dnd_start', '22:00')
     dnd_end = sets.get('dnd_end', '07:00')
-    if _is_dnd_time(datetime.now().strftime('%H:%M'), dnd_start, dnd_end):
+    now_hm = datetime.now().strftime('%H:%M')
+    if _is_dnd_time(now_hm, dnd_start, dnd_end):
+        print(f"[VM] skipped — DND active ({now_hm}, window {dnd_start}–{dnd_end})")
         return
 
     target_device = device or VM_DEVICE_ALERTS
+    if not target_device:
+        print("[VM] skipped — no target device configured (VM_DEVICE_FOCUS and VM_DEVICE_ALERTS both empty)")
+        return
+
     url = "https://api-v2.voicemonkey.io/announcement"
     params = {
         "token": VM_TOKEN,
@@ -483,9 +491,10 @@ def trigger_voice_monkey(text, device=None, chime=None):
     if chime:
         params["chime"] = chime
     try:
-        requests.get(url, params=params, timeout=5)
-    except Exception:
-        pass
+        r = requests.get(url, params=params, timeout=5)
+        print(f"[VM] sent to '{target_device}': {text[:60]!r} — HTTP {r.status_code}")
+    except Exception as e:
+        print(f"[VM] request failed: {e}")
 
 
 def get_setting(key, default=None):
