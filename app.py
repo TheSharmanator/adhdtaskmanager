@@ -990,6 +990,20 @@ def background_task_checker():
 
 # --- ROUTES ---
 
+@app.errorhandler(sqlite3.OperationalError)
+def handle_db_error(e):
+    return (
+        '<html><body style="background:#121212;color:white;font-family:sans-serif;padding:40px">'
+        '<h2 style="color:#ffd700">DATABASE ERROR</h2>'
+        f'<p>{e}</p>'
+        '<p>On the server, run:<br>'
+        '<code>df -h</code> — check disk space<br>'
+        '<code>mount | grep ro</code> — check read-only filesystem<br>'
+        '<code>sqlite3 ~/adhdtaskmanager/tasks.db "PRAGMA integrity_check;"</code></p>'
+        '</body></html>'
+    ), 503
+
+
 @app.route('/')
 def index():
     if not config.get('setup_complete'):
@@ -1120,6 +1134,8 @@ def index():
                            queue_tasks=processed_tasks[5:],
                            silence_mode=silence_mode,
                            dnd_active=is_dnd,
+                           dnd_start=d_start,
+                           dnd_end=d_end,
                            is_mobile=is_mobile,
                            active_focus=active_focus,
                            user_name=USER_NAME,

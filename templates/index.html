@@ -1322,7 +1322,15 @@ function toggleSilence() {
 // ─── DND SINGLE-TAP WAKE ───
 const dndOverlay = document.getElementById('dnd-overlay');
 const dndClockDisplay = document.getElementById('dnd-clock-display');
-let dndWakeTimeout;
+const DND_START = "{{ d_start }}";
+const DND_END   = "{{ d_end }}";
+let dndWakeTimeout = null;
+
+function isDndTime() {
+    const now = new Date();
+    const hm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+    return DND_START > DND_END ? (hm >= DND_START || hm <= DND_END) : (hm >= DND_START && hm <= DND_END);
+}
 
 // Keep DND clock ticking while overlay is visible
 (function tickDndClock() {
@@ -1344,19 +1352,36 @@ if (dndOverlay) {
 
 function resetDndWakeTimer() {
     clearTimeout(dndWakeTimeout);
-    dndWakeTimeout = setTimeout(() => { if (dndOverlay) dndOverlay.style.display = 'flex'; }, 300000);
+    dndWakeTimeout = setTimeout(() => {
+        dndWakeTimeout = null;
+        if (dndOverlay && isDndTime()) dndOverlay.style.display = 'flex';
+    }, 300000);
 }
 
 // Reset 5-minute inactivity timer on any interaction while board is visible
 ['click', 'touchstart', 'keydown', 'mousemove'].forEach(evt => {
     document.body.addEventListener(evt, () => {
-        if (dndOverlay && dndOverlay.style.display === 'none' && dndWakeTimeout) resetDndWakeTimer();
+        if (dndOverlay && dndOverlay.style.display === 'none' && dndWakeTimeout !== null) resetDndWakeTimer();
     }, evt === 'touchstart' || evt === 'mousemove' ? { passive: true } : false);
 });
 
 // ─── POLL ───
 setInterval(() => {
     if (document.getElementById('otm-overlay').style.display !== 'none') return; // Don't reload during focus
+
+    // Auto-enter DND when time arrives (if not in a manual wake window)
+    if (isDndTime() && dndOverlay && dndOverlay.style.display === 'none' && dndWakeTimeout === null) {
+        dndOverlay.style.display = 'flex';
+        return;
+    }
+    // Auto-exit DND when DND window ends
+    if (!isDndTime() && dndOverlay && dndOverlay.style.display !== 'none') {
+        dndOverlay.style.display = 'none';
+        clearTimeout(dndWakeTimeout);
+        dndWakeTimeout = null;
+        return;
+    }
+
     fetch('/api/tasks')
     .then(r => r.json())
     .then(data => {
