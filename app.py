@@ -1,6 +1,8 @@
 import calendar
 import re
+import signal
 import sqlite3
+import subprocess
 import requests
 import random
 import json
@@ -2104,6 +2106,20 @@ def setup_oauth():
         set_setting('gdrive_client_secret', client_secret)
         return redirect('/')
     return render_template('setup_oauth.html')
+
+
+@app.route('/nuke', methods=['POST'])
+def nuke():
+    def _shutdown():
+        import time
+        time.sleep(0.4)
+        try:
+            subprocess.Popen(['pkill', 'chromium'])
+        except Exception:
+            pass
+        os.kill(os.getpid(), signal.SIGTERM)
+    threading.Thread(target=_shutdown, daemon=True).start()
+    return jsonify({'ok': True})
 
 
 if __name__ == '__main__':
