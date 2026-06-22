@@ -1,5 +1,5 @@
 #!/bin/bash
-cd /home/sharmanator/adhdtaskmanager
+cd /path/to/app/folder
 python3 app.py &
 sleep 2
 chromium --kiosk --noerrdialogs --disable-infobars http://localhost:5001
