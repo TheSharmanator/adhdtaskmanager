@@ -5,7 +5,6 @@ import sqlite3
 import subprocess
 import requests
 import random
-import json
 import os
 import threading
 from flask import Flask, render_template, request, redirect, jsonify, send_from_directory
@@ -456,34 +455,6 @@ def init_db():
     ]
     for key, val in defaults:
         c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
-
-    # One-time migration from config.json → DB
-    if not c.execute("SELECT value FROM settings WHERE key='config_migrated'").fetchone():
-        try:
-            _cfg_path = os.path.join(os.path.dirname(__file__), 'config.json')
-            with open(_cfg_path) as _f:
-                _cfg = json.load(_f)
-            _map = [
-                ('VM',                  'vm_enabled',         lambda v: '1' if v else '0'),
-                ('VM_TOKEN',            'vm_token',           str),
-                ('VM_DEVICE_ALERTS',    'vm_device_alerts',   str),
-                ('VM_DEVICE_BRIEFINGS', 'vm_device_briefings',str),
-                ('VM_DEVICE_FOCUS',     'vm_device_focus',    str),
-                ('VM_LANGUAGE',         'vm_language',        str),
-                ('USER_NAME',           'user_name',          str),
-                ('gdrive_client_id',    'gdrive_client_id',   str),
-                ('gdrive_client_secret','gdrive_client_secret',str),
-                ('setup_complete',      'setup_complete',     lambda v: '1' if v else '0'),
-            ]
-            for cfg_key, db_key, transform in _map:
-                if cfg_key in _cfg:
-                    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
-                              (db_key, transform(_cfg[cfg_key])))
-            if _cfg.get('VM'):
-                c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('backup_enabled', '1')")
-        except Exception as _e:
-            print(f"[config.json migration] {_e}")
-        c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('config_migrated', '1')")
 
     conn.commit()
     conn.close()
