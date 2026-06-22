@@ -1,4 +1,3 @@
-import json
 import os
 import sqlite3
 import urllib.parse
@@ -8,7 +7,6 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 import requests
 
 _DB_PATH = os.path.join(os.path.dirname(__file__), 'tasks.db')
-_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
 
 _SCOPES = [
     'https://www.googleapis.com/auth/calendar.readonly',
@@ -50,23 +48,15 @@ def _set_setting(key, value):
 def _get_client_credentials():
     """
     Returns (client_id, client_secret) for Calendar OAuth.
-    Uses gcal_client_id/gcal_client_secret from settings DB if set,
-    otherwise falls back to gdrive credentials from config.json.
-    This allows the Calendar and GDrive to live in different Google accounts.
+    Uses gcal_client_id/gcal_client_secret if set, otherwise falls back to
+    gdrive credentials — allowing Calendar and GDrive to use different accounts.
     """
-    # Check DB first (Calendar-specific credentials take priority)
     db_id     = _get_setting('gcal_client_id', '')
     db_secret = _get_setting('gcal_client_secret', '')
     if db_id and db_secret:
         return db_id, db_secret
 
-    # Fall back to gdrive credentials from config.json
-    try:
-        with open(_CONFIG_PATH) as f:
-            cfg = json.load(f)
-        return cfg.get('gdrive_client_id', ''), cfg.get('gdrive_client_secret', '')
-    except Exception:
-        return '', ''
+    return _get_setting('gdrive_client_id', ''), _get_setting('gdrive_client_secret', '')
 
 
 # ─── OAuth ───────────────────────────────────────────────────────────────────

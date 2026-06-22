@@ -17,13 +17,6 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 # --- CONFIGURATION ---
 USER_NAME = 'User'  # fallback only; real name comes from DB settings
 
-_config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-try:
-    with open(_config_path) as _f:
-        config = json.load(_f)
-except Exception:
-    config = {}
-
 VOICES = [
     "Nicole", "Russell", "Amy", "Emma", "Brian",
     "Raveena", "Aditi", "Ivy", "Joanna", "Kendra",
@@ -1051,7 +1044,7 @@ def handle_db_error(e):
 
 @app.route('/')
 def index():
-    if get_setting('setup_complete', '0') != '1' and not config.get('setup_complete'):
+    if get_setting('setup_complete', '0') != '1':
         return redirect('/setup')
 
     ua = request.headers.get('User-Agent', '').lower()

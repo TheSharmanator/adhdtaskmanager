@@ -1,10 +1,8 @@
-import json
 import os
 import sqlite3
 import requests
 from datetime import datetime
 
-_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
 _DB_PATH = os.path.join(os.path.dirname(__file__), 'tasks.db')
 
 _last_error = ''
@@ -12,21 +10,6 @@ _last_error = ''
 
 def _get_cfg():
     cfg = {}
-    # Try config.json first
-    try:
-        with open(_CONFIG_PATH) as f:
-            c = json.load(f)
-        cfg = {
-            'provider': c.get('llm_provider', '').lower(),
-            'quick_model': c.get('llm_quick_model', ''),
-            'deep_model': c.get('llm_deep_model', ''),
-            'api_key': c.get('llm_api_key', ''),
-            'ollama_host': c.get('llm_ollama_host', 'http://localhost:11434'),
-        }
-    except Exception:
-        pass
-
-    # Overlay with DB settings (DB takes precedence — configured via UI)
     try:
         conn = sqlite3.connect(_DB_PATH)
         c = conn.cursor()
