@@ -291,9 +291,7 @@
                 <div id="gcal-connected-row" style="display:none; margin: 8px 0;">
                     <div style="display:flex; gap:8px;">
                         <button type="button" id="gcal-sync-now-btn" onclick="gcalSyncNow()" style="flex:2; padding:12px; background:#004400; color:#44ff44; border:2px solid #00aa00; border-radius:8px; font-weight:900; cursor:pointer; text-transform:uppercase; font-size:0.9rem;">SYNC NOW</button>
-                        <form action="/gcal_disconnect" method="POST" style="flex:1; margin:0;">
-                            <button type="submit" style="width:100%; padding:12px; background:#330000; color:#ff6666; border:2px solid #660000; border-radius:8px; font-weight:900; cursor:pointer; text-transform:uppercase; font-size:0.9rem;">DISCONNECT</button>
-                        </form>
+                        <button type="button" onclick="gcalDisconnect()" style="flex:1; padding:12px; background:#330000; color:#ff6666; border:2px solid #660000; border-radius:8px; font-weight:900; cursor:pointer; text-transform:uppercase; font-size:0.9rem;">DISCONNECT</button>
                     </div>
                 </div>
                 <div id="gcal-settings-row" style="display:none; margin-top: 10px;">
@@ -340,9 +338,7 @@
                 <div id="gdrive-connected-row" style="display:none; margin: 8px 0;">
                     <div style="display:flex; gap:8px;">
                         <button type="button" id="gdrive-backup-now-btn" onclick="gdriveBackupNow()" style="flex:2; padding:12px; background:#003300; color:#44ff44; border:2px solid #00aa00; border-radius:8px; font-weight:900; cursor:pointer; text-transform:uppercase; font-size:0.9rem;">BACKUP NOW</button>
-                        <form action="/gdrive_backup_disconnect" method="POST" style="flex:1; margin:0;">
-                            <button type="submit" style="width:100%; padding:12px; background:#330000; color:#ff6666; border:2px solid #660000; border-radius:8px; font-weight:900; cursor:pointer; text-transform:uppercase; font-size:0.9rem;">DISCONNECT</button>
-                        </form>
+                        <button type="button" onclick="gdriveDisconnect()" style="flex:1; padding:12px; background:#330000; color:#ff6666; border:2px solid #660000; border-radius:8px; font-weight:900; cursor:pointer; text-transform:uppercase; font-size:0.9rem;">DISCONNECT</button>
                     </div>
                     <div id="gdrive-backup-result" style="font-size:0.85rem; margin-top:6px; color:#888;"></div>
                 </div>
@@ -646,6 +642,10 @@
             });
         }
 
+        function gcalDisconnect() {
+            fetch('/gcal_disconnect', { method: 'POST' }).then(() => location.reload());
+        }
+
         function gcalSyncNow() {
             const btn    = document.getElementById('gcal-sync-now-btn');
             const result = document.getElementById('gcal-sync-result');
@@ -696,6 +696,10 @@
             .catch(() => {
                 document.getElementById('gdrive-status-text').innerText = 'Status unavailable';
             });
+        }
+
+        function gdriveDisconnect() {
+            fetch('/gdrive_backup_disconnect', { method: 'POST' }).then(() => location.reload());
         }
 
         function gdriveBackupNow() {
