@@ -15,16 +15,14 @@ app = Flask(__name__)
 app.config['TEMPLATES_AUTO_RELOAD'] = True
 
 # --- CONFIGURATION ---
-config_path = os.path.join(os.path.dirname(__file__), 'config.json')
-with open(config_path) as f:
-    config = json.load(f)
-    VM_ENABLED = config.get('VM', False)
-    VM_TOKEN = config.get('VM_TOKEN', '')
-    VM_DEVICE_ALERTS = config.get('VM_DEVICE_ALERTS', '')
-    VM_DEVICE_BRIEFINGS = config.get('VM_DEVICE_BRIEFINGS', '')
-    VM_DEVICE_FOCUS = config.get('VM_DEVICE_FOCUS', '')
-    VM_LANGUAGE = config.get('VM_LANGUAGE', 'en-GB')
-    USER_NAME = config.get('USER_NAME', 'Joe')
+USER_NAME = 'User'  # fallback only; real name comes from DB settings
+
+_config_path = os.path.join(os.path.dirname(__file__), 'config.json')
+try:
+    with open(_config_path) as _f:
+        config = json.load(_f)
+except Exception:
+    config = {}
 
 VOICES = [
     "Nicole", "Russell", "Amy", "Emma", "Brian",
@@ -449,9 +447,48 @@ def init_db():
         ('evening_briefing_time', '21:00'),
         ('gcal_enabled', '0'),
         ('gcal_sync_interval_hours', '24'),
+        ('vm_enabled', '0'),
+        ('vm_token', ''),
+        ('vm_device_alerts', ''),
+        ('vm_device_briefings', ''),
+        ('vm_device_evening', ''),
+        ('vm_device_focus', ''),
+        ('vm_language', 'en-GB'),
+        ('backup_enabled', '0'),
+        ('gdrive_client_id', ''),
+        ('gdrive_client_secret', ''),
+        ('setup_complete', '0'),
     ]
     for key, val in defaults:
         c.execute("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)", (key, val))
+
+    # One-time migration from config.json → DB
+    if not c.execute("SELECT value FROM settings WHERE key='config_migrated'").fetchone():
+        try:
+            _cfg_path = os.path.join(os.path.dirname(__file__), 'config.json')
+            with open(_cfg_path) as _f:
+                _cfg = json.load(_f)
+            _map = [
+                ('VM',                  'vm_enabled',         lambda v: '1' if v else '0'),
+                ('VM_TOKEN',            'vm_token',           str),
+                ('VM_DEVICE_ALERTS',    'vm_device_alerts',   str),
+                ('VM_DEVICE_BRIEFINGS', 'vm_device_briefings',str),
+                ('VM_DEVICE_FOCUS',     'vm_device_focus',    str),
+                ('VM_LANGUAGE',         'vm_language',        str),
+                ('USER_NAME',           'user_name',          str),
+                ('gdrive_client_id',    'gdrive_client_id',   str),
+                ('gdrive_client_secret','gdrive_client_secret',str),
+                ('setup_complete',      'setup_complete',     lambda v: '1' if v else '0'),
+            ]
+            for cfg_key, db_key, transform in _map:
+                if cfg_key in _cfg:
+                    c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+                              (db_key, transform(_cfg[cfg_key])))
+            if _cfg.get('VM'):
+                c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('backup_enabled', '1')")
+        except Exception as _e:
+            print(f"[config.json migration] {_e}")
+        c.execute("INSERT OR REPLACE INTO settings (key, value) VALUES ('config_migrated', '1')")
 
     conn.commit()
     conn.close()
@@ -460,38 +497,43 @@ def init_db():
 # --- HELPERS ---
 
 def trigger_voice_monkey(text, device=None, chime=None):
-    if not VM_ENABLED or not VM_TOKEN:
-        print(f"[VM] skipped — VM_ENABLED={VM_ENABLED} VM_TOKEN={'set' if VM_TOKEN else 'missing'}")
-        return
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT key, value FROM settings WHERE key IN ('dnd_start', 'dnd_end', 'silence_mode')")
+    c.execute("SELECT key, value FROM settings WHERE key IN ("
+              "'vm_enabled','vm_token','vm_device_alerts','vm_language',"
+              "'dnd_start','dnd_end','silence_mode')")
     sets = {row[0]: row[1] for row in c.fetchall()}
     conn.close()
+
+    vm_enabled = sets.get('vm_enabled', '0') == '1'
+    vm_token   = sets.get('vm_token', '')
+    if not vm_enabled or not vm_token:
+        print(f"[VM] skipped — vm_enabled={vm_enabled} token={'set' if vm_token else 'missing'}")
+        return
 
     if sets.get('silence_mode') == 'on':
         print("[VM] skipped — silence mode is ON")
         return
 
     dnd_start = sets.get('dnd_start', '22:00')
-    dnd_end = sets.get('dnd_end', '07:00')
-    now_hm = datetime.now().strftime('%H:%M')
+    dnd_end   = sets.get('dnd_end', '07:00')
+    now_hm    = datetime.now().strftime('%H:%M')
     if _is_dnd_time(now_hm, dnd_start, dnd_end):
         print(f"[VM] skipped — DND active ({now_hm}, window {dnd_start}–{dnd_end})")
         return
 
-    target_device = device or VM_DEVICE_ALERTS
+    target_device = device or sets.get('vm_device_alerts', '')
     if not target_device:
-        print("[VM] skipped — no target device configured (VM_DEVICE_FOCUS and VM_DEVICE_ALERTS both empty)")
+        print("[VM] skipped — no target device configured")
         return
 
     url = "https://api-v2.voicemonkey.io/announcement"
     params = {
-        "token": VM_TOKEN,
-        "device": target_device,
-        "text": text,
-        "voice": random.choice(VOICES),
-        "language": VM_LANGUAGE,
+        "token":    vm_token,
+        "device":   target_device,
+        "text":     text,
+        "voice":    random.choice(VOICES),
+        "language": sets.get('vm_language', 'en-GB'),
     }
     if chime:
         params["chime"] = chime
@@ -626,7 +668,8 @@ def _send_tonight_vm():
             if dur:
                 msg += f", {dur} minutes"
             msg += ". "
-    trigger_voice_monkey(msg, device=VM_DEVICE_BRIEFINGS)
+    evening_device = get_setting('vm_device_evening', '') or get_setting('vm_device_briefings', '')
+    trigger_voice_monkey(msg, device=evening_device)
 
 
 def run_evening_briefing():
@@ -670,7 +713,7 @@ def run_morning_briefing():
             overdue = "overdue since" if dt < now else "due"
             dur_txt = f", estimated {duration} minutes" if duration else ""
             message += f"Task {i}: {title}, {overdue} {day_speak} at {time_speak}{dur_txt}. "
-        trigger_voice_monkey(message, device=VM_DEVICE_BRIEFINGS)
+        trigger_voice_monkey(message, device=get_setting('vm_device_briefings', ''))
     else:
         conn.close()
 
@@ -747,8 +790,10 @@ def maybe_generate_message_bank():
 
 
 def maybe_run_gdrive_backup():
-    """Run a Drive backup daily at 02:00 if authorized."""
+    """Run a Drive backup daily at 02:00 if authorized and backup_enabled."""
     import gdrive_backup
+    if get_setting('backup_enabled', '0') != '1':
+        return
     if not gdrive_backup.is_authorized():
         return
     now = datetime.now()
@@ -1006,7 +1051,7 @@ def handle_db_error(e):
 
 @app.route('/')
 def index():
-    if not config.get('setup_complete'):
+    if get_setting('setup_complete', '0') != '1' and not config.get('setup_complete'):
         return redirect('/setup')
 
     ua = request.headers.get('User-Agent', '').lower()
@@ -1184,7 +1229,7 @@ def focus_start():
     first_step = llm_service.get_first_step(task_title)
 
     # Trigger engage Alexa nag
-    trigger_voice_monkey(f"{get_user_name()}. Focus mode started. {task_title}. Let's go.", device=VM_DEVICE_FOCUS)
+    trigger_voice_monkey(f"{get_user_name()}. Focus mode started. {task_title}. Let's go.", device=get_setting('vm_device_focus', ''))
 
     return jsonify({
         'status': 'ok',
@@ -1230,7 +1275,7 @@ def focus_break_reminder():
     else:
         msg = f"{user}. Take a quick break. Drink some water, have a stretch, take a moment."
 
-    trigger_voice_monkey(msg, device=VM_DEVICE_FOCUS)
+    trigger_voice_monkey(msg, device=get_setting('vm_device_focus', ''))
     return jsonify({'status': 'ok'})
 
 
@@ -1248,7 +1293,7 @@ def focus_expired():
         f"{user}. {random.choice(NAG_DEADLINE)}",
     ]
     idx = min(escalation - 1, len(nag_messages) - 1)
-    trigger_voice_monkey(nag_messages[idx], device=VM_DEVICE_FOCUS, chime=random.choice(CHIMES))
+    trigger_voice_monkey(nag_messages[idx], device=get_setting('vm_device_focus', ''), chime=random.choice(CHIMES))
     return jsonify({'status': 'ok'})
 
 
@@ -1257,7 +1302,7 @@ def focus_nudge():
     data = request.get_json(silent=True) or {}
     mins = int(data.get('mins_remaining', 0))
     msg = f"{get_user_name()}. {mins} minutes remaining." if mins > 0 else f"{get_user_name()}. Stay focused."
-    trigger_voice_monkey(msg, device=VM_DEVICE_FOCUS)
+    trigger_voice_monkey(msg, device=get_setting('vm_device_focus', ''))
     return jsonify({'status': 'ok', 'nudge': msg})
 
 
@@ -1397,13 +1442,13 @@ def gcal_sync_now():
 
 
 def get_board_version():
-    """A lightweight version string for the active task set — changes on completion or new task."""
+    """A lightweight version string for the active task set — changes on task add/complete/edit."""
     conn = get_db()
     c = conn.cursor()
-    c.execute("SELECT COUNT(*), COALESCE(MAX(id), 0) FROM tasks WHERE status='active'")
-    count, max_id = c.fetchone()
+    c.execute("SELECT COUNT(*), COALESCE(MAX(id), 0), COALESCE(SUM(percent), 0) FROM tasks WHERE status='active'")
+    count, max_id, sum_pct = c.fetchone()
     conn.close()
-    return f"{count}-{max_id}"
+    return f"{count}-{max_id}-{sum_pct}"
 
 
 @app.route('/api/board_version')
@@ -1919,6 +1964,9 @@ def settings():
             'llm_ollama_host', 'user_name',
             'gcal_enabled', 'gcal_sync_interval_hours',
             'gcal_client_id', 'gcal_client_secret',
+            'vm_enabled', 'vm_token', 'vm_device_alerts', 'vm_device_briefings',
+            'vm_device_evening', 'vm_device_focus', 'vm_language',
+            'backup_enabled', 'gdrive_client_id', 'gdrive_client_secret',
         ]
         for key in setting_keys:
             val = request.form.get(key)
@@ -1957,6 +2005,7 @@ def edit_task(task_id):
     c = conn.cursor()
 
     if request.method == 'POST':
+        new_title = request.form.get('title', '').strip()
         uk_date = request.form.get('deadline_date')
         d_time = request.form.get('deadline_time')
         deadline_type = request.form.get('deadline_type', 'flexible')
@@ -1979,11 +2028,18 @@ def edit_task(task_id):
                 iso_date = f"{year}-{month}-{day}"
             deadline = f"{iso_date}T{d_time}"
 
-        c.execute(
-            "UPDATE tasks SET deadline=?, last_alert_type='none', last_nag_time=NULL, "
-            "duration_minutes=?, deadline_type=?, scheduled_start=NULL, scheduled_end=NULL, pin_to_date=? WHERE id=?",
-            (deadline, duration_minutes, deadline_type, pin_to_date, task_id)
-        )
+        if new_title:
+            c.execute(
+                "UPDATE tasks SET title=?, deadline=?, last_alert_type='none', last_nag_time=NULL, "
+                "duration_minutes=?, deadline_type=?, scheduled_start=NULL, scheduled_end=NULL, pin_to_date=? WHERE id=?",
+                (new_title, deadline, duration_minutes, deadline_type, pin_to_date, task_id)
+            )
+        else:
+            c.execute(
+                "UPDATE tasks SET deadline=?, last_alert_type='none', last_nag_time=NULL, "
+                "duration_minutes=?, deadline_type=?, scheduled_start=NULL, scheduled_end=NULL, pin_to_date=? WHERE id=?",
+                (deadline, duration_minutes, deadline_type, pin_to_date, task_id)
+            )
         conn.commit()
         conn.close()
         if get_setting('gcal_enabled', '0') == '1':
@@ -2036,13 +2092,10 @@ def setup():
         choice = request.form.get('backup_choice')
         if not choice:
             return "Error: Backup choice is compulsory.", 400
-        if choice == 'no':
-            config['setup_complete'] = True
-            with open(config_path, 'w') as f:
-                json.dump(config, f, indent=4)
-            return redirect('/')
-        else:
+        set_setting('setup_complete', '1')
+        if choice == 'yes':
             return redirect('/setup_oauth')
+        return redirect('/')
     return render_template('setup_backup.html')
 
 
@@ -2053,11 +2106,9 @@ def setup_oauth():
         client_secret = request.form.get('client_secret')
         if not all([client_id, client_secret]):
             return "Error: All fields are compulsory.", 400
-        config['setup_complete'] = True
-        config['gdrive_client_id'] = client_id
-        config['gdrive_client_secret'] = client_secret
-        with open(config_path, 'w') as f:
-            json.dump(config, f, indent=4)
+        set_setting('setup_complete', '1')
+        set_setting('gdrive_client_id', client_id)
+        set_setting('gdrive_client_secret', client_secret)
         return redirect('/')
     return render_template('setup_oauth.html')
 

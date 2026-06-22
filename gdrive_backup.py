@@ -9,7 +9,6 @@ from datetime import datetime, timedelta, timezone
 import requests
 
 _DB_PATH = os.path.join(os.path.dirname(__file__), 'tasks.db')
-_CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
 _APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 _SCOPE = 'https://www.googleapis.com/auth/drive.file'
@@ -55,13 +54,8 @@ def _set_setting(key, value):
 # ─── Credentials ─────────────────────────────────────────────────────────────
 
 def _get_client_credentials():
-    """Read gdrive_client_id / gdrive_client_secret from config.json."""
-    try:
-        with open(_CONFIG_PATH) as f:
-            cfg = json.load(f)
-        return cfg.get('gdrive_client_id', ''), cfg.get('gdrive_client_secret', '')
-    except Exception:
-        return '', ''
+    """Read gdrive_client_id / gdrive_client_secret from the settings DB."""
+    return _get_setting('gdrive_client_id', ''), _get_setting('gdrive_client_secret', '')
 
 
 # ─── OAuth ───────────────────────────────────────────────────────────────────

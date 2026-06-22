@@ -113,7 +113,7 @@
         <div id="scroll-area">
             <form id="settings-form" method="POST" autocomplete="off">
 
-                <!-- SCREEN + PORT -->
+                <!-- ─── DISPLAY & SERVER ─── -->
                 <div class="side-by-side" style="align-items: flex-end; margin-top: 5px; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 5px;">
                     <div style="flex: 2; display: flex; gap: 5px; padding-bottom: 5px;">
                         <button type="button" class="p-btn screen-btn" onclick="setScreenSize('small', this)">SMALL<small style="display:block;font-size:0.65rem;opacity:0.7;">800px base</small></button>
@@ -126,7 +126,17 @@
                     </div>
                 </div>
 
-                <!-- BRIEFING -->
+                <!-- ─── USER ─── -->
+                <div class="section-header">
+                    <h3>USER</h3>
+                </div>
+                <label>YOUR NAME:</label>
+                <input type="text" name="user_name" class="input" value="{{ settings.user_name or '' }}" placeholder="Name">
+
+                <!-- ─── SCHEDULING ─── -->
+                <div class="section-header">
+                    <h3>SCHEDULING</h3>
+                </div>
                 <div class="side-by-side">
                     <div>
                         <label>MORNING BRIEFING (HH:MM):</label>
@@ -137,7 +147,6 @@
                         <input type="text" name="evening_briefing_time" class="input mask-time" placeholder="21:00" value="{{ settings.evening_briefing_time or '21:00' }}" maxlength="5">
                     </div>
                 </div>
-
                 <label>BRIEFING DAYS:</label>
                 <div class="day-selector">
                     {% for day in ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] %}
@@ -146,9 +155,7 @@
                     <label for="day-{{ day }}">{{ day|upper }}</label>
                     {% endfor %}
                 </div>
-
-                <!-- DND -->
-                <div class="side-by-side">
+                <div class="side-by-side" style="margin-top:10px;">
                     <div>
                         <label>DND START (HH:MM):</label>
                         <input type="text" name="dnd_start" class="input mask-time" placeholder="22:00" value="{{ settings.dnd_start }}" maxlength="5">
@@ -159,23 +166,53 @@
                     </div>
                 </div>
 
-                <!-- BAR + NAG -->
-                <div class="side-by-side">
-                    <div>
-                        <label>PROGRESS BAR SCALE (HRS):</label>
-                        <input type="number" name="bar_start_hours" step="0.1" class="input" value="{{ settings.bar_start_hours }}">
-                    </div>
-                    <div>
-                        <label>OVERDUE NAG INTERVAL (MINS):</label>
-                        <input type="number" name="nag_interval" class="input" value="{{ settings.nag_interval }}">
-                    </div>
+                <!-- ─── VOICE MONKEY ─── -->
+                <div class="section-header">
+                    <h3>VOICE MONKEY</h3>
                 </div>
 
-                <!-- USER NAME -->
-                <label>YOUR NAME:</label>
-                <input type="text" name="user_name" class="input" value="{{ settings.user_name or '' }}" placeholder="Name">
+                <div class="side-by-side" style="align-items:center; margin-bottom:10px;">
+                    <label style="margin:0; flex:1;">ENABLE VOICE MONKEY:</label>
+                    <button type="button" id="vm-enabled-btn" class="p-btn {{ 'active' if settings.vm_enabled == '1' else '' }}"
+                            style="flex:0 0 100px; font-size:1.1rem;" onclick="toggleField('vm_enabled','vm-enabled-btn')">
+                        {{ 'ON' if settings.vm_enabled == '1' else 'OFF' }}
+                    </button>
+                    <input type="hidden" name="vm_enabled" id="vm_enabled" value="{{ settings.vm_enabled or '0' }}">
+                </div>
 
-                <!-- ─── AI SECTION ─── -->
+                <label>VM API TOKEN:</label>
+                <input type="password" name="vm_token" class="input" value="{{ settings.vm_token or '' }}" placeholder="Your Voice Monkey API token">
+
+                <label>VOICE LANGUAGE:</label>
+                <select name="vm_language" class="input" style="padding:10px; cursor:pointer;">
+                    {% for lang in ['de-DE','en-AU','en-CA','en-GB','en-IN','en-US','es-ES','es-MX','es-US','fr-CA','fr-FR','hi-IN','it-IT','ja-JP','pt-BR'] %}
+                    <option value="{{ lang }}" {{ 'selected' if (settings.vm_language or 'en-GB') == lang else '' }}>{{ lang }}</option>
+                    {% endfor %}
+                </select>
+
+                <div class="side-by-side" style="margin-top:10px;">
+                    <div>
+                        <label>DEVICE — ALERTS <small>(nags & reminders)</small>:</label>
+                        <input type="text" name="vm_device_alerts" class="input" value="{{ settings.vm_device_alerts or '' }}" placeholder="e.g. living-room-monkey">
+                    </div>
+                    <div>
+                        <label>DEVICE — FOCUS <small>(focus mode)</small>:</label>
+                        <input type="text" name="vm_device_focus" class="input" value="{{ settings.vm_device_focus or '' }}" placeholder="e.g. all-monkeys">
+                    </div>
+                </div>
+                <div class="side-by-side">
+                    <div>
+                        <label>DEVICE — MORNING BRIEFING:</label>
+                        <input type="text" name="vm_device_briefings" class="input" value="{{ settings.vm_device_briefings or '' }}" placeholder="e.g. bedroom-monkey">
+                    </div>
+                    <div>
+                        <label>DEVICE — EVENING BRIEFING:</label>
+                        <input type="text" name="vm_device_evening" class="input" value="{{ settings.vm_device_evening or '' }}" placeholder="e.g. living-room-monkey">
+                    </div>
+                </div>
+                <p style="color:#555; font-size:0.8rem; margin:4px 0 0;">Leave Evening device blank to reuse Morning Briefing device.</p>
+
+                <!-- ─── AI ASSISTANT ─── -->
                 <div class="section-header">
                     <h3>AI ASSISTANT</h3>
                 </div>
@@ -192,7 +229,6 @@
                 <input type="hidden" name="llm_quick_model" id="llm_quick_model_final" value="{{ settings.llm_quick_model or '' }}">
                 <input type="hidden" name="llm_deep_model" id="llm_deep_model_final" value="{{ settings.llm_deep_model or '' }}">
 
-                <!-- Cloud provider model dropdowns -->
                 <div id="cloud-model-section" style="display:none;">
                     <div class="side-by-side">
                         <div>
@@ -207,8 +243,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Local provider model text inputs -->
                 <div id="local-model-section" style="display:none;">
                     <div class="side-by-side">
                         <div>
@@ -221,38 +255,30 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- API key for cloud providers -->
                 <div id="api-key-section" style="display:none;">
                     <label id="api-key-label">API KEY:</label>
                     <input type="password" name="llm_api_key" class="input" value="{{ settings.llm_api_key or '' }}" placeholder="Paste your API key here">
                 </div>
-
-                <!-- Host for local providers -->
                 <div id="local-host-section" style="display:none;">
                     <label id="local-host-label">LOCAL HOST:</label>
                     <input type="text" name="llm_ollama_host" class="input" value="{{ settings.llm_ollama_host or 'http://localhost:11434' }}" placeholder="http://192.168.x.x:11434">
                 </div>
-
                 <div style="display: flex; gap: 10px; align-items: stretch; margin-top: 10px;">
                     <button type="button" id="test-btn" onclick="testLLM()" class="p-btn" style="flex: 1; background: #004488; border-color: #0088ff;">TEST CONNECTION</button>
                     <button type="button" onclick="showLLMHelp()" class="p-btn" style="width: 50px; font-size: 1.4rem; border-color: #555;">?</button>
                     <div id="test-result" style="flex: 2;">—</div>
                 </div>
 
-                <!-- GOOGLE CALENDAR -->
+                <!-- ─── GOOGLE CALENDAR ─── -->
                 <div class="section-header">
                     <h3>GOOGLE CALENDAR SYNC</h3>
                 </div>
-
                 <div id="gcal-status-row" style="margin: 8px 0; padding: 10px; background: #111; border-radius: 8px; display: flex; align-items: center; gap: 12px;">
                     <div id="gcal-status-dot" style="width:14px; height:14px; border-radius:50%; background:#555; flex-shrink:0;"></div>
                     <div id="gcal-status-text" style="color:#888; font-size:0.9rem; flex:1;">Checking...</div>
                     <div id="gcal-last-sync-text" style="color:#555; font-size:0.8rem;"></div>
                 </div>
-
                 <div id="gcal-connect-row" style="display:none; margin: 8px 0;">
-                    <!-- Calendar OAuth credentials (only needed if different account from GDrive) -->
                     <label style="color:#888; font-size:0.8rem; text-transform:uppercase; font-weight:900; display:block; margin-bottom:4px;">
                         GOOGLE CALENDAR OAUTH CREDENTIALS
                         <small style="color:#555; font-weight:normal;"> — leave blank to reuse your GDrive credentials</small>
@@ -262,7 +288,6 @@
                     <a href="/gcal_auth_redirect" style="display:block; width:100%; padding:14px; background:#003366; color:#66aaff; border:2px solid #0066cc; border-radius:8px; font-size:1rem; font-weight:900; text-align:center; text-decoration:none; text-transform:uppercase; box-sizing:border-box;">CONNECT GOOGLE CALENDAR</a>
                     <p style="color:#555; font-size:0.8rem; margin:5px 0;">Grants Calendar (read) + Tasks (write) access. Save settings before connecting.</p>
                 </div>
-
                 <div id="gcal-connected-row" style="display:none; margin: 8px 0;">
                     <div style="display:flex; gap:8px;">
                         <button type="button" id="gcal-sync-now-btn" onclick="gcalSyncNow()" style="flex:2; padding:12px; background:#004400; color:#44ff44; border:2px solid #00aa00; border-radius:8px; font-weight:900; cursor:pointer; text-transform:uppercase; font-size:0.9rem;">SYNC NOW</button>
@@ -271,14 +296,12 @@
                         </form>
                     </div>
                 </div>
-
                 <div id="gcal-settings-row" style="display:none; margin-top: 10px;">
                     <label>SYNC EVERY (HOURS):</label>
                     <input type="number" name="gcal_sync_interval_hours" class="input" value="{{ settings.gcal_sync_interval_hours or 24 }}" min="1" max="168" step="1">
                     <input type="hidden" name="gcal_enabled" value="1">
                     <div id="gcal-sync-result" style="font-size:0.85rem; margin-top:6px; color:#888;"></div>
                 </div>
-
                 {% if request.args.get('gcal_success') %}
                 <div style="margin:8px 0; padding:10px; background:#003300; border:2px solid #00aa00; border-radius:8px; color:#44ff44; font-size:0.9rem; font-weight:900;">Google Calendar connected successfully.</div>
                 {% endif %}
@@ -286,22 +309,34 @@
                 <div style="margin:8px 0; padding:10px; background:#330000; border:2px solid #aa0000; border-radius:8px; color:#ff6666; font-size:0.9rem; font-weight:900;">Connection failed: {{ request.args.get('gcal_error') }}. Check your Google Cloud Console credentials.</div>
                 {% endif %}
 
-                <!-- GOOGLE DRIVE BACKUP -->
+                <!-- ─── GOOGLE DRIVE BACKUP ─── -->
                 <div class="section-header">
                     <h3>GOOGLE DRIVE BACKUP</h3>
                 </div>
+
+                <div class="side-by-side" style="align-items:center; margin-bottom:10px;">
+                    <label style="margin:0; flex:1;">AUTO-BACKUP (daily at 2am):</label>
+                    <button type="button" id="backup-enabled-btn" class="p-btn {{ 'active' if settings.backup_enabled == '1' else '' }}"
+                            style="flex:0 0 100px; font-size:1.1rem;" onclick="toggleField('backup_enabled','backup-enabled-btn')">
+                        {{ 'ON' if settings.backup_enabled == '1' else 'OFF' }}
+                    </button>
+                    <input type="hidden" name="backup_enabled" id="backup_enabled" value="{{ settings.backup_enabled or '0' }}">
+                </div>
+
+                <label>GOOGLE DRIVE CLIENT ID:</label>
+                <input type="text" name="gdrive_client_id" class="input" value="{{ settings.gdrive_client_id or '' }}" placeholder="Google Cloud OAuth Client ID">
+                <label>GOOGLE DRIVE CLIENT SECRET:</label>
+                <input type="password" name="gdrive_client_secret" class="input" value="{{ settings.gdrive_client_secret or '' }}" placeholder="Google Cloud OAuth Client Secret">
+                <p style="color:#555; font-size:0.8rem; margin:4px 0 8px;">Get credentials from <strong style="color:#888;">console.cloud.google.com</strong> → APIs &amp; Services → Credentials. Save settings before connecting.</p>
 
                 <div id="gdrive-status-row" style="margin: 8px 0; padding: 10px; background: #111; border-radius: 8px; display: flex; align-items: center; gap: 12px;">
                     <div id="gdrive-status-dot" style="width:14px; height:14px; border-radius:50%; background:#555; flex-shrink:0;"></div>
                     <div id="gdrive-status-text" style="color:#888; font-size:0.9rem; flex:1;">Checking...</div>
                     <div id="gdrive-last-backup-text" style="color:#555; font-size:0.8rem;"></div>
                 </div>
-
                 <div id="gdrive-connect-row" style="display:none; margin: 8px 0;">
-                    <p style="color:#888; font-size:0.85rem; margin: 0 0 8px;">Uses the same GDrive credentials from config.json. Backs up the full app folder to <strong style="color:#ffd700;">My Drive/adhdtaskmanager/</strong> daily at 2am. Keeps last 7 backups.</p>
                     <a href="/gdrive_backup_auth_redirect" style="display:block; width:100%; padding:14px; background:#003300; color:#44ff44; border:2px solid #00aa00; border-radius:8px; font-size:1rem; font-weight:900; text-align:center; text-decoration:none; text-transform:uppercase; box-sizing:border-box;">CONNECT GOOGLE DRIVE BACKUP</a>
                 </div>
-
                 <div id="gdrive-connected-row" style="display:none; margin: 8px 0;">
                     <div style="display:flex; gap:8px;">
                         <button type="button" id="gdrive-backup-now-btn" onclick="gdriveBackupNow()" style="flex:2; padding:12px; background:#003300; color:#44ff44; border:2px solid #00aa00; border-radius:8px; font-weight:900; cursor:pointer; text-transform:uppercase; font-size:0.9rem;">BACKUP NOW</button>
@@ -311,22 +346,29 @@
                     </div>
                     <div id="gdrive-backup-result" style="font-size:0.85rem; margin-top:6px; color:#888;"></div>
                 </div>
-
                 {% if request.args.get('gdrive_success') %}
                 <div style="margin:8px 0; padding:10px; background:#003300; border:2px solid #00aa00; border-radius:8px; color:#44ff44; font-size:0.9rem; font-weight:900;">Google Drive Backup connected successfully.</div>
                 {% endif %}
                 {% if request.args.get('gdrive_error') %}
-                <div style="margin:8px 0; padding:10px; background:#330000; border:2px solid #aa0000; border-radius:8px; color:#ff6666; font-size:0.9rem; font-weight:900;">Connection failed: {{ request.args.get('gdrive_error') }}. Check your Google Cloud Console credentials.</div>
+                <div style="margin:8px 0; padding:10px; background:#330000; border:2px solid #aa0000; border-radius:8px; color:#ff6666; font-size:0.9rem; font-weight:900;">Connection failed: {{ request.args.get('gdrive_error') }}. Check your credentials above.</div>
                 {% endif %}
 
-                <!-- ADHD BUFFER -->
-                <div class="section-header" style="border-color: #555;">
-                    <h3 style="color: #aaa;">ADHD BUFFER</h3>
+                <!-- ─── ADVANCED ─── -->
+                <div class="section-header" style="border-color:#555;">
+                    <h3 style="color:#aaa;">ADVANCED</h3>
                 </div>
-
-                <label>BUFFER % <small>(added to AI time estimates — beat the clock!)</small>:</label>
+                <label>ADHD BUFFER % <small>(added to AI time estimates)</small>:</label>
                 <input type="number" name="adhd_buffer_pct" class="input" value="{{ settings.adhd_buffer_pct or 30 }}" min="0" max="100" step="5">
-
+                <div class="side-by-side" style="margin-top:10px;">
+                    <div>
+                        <label>PROGRESS BAR SCALE (HRS):</label>
+                        <input type="number" name="bar_start_hours" step="0.1" class="input" value="{{ settings.bar_start_hours }}">
+                    </div>
+                    <div>
+                        <label>OVERDUE NAG INTERVAL (MINS):</label>
+                        <input type="number" name="nag_interval" class="input" value="{{ settings.nag_interval }}">
+                    </div>
+                </div>
 
             </form>
         </div>
@@ -842,6 +884,16 @@
         document.querySelectorAll('.mask-time').forEach(input => {
             input.addEventListener('click', e => openClockPicker(e.target));
         });
+
+        // Toggle ON/OFF buttons
+        function toggleField(fieldId, btnId) {
+            const field = document.getElementById(fieldId);
+            const btn   = document.getElementById(btnId);
+            const isOn  = field.value === '1';
+            field.value = isOn ? '0' : '1';
+            btn.innerText = isOn ? 'OFF' : 'ON';
+            btn.classList.toggle('active', !isOn);
+        }
 
         // Validation + submit
         function validateAndSubmitSettings() {

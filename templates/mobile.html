@@ -394,8 +394,8 @@
             <h2>✎ Edit Task</h2>
             <button class="m-close" onclick="closeOverlay('edit-overlay')">CLOSE</button>
         </div>
-        <span class="m-label">Task</span>
-        <div id="e-title" class="m-input" style="background:#0a0a0a; color:#aaa;"></div>
+        <span class="m-label">Task Name</span>
+        <input type="text" id="e-title" class="m-input" placeholder="Task name" style="margin-bottom:12px;">
 
         <span class="m-label">Deadline</span>
         <div class="m-dl-row">
@@ -749,7 +749,7 @@ function openEdit(id){
     if(!task) return;
     editTaskId=id;
     resetForm('e');
-    document.getElementById('e-title').innerText=task.title;
+    document.getElementById('e-title').value=task.title;
     document.getElementById('e-date').value=task.edit_date||'';
     document.getElementById('e-time').value=task.edit_time||'09:00';
     document.getElementById('e-dur-custom').value=task.duration_minutes||30;
@@ -762,6 +762,8 @@ function openEdit(id){
 }
 function saveEdit(btn){
     const status=document.getElementById('e-status'); status.innerText='';
+    const titleVal=document.getElementById('e-title').value.trim();
+    if(!titleVal){ status.innerText='Task name is required.'; return; }
     if(!state.e.dl){ status.innerText='Select a deadline type.'; return; }
     if(state.e.dl!=='none'){
         if(!document.getElementById('e-date').value){ status.innerText='Pick a date.'; return; }
@@ -769,6 +771,7 @@ function saveEdit(btn){
     }
     const dur=parseInt(document.getElementById('e-dur-custom').value)||30;
     const form=new FormData();
+    form.append('title',titleVal);
     form.append('deadline_type',state.e.dl);
     form.append('duration_minutes',dur);
     if(state.e.dl!=='none'){

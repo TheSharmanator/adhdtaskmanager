@@ -1294,19 +1294,25 @@ function dragLeave(ev) { ev.currentTarget.classList.remove('drop-hover'); }
 })();
 
 // ─── CROSS-DEVICE SYNC POLL ───
-(function(){
-    let _bv = '{{ board_version }}';
-    setInterval(async () => {
-        // Don't reload while focus mode, celebration, or any overlay is visible
-        const skip = ['otm-overlay','celebration-overlay','focus-popup','quickadd-overlay','tonight-overlay']
-            .some(id => { const el = document.getElementById(id); return el && el.style.display !== 'none' && el.style.display !== ''; });
-        if (skip) return;
-        try {
-            const d = await fetch('/api/board_version').then(r => r.json());
-            if (d.v !== _bv) location.reload();
-        } catch(e) {}
-    }, 10000);
-})();
+let _bv = '{{ board_version }}';
+async function checkBoardVersion() {
+    try {
+        const d = await fetch('/api/board_version').then(r => r.json());
+        if (d.v !== _bv) location.reload();
+    } catch(e) {}
+}
+setInterval(async () => {
+    // Don't reload while focus mode, celebration, or any overlay is visible
+    const skip = ['otm-overlay','celebration-overlay','focus-popup','quickadd-overlay','tonight-overlay']
+        .some(id => { const el = document.getElementById(id); return el && el.style.display !== 'none' && el.style.display !== ''; });
+    if (skip) return;
+    await checkBoardVersion();
+}, 10000);
+
+// Reload immediately when the tab/screen wakes up (handles mobile sleep throttling)
+document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) checkBoardVersion();
+});
 
 // ─── SILENCE ───
 function toggleSilence() {
@@ -1322,8 +1328,8 @@ function toggleSilence() {
 // ─── DND SINGLE-TAP WAKE ───
 const dndOverlay = document.getElementById('dnd-overlay');
 const dndClockDisplay = document.getElementById('dnd-clock-display');
-const DND_START = "{{ d_start }}";
-const DND_END   = "{{ d_end }}";
+const DND_START = "{{ dnd_start }}";
+const DND_END   = "{{ dnd_end }}";
 let dndWakeTimeout = null;
 
 function isDndTime() {
@@ -1347,6 +1353,7 @@ if (dndOverlay) {
     dndOverlay.addEventListener('click', () => {
         dndOverlay.style.display = 'none';
         resetDndWakeTimer();
+        checkBoardVersion(); // refresh board if it changed while in DND
     });
 }
 
