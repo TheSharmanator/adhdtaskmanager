@@ -334,6 +334,7 @@ header {
     {% for task in main_tasks %}
     <div class="main-task {{ task.phase }}"
          data-task-id="{{ task.id }}"
+         data-deadline="{{ task.edit_date }}T{{ task.edit_time if task.deadline_type != 'none' else '' }}"
          ondragover="dragOver(event)"
          ondragenter="dragEnter(event)"
          ondragleave="dragLeave(event)"
@@ -364,7 +365,7 @@ header {
 <div id="queue-section">
     <div id="queue-scroll-area">
         {% for task in queue_tasks %}
-        <div class="queue-task {{ task.phase }}">
+        <div class="queue-task {{ task.phase }}" data-deadline="{{ task.edit_date }}T{{ task.edit_time if task.deadline_type != 'none' else '' }}">
             <div class="qt-title">{{ task.title }}{% if task.sched_bracket %} {{ task.sched_bracket }}{% endif %}</div>
             <div class="qt-due">{% if task.deadline_type == 'none' %}BACKLOG{% else %}DUE: {{ task.deadline }}{% endif %}</div>
             <div class="qt-dur">{% if task.duration_minutes %}{{ task.duration_minutes }}m{% endif %}</div>
@@ -1311,7 +1312,10 @@ setInterval(async () => {
 
 // Reload immediately when the tab/screen wakes up (handles mobile sleep throttling)
 document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) checkBoardVersion();
+    if (!document.hidden) {
+        checkBoardVersion();
+        checkDndStatus();
+    }
 });
 
 // ─── SILENCE ───
@@ -1325,26 +1329,73 @@ function toggleSilence() {
     });
 }
 
+// ─── LIVE TASK BARS ───
+const BAR_SCALE_MINS = {{ bar_scale_mins }};
+
+function updateTaskBars() {
+    const now = Date.now();
+    document.querySelectorAll('.main-task[data-deadline], .queue-task[data-deadline]').forEach(el => {
+        const dl = el.dataset.deadline;
+        if (!dl) return;
+        const deadlineMs = new Date(dl).getTime();
+        if (isNaN(deadlineMs)) return;
+        const timeLeftMins = (deadlineMs - now) / 60000;
+        const pct = Math.max(0, Math.min(100, 100 - (timeLeftMins / BAR_SCALE_MINS * 100)));
+
+        const bar = el.querySelector('.progress-bg');
+        if (bar) bar.style.width = pct + '%';
+
+        let newPhase = 'phase-normal';
+        if (timeLeftMins <= 0)  newPhase = 'phase-red';
+        else if (timeLeftMins <= 15) newPhase = 'phase-orange';
+        else if (timeLeftMins <= 30) newPhase = 'phase-yellow';
+
+        ['phase-red','phase-orange','phase-yellow','phase-normal','phase-none'].forEach(c => el.classList.remove(c));
+        el.classList.add(newPhase);
+    });
+}
+
+updateTaskBars();
+setInterval(updateTaskBars, 30000);
+
 // ─── DND SINGLE-TAP WAKE ───
 const dndOverlay = document.getElementById('dnd-overlay');
 const dndClockDisplay = document.getElementById('dnd-clock-display');
-const DND_START = "{{ dnd_start }}";
-const DND_END   = "{{ dnd_end }}";
+let dndStart = "{{ dnd_start }}";
+let dndEnd   = "{{ dnd_end }}";
 let dndWakeTimeout = null;
 
 function isDndTime() {
     const now = new Date();
     const hm = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-    return DND_START > DND_END ? (hm >= DND_START || hm <= DND_END) : (hm >= DND_START && hm <= DND_END);
+    return dndStart > dndEnd ? (hm >= dndStart || hm <= dndEnd) : (hm >= dndStart && hm <= dndEnd);
+}
+
+function applyDndState(isDnd) {
+    if (!dndOverlay) return;
+    if (isDnd && dndOverlay.style.display === 'none' && dndWakeTimeout === null) {
+        dndOverlay.style.display = 'flex';
+    } else if (!isDnd && dndOverlay.style.display !== 'none') {
+        dndOverlay.style.display = 'none';
+        clearTimeout(dndWakeTimeout);
+        dndWakeTimeout = null;
+    }
+}
+
+async function checkDndStatus() {
+    try {
+        const data = await fetch('/api/dnd_status').then(r => r.json());
+        dndStart = data.dnd_start;
+        dndEnd = data.dnd_end;
+        if (dndWakeTimeout === null) applyDndState(data.is_dnd);
+    } catch(e) {}
 }
 
 // Keep DND clock ticking while overlay is visible
 (function tickDndClock() {
     if (dndClockDisplay) {
         const now = new Date();
-        const h = String(now.getHours()).padStart(2, '0');
-        const m = String(now.getMinutes()).padStart(2, '0');
-        dndClockDisplay.textContent = h + ':' + m;
+        dndClockDisplay.textContent = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
     }
     setTimeout(tickDndClock, 10000);
 })();
@@ -1353,7 +1404,7 @@ if (dndOverlay) {
     dndOverlay.addEventListener('click', () => {
         dndOverlay.style.display = 'none';
         resetDndWakeTimer();
-        checkBoardVersion(); // refresh board if it changed while in DND
+        checkBoardVersion();
     });
 }
 
@@ -1372,22 +1423,16 @@ function resetDndWakeTimer() {
     }, evt === 'touchstart' || evt === 'mousemove' ? { passive: true } : false);
 });
 
+// Re-check DND from server every 60s — picks up settings changes and corrects browser timer throttling
+setInterval(checkDndStatus, 60000);
+
 // ─── POLL ───
 setInterval(() => {
-    if (document.getElementById('otm-overlay').style.display !== 'none') return; // Don't reload during focus
+    // DND check runs independently of focus overlay state
+    if (dndWakeTimeout === null) applyDndState(isDndTime());
 
-    // Auto-enter DND when time arrives (if not in a manual wake window)
-    if (isDndTime() && dndOverlay && dndOverlay.style.display === 'none' && dndWakeTimeout === null) {
-        dndOverlay.style.display = 'flex';
-        return;
-    }
-    // Auto-exit DND when DND window ends
-    if (!isDndTime() && dndOverlay && dndOverlay.style.display !== 'none') {
-        dndOverlay.style.display = 'none';
-        clearTimeout(dndWakeTimeout);
-        dndWakeTimeout = null;
-        return;
-    }
+    if (document.getElementById('otm-overlay').style.display !== 'none') return; // Don't reload during focus
+    if (dndOverlay && dndOverlay.style.display !== 'none') return; // Don't reload during DND
 
     fetch('/api/tasks')
     .then(r => r.json())

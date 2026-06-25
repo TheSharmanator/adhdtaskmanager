@@ -577,7 +577,7 @@ def get_message_from_bank(msg_type):
         return random.choice(NAG_EXPIRED)
     if msg_type == 'focus_nudge':
         return random.choice(FOCUS_NUDGES)
-    return random.choice(PRAISE_MESSAGES).format(name=USER_NAME)
+    return random.choice(PRAISE_MESSAGES).format(name=get_user_name())
 
 
 def get_active_focus_session():
@@ -1123,7 +1123,7 @@ def index():
         active_focus = _enrich_focus_session(get_active_focus_session())
         return render_template('mobile.html',
                                tasks=processed_tasks,
-                               user_name=USER_NAME,
+                               user_name=get_user_name(),
                                buffer_pct=int(get_buffer_pct()),
                                active_focus=active_focus,
                                unschedulable_tasks=unschedulable_tasks,
@@ -1149,9 +1149,21 @@ def index():
                            dnd_end=d_end,
                            is_mobile=is_mobile,
                            active_focus=active_focus,
-                           user_name=USER_NAME,
+                           user_name=get_user_name(),
                            unschedulable_tasks=unschedulable_tasks,
+                           bar_scale_mins=bar_scale_mins,
                            board_version=get_board_version())
+
+
+@app.route('/api/dnd_status')
+def dnd_status():
+    dnd_s = get_setting('dnd_start', '22:00')
+    dnd_e = get_setting('dnd_end', '07:00')
+    return jsonify({
+        'is_dnd': _is_dnd_time(datetime.now().strftime('%H:%M'), dnd_s, dnd_e),
+        'dnd_start': dnd_s,
+        'dnd_end': dnd_e,
+    })
 
 
 @app.route('/api/tasks')
