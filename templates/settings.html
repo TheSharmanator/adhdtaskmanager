@@ -504,6 +504,8 @@
             document.getElementById('llm_provider_val').value = provider;
             document.querySelectorAll('.provider-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
+            document.getElementById('llm_quick_model_final').value = '';
+            document.getElementById('llm_deep_model_final').value = '';
             updateProviderUI(provider);
         }
 
