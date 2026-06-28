@@ -222,6 +222,7 @@
                     <button type="button" class="p-btn provider-btn" id="prov-openai" onclick="setProvider('openai', this)">OPENAI</button>
                     <button type="button" class="p-btn provider-btn" id="prov-anthropic" onclick="setProvider('anthropic', this)">ANTHROPIC</button>
                     <button type="button" class="p-btn provider-btn" id="prov-google" onclick="setProvider('google', this)">GOOGLE</button>
+                    <button type="button" class="p-btn provider-btn" id="prov-deepseek" onclick="setProvider('deepseek', this)">DEEPSEEK</button>
                     <button type="button" class="p-btn provider-btn" id="prov-ollama" onclick="setProvider('ollama', this)">OLLAMA</button>
                     <button type="button" class="p-btn provider-btn" id="prov-llamacpp" onclick="setProvider('llamacpp', this)">LLAMACPP</button>
                 </div>
@@ -434,6 +435,7 @@
                 <strong style="color:#ffd700;">OPENAI:</strong> Key from platform.openai.com. Quick: <code>gpt-4o-mini</code>, Deep: <code>gpt-4o</code>.<br><br>
                 <strong style="color:#ffd700;">ANTHROPIC:</strong> Key from console.anthropic.com. Quick: <code>claude-haiku-4-5-20251001</code>, Deep: <code>claude-sonnet-4-6</code>.<br><br>
                 <strong style="color:#ffd700;">GOOGLE:</strong> Key from aistudio.google.com. Quick: <code>gemini-2.0-flash</code>, Deep: <code>gemini-1.5-pro</code>.<br><br>
+                <strong style="color:#ffd700;">DEEPSEEK:</strong> Key from platform.deepseek.com. Quick: <code>deepseek-v4-flash</code>, Deep: <code>deepseek-v4-pro</code>.<br><br>
                 <strong style="color:#ffd700;">OLLAMA:</strong> Run Ollama on any networked machine. Host: <code>http://192.168.x.x:11434</code>. Model name must match what Ollama has pulled (e.g. <code>llama3.2</code>).<br><br>
                 <strong style="color:#ffd700;">LLAMACPP:</strong> Run llama-server with <code>--port 8080</code>. Set host to <code>http://192.168.x.x:8080</code>. Model field can be left as <code>local</code>.
             </p>
@@ -493,8 +495,9 @@
             openai:    ['gpt-4o-mini', 'gpt-4o', 'gpt-4-turbo', 'gpt-3.5-turbo'],
             anthropic: ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
             google:    ['gemini-3.5-flash', 'gemini-3.1-pro-preview', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.5-pro'],
+            deepseek:  ['deepseek-v4-flash', 'deepseek-v4-pro'],
         };
-        const KEY_LABELS = { openai: 'OPENAI API KEY:', anthropic: 'ANTHROPIC API KEY:', google: 'GOOGLE API KEY:' };
+        const KEY_LABELS = { openai: 'OPENAI API KEY:', anthropic: 'ANTHROPIC API KEY:', google: 'GOOGLE API KEY:', deepseek: 'DEEPSEEK API KEY:' };
         const HOST_LABELS = { ollama: 'OLLAMA HOST:', llamacpp: 'LLAMACPP HOST:' };
 
         function setProvider(provider, btn) {
@@ -505,7 +508,7 @@
         }
 
         function updateProviderUI(provider) {
-            const isCloud = ['openai', 'anthropic', 'google'].includes(provider);
+            const isCloud = ['openai', 'anthropic', 'google', 'deepseek'].includes(provider);
             const isLocal = ['ollama', 'llamacpp'].includes(provider);
             document.getElementById('cloud-model-section').style.display = isCloud ? 'block' : 'none';
             document.getElementById('local-model-section').style.display = isLocal ? 'block' : 'none';

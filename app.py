@@ -1519,8 +1519,6 @@ def tonight_api():
 
     conn.close()
 
-    _send_tonight_vm()
-
     return jsonify({
         'completed_today': completed,
         'rolled_over': rolled,

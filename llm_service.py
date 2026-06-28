@@ -64,13 +64,18 @@ def call_llm(prompt, model_type='quick', system_prompt=None, overrides=None):
         return None
 
     try:
-        if provider == 'openai':
+        if provider in ('openai', 'deepseek'):
             msgs = []
             if system_prompt:
                 msgs.append({'role': 'system', 'content': system_prompt})
             msgs.append({'role': 'user', 'content': prompt})
+            base_url = (
+                'https://api.deepseek.com/v1/chat/completions'
+                if provider == 'deepseek'
+                else 'https://api.openai.com/v1/chat/completions'
+            )
             r = requests.post(
-                'https://api.openai.com/v1/chat/completions',
+                base_url,
                 headers={'Authorization': f'Bearer {api_key}', 'Content-Type': 'application/json'},
                 json={'model': model, 'messages': msgs, 'max_tokens': 600},
                 timeout=20
