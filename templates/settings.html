@@ -586,7 +586,7 @@
 
         function collectModelValues() {
             const prov = document.getElementById('llm_provider_val').value;
-            if (['openai','anthropic','google'].includes(prov)) {
+            if (['openai','anthropic','google','deepseek'].includes(prov)) {
                 ['quick','deep'].forEach(slot => {
                     const sel = document.getElementById(`${slot}_model_select`);
                     const customIn = document.getElementById(`${slot}_custom_input`);
