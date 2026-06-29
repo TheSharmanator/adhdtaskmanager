@@ -633,9 +633,10 @@
                 const settingsRow  = document.getElementById('gcal-settings-row');
 
                 if (d.authorized) {
-                    dot.style.background = d.enabled ? '#00cc00' : '#ff8800';
-                    txt.style.color = d.enabled ? '#44ff44' : '#ffaa44';
-                    txt.innerText = d.enabled ? 'Connected — sync active' : 'Connected — sync paused';
+                    const hasError = d.last_error && d.last_error.length > 0;
+                    dot.style.background = hasError ? '#ff4444' : (d.enabled ? '#00cc00' : '#ff8800');
+                    txt.style.color = hasError ? '#ff6666' : (d.enabled ? '#44ff44' : '#ffaa44');
+                    txt.innerText = hasError ? 'Sync error — ' + d.last_error : (d.enabled ? 'Connected — sync active' : 'Connected — sync paused');
                     last.innerText = d.last_sync !== 'Never' ? 'Last sync: ' + d.last_sync : 'Not yet synced';
                     connectRow.style.display   = 'none';
                     connectedRow.style.display = 'block';

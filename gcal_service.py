@@ -106,6 +106,11 @@ def _refresh_access_token():
         'refresh_token': refresh_token,
         'grant_type':    'refresh_token',
     }, timeout=15)
+    if r.status_code == 400 and r.json().get('error') == 'invalid_grant':
+        # Token expired or revoked — clear auth so UI shows disconnected
+        for key in ('gcal_access_token', 'gcal_refresh_token', 'gcal_token_expiry'):
+            _set_setting(key, '')
+        raise Exception("Google Calendar token expired or revoked — please reconnect in Settings.")
     r.raise_for_status()
     data = r.json()
     _store_tokens(data)

@@ -898,10 +898,12 @@ def run_gcal_sync():
                           (task_id,))
 
         set_setting('gcal_last_sync', datetime.now().strftime('%Y-%m-%d %H:%M'))
+        set_setting('gcal_last_sync_error', '')
         print(f"GCal sync complete — {len([r for r in results if r['status']=='scheduled'])} tasks scheduled")
 
     except Exception as e:
         print(f"GCal sync error: {e}")
+        set_setting('gcal_last_sync_error', str(e))
     finally:
         if conn:
             conn.commit()
@@ -1411,8 +1413,12 @@ def gdrive_backup_now():
 def gcal_sync_now():
     global _gcal_last_sync_attempt
     _gcal_last_sync_attempt = None  # Force sync regardless of interval
+    set_setting('gcal_last_sync_error', '')
     try:
         run_gcal_sync()
+        error = get_setting('gcal_last_sync_error', '')
+        if error:
+            return jsonify({'success': False, 'error': error})
         last = get_setting('gcal_last_sync', '')
         return jsonify({'success': True, 'last_sync': last})
     except Exception as e:
@@ -1442,6 +1448,7 @@ def gcal_status():
         'enabled':       get_setting('gcal_enabled', '0') == '1',
         'last_sync':     get_setting('gcal_last_sync', 'Never'),
         'sync_interval': get_setting('gcal_sync_interval_hours', '24'),
+        'last_error':    get_setting('gcal_last_sync_error', ''),
     })
 
 
