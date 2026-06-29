@@ -198,7 +198,10 @@
 <body>
 
 <div class="m-header">
-    <h1>{{ user_name or 'ADHD' }}'s Board</h1>
+    <div style="position:relative; margin-bottom:12px;">
+        <h1 style="margin:0; text-align:center; color:#ffd700; font-size:1.6rem; font-weight:900; text-transform:uppercase; letter-spacing:1px;">{{ user_name or 'ADHD' }}'s Board</h1>
+        <a href="/settings" style="position:absolute; right:0; top:50%; transform:translateY(-50%); font-size:1.8rem; text-decoration:none; color:#ffd700; line-height:1; padding:4px 8px;">⚙</a>
+    </div>
     <div class="m-header-btns">
         <button class="m-btn m-btn-quick" onclick="openQuick()">⚡ Quick Add</button>
         <button class="m-btn m-btn-add" onclick="openAdd()">＋ Add</button>

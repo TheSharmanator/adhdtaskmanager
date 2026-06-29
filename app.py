@@ -332,7 +332,7 @@ def _enrich_focus_session(session):
 
 
 def get_db():
-    conn = sqlite3.connect('tasks.db', timeout=10)
+    conn = sqlite3.connect('tasks.db', timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     return conn
@@ -804,11 +804,9 @@ def run_gcal_sync():
         if not gcal_service.is_authorized():
             return
 
-        busy_slots = gcal_service.fetch_busy_slots(days_ahead=21)
-
+        # Phase 1: read tasks from DB then close connection immediately
         conn = get_db()
         c = conn.cursor()
-
         c.execute("""
             SELECT id, title, duration_minutes, deadline, deadline_type, gcal_task_id, scheduled_start, pin_to_date
             FROM tasks
@@ -820,10 +818,12 @@ def run_gcal_sync():
              'gcal_task_id': r[5], 'scheduled_start': r[6], 'pin_to_date': r[7]}
             for r in c.fetchall()
         ]
+        conn.close()
+        conn = None
 
-        # Deduplicate GCal tasks — remove any GCal task whose base title matches
-        # a local task but whose ID doesn't match the stored gcal_task_id.
-        # This cleans up orphaned duplicates from previous failed syncs.
+        # Phase 2: all external API calls (slow — DB must not be held open here)
+        busy_slots = gcal_service.fetch_busy_slots(days_ahead=21)
+
         try:
             gcal_all = gcal_service.list_tasklist_tasks()
             known_ids = {t['gcal_task_id'] for t in tasks if t.get('gcal_task_id')}
@@ -845,9 +845,10 @@ def run_gcal_sync():
             print(f"GCal dedup warning: {dedup_err}")
 
         results = sched_mod.schedule_tasks(tasks, busy_slots, now=now)
-
         task_map = {t['id']: t for t in tasks}
 
+        # Collect DB changes while making GCal API calls — no DB connection open
+        db_updates = []  # (task_id, gcal_task_id, start, end, unschedulable)
         for r in results:
             task_id = r['task_id']
             task    = task_map.get(task_id, {})
@@ -864,17 +865,15 @@ def run_gcal_sync():
                 )
                 due_date = start_str[:10]
                 existing_gcal_id = task.get('gcal_task_id') or ''
+                resolved_gcal_id = existing_gcal_id
 
                 if existing_gcal_id:
                     try:
                         gcal_service.update_task(existing_gcal_id, gcal_title, due_date)
                     except Exception as upd_err:
                         if '404' in str(upd_err):
-                            # Task deleted from GCal externally — recreate
                             try:
-                                new_id = gcal_service.create_task(gcal_title, due_date)
-                                c.execute("UPDATE tasks SET gcal_task_id=? WHERE id=?", (new_id, task_id))
-                                conn.commit()
+                                resolved_gcal_id = gcal_service.create_task(gcal_title, due_date)
                             except Exception as ce:
                                 print(f"GCal recreate failed task {task_id}: {ce}")
                                 continue
@@ -883,23 +882,33 @@ def run_gcal_sync():
                             continue
                 else:
                     try:
-                        new_id = gcal_service.create_task(gcal_title, due_date)
-                        c.execute("UPDATE tasks SET gcal_task_id=? WHERE id=?", (new_id, task_id))
-                        conn.commit()
+                        resolved_gcal_id = gcal_service.create_task(gcal_title, due_date)
                     except Exception as e:
                         print(f"GCal create failed task {task_id}: {e}")
                         continue
 
-                c.execute("UPDATE tasks SET scheduled_start=?, scheduled_end=?, unschedulable=0 WHERE id=?",
-                          (start_str, end_str, task_id))
+                db_updates.append((task_id, resolved_gcal_id, start_str, end_str, 0))
 
             elif status == 'unschedulable':
+                db_updates.append((task_id, task.get('gcal_task_id'), None, None, 1))
+
+        # Phase 3: write all results to DB in one short-lived transaction
+        conn = get_db()
+        c = conn.cursor()
+        for task_id, gcal_id, start, end, unschedulable in db_updates:
+            if unschedulable:
                 c.execute("UPDATE tasks SET scheduled_start=NULL, scheduled_end=NULL, unschedulable=1 WHERE id=?",
                           (task_id,))
+            else:
+                c.execute("UPDATE tasks SET gcal_task_id=?, scheduled_start=?, scheduled_end=?, unschedulable=0 WHERE id=?",
+                          (gcal_id, start, end, task_id))
+        conn.commit()
+        conn.close()
+        conn = None
 
         set_setting('gcal_last_sync', datetime.now().strftime('%Y-%m-%d %H:%M'))
         set_setting('gcal_last_sync_error', '')
-        print(f"GCal sync complete — {len([r for r in results if r['status']=='scheduled'])} tasks scheduled")
+        print(f"GCal sync complete — {len([u for u in db_updates if not u[4]])} tasks scheduled")
 
     except Exception as e:
         print(f"GCal sync error: {e}")
@@ -2126,4 +2135,4 @@ if __name__ == '__main__':
 
     import logging
     logging.getLogger('werkzeug').setLevel(logging.ERROR)
-    app.run(host='0.0.0.0', port=app_port, debug=True)
+    app.run(host='0.0.0.0', port=app_port, debug=False)

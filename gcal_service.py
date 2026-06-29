@@ -29,7 +29,8 @@ def _get_setting(key, default=None):
         row = c.fetchone()
         conn.close()
         return row[0] if row else default
-    except Exception:
+    except Exception as e:
+        print(f"gcal_service._get_setting error ({key}): {e}")
         return default
 
 
